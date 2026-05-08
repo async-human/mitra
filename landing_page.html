@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mitra — India's AI Talent Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root {
+  --sand:      #F6F1EA;
+  --sand-2:    #EDE6D9;
+  --sand-3:    #DDD4C3;
+  --ink:       #1C1917;
+  --ink-2:     #2C2825;
+  --ink-soft:  #4A4540;
+  --ink-muted: #7A7168;
+  --amber:     #C07A28;
+  --amber-2:   #D98C30;
+  --amber-pale:#FDF3E3;
+  --teal:      #1B5E5A;
+  --teal-2:    #237870;
+  --teal-pale: #E8F4F3;
+  --green:     #1A7A4A;
+  --green-bg:  #E6F9EF;
+  --white:     #FFFFFF;
+  --shadow:    0 2px 16px rgba(28,25,23,0.07);
+  --shadow-md: 0 8px 40px rgba(28,25,23,0.11);
+  --shadow-lg: 0 24px 80px rgba(28,25,23,0.15);
+  --r:         12px;
+  --r-lg:      20px;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Plus Jakarta Sans',sans-serif;
+  background:var(--sand); color:var(--ink);
+  overflow-x:hidden; -webkit-font-smoothing:antialiased;
+}
+
+/* ── NAV ── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  background:rgba(246,241,234,0.92);backdrop-filter:blur(20px);
+  border-bottom:1px solid rgba(28,25,23,0.07);
+  height:68px;padding:0 52px;
+  display:flex;align-items:center;justify-content:space-between;
+  transition:box-shadow 0.3s;
+}
+nav.scrolled{box-shadow:var(--shadow)}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.logo-mark{
+  width:34px;height:34px;background:var(--ink);border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+}
+.logo-type{font-family:'Lora',serif;font-size:19px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.logo-type span{color:var(--amber)}
+.nav-mid{display:flex;gap:32px;list-style:none}
+.nav-mid a{font-size:14px;font-weight:400;color:var(--ink-muted);text-decoration:none;transition:color .2s}
+.nav-mid a:hover{color:var(--ink)}
+.nav-end{display:flex;align-items:center;gap:10px}
+.btn-ghost{
+  padding:8px 18px;font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:13px;font-weight:500;color:var(--ink-soft);
+  background:transparent;border:1.5px solid rgba(28,25,23,0.14);
+  border-radius:100px;cursor:pointer;text-decoration:none;transition:all .2s;
+}
+.btn-ghost:hover{background:var(--sand-2);border-color:rgba(28,25,23,.22)}
+.btn-amber{
+  padding:8px 20px;font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:13px;font-weight:600;color:var(--white);
+  background:var(--amber);border:none;border-radius:100px;
+  cursor:pointer;text-decoration:none;transition:all .2s;
+  display:flex;align-items:center;gap:6px;
+}
+.btn-amber:hover{background:var(--amber-2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(192,122,40,.3)}
+
+/* ── HERO ── */
+.hero{
+  min-height:100vh;display:grid;grid-template-columns:1fr 1fr;
+  position:relative;overflow:hidden;
+}
+.hero-left{
+  padding:140px 52px 80px;
+  display:flex;flex-direction:column;justify-content:center;
+  position:relative;z-index:2;
+}
+.hero-right{
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#1C1917 0%,#2D2420 40%,#1B3A3A 100%);
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* Audience toggle */
+.aud-tog{
+  display:inline-flex;background:var(--white);
+  border:1.5px solid var(--sand-3);border-radius:100px;
+  padding:4px;margin-bottom:36px;box-shadow:var(--shadow);
+  width:fit-content;opacity:0;animation:up .5s .1s forwards;
+}
+.tog-btn{
+  padding:7px 20px;font-size:13px;font-weight:500;
+  color:var(--ink-muted);background:transparent;
+  border:none;border-radius:100px;cursor:pointer;transition:all .25s;
+}
+.tog-btn.on{background:var(--ink);color:var(--white);box-shadow:0 2px 8px rgba(28,25,23,.2)}
+
+.hero-h1{
+  font-family:'Lora',serif;font-size:clamp(38px,4.5vw,64px);
+  font-weight:600;line-height:1.08;letter-spacing:-.025em;
+  color:var(--ink);margin-bottom:24px;
+  opacity:0;animation:up .6s .25s forwards;
+}
+.hero-h1 em{font-style:italic;color:var(--amber)}
+.hl-c{display:block}.hl-f{display:none}
+
+.hero-sub{
+  font-size:17px;font-weight:300;color:var(--ink-soft);
+  line-height:1.72;max-width:480px;margin-bottom:40px;
+  opacity:0;animation:up .6s .4s forwards;
+}
+.sub-c{display:block}.sub-f{display:none}
+
+.hero-ctas{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  margin-bottom:52px;opacity:0;animation:up .6s .55s forwards;
+}
+.btn-hero-p{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:14px 28px;background:var(--ink);color:var(--white);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:600;
+  border:none;border-radius:100px;cursor:pointer;text-decoration:none;transition:all .25s;
+}
+.btn-hero-p:hover{background:var(--ink-2);transform:translateY(-2px);box-shadow:0 6px 24px rgba(28,25,23,.22)}
+.btn-hero-s{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 24px;background:transparent;color:var(--ink-soft);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:500;
+  border:1.5px solid rgba(28,25,23,.16);border-radius:100px;
+  cursor:pointer;text-decoration:none;transition:all .2s;
+}
+.btn-hero-s:hover{background:var(--white);border-color:rgba(28,25,23,.24)}
+
+.hero-proof{
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  opacity:0;animation:up .6s .7s forwards;
+}
+.proof-dot{width:6px;height:6px;border-radius:50%;background:#22A06B;flex-shrink:0}
+.proof-item{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;color:var(--ink-muted)}
+.proof-sep{width:1px;height:16px;background:var(--sand-3)}
+
+/* Hero right — illustrated scene */
+.hero-scene{width:100%;height:100%;position:relative}
+
+/* Floating data cards over dark hero */
+.hero-float{
+  position:absolute;background:rgba(255,255,255,0.96);
+  backdrop-filter:blur(12px);border-radius:var(--r-lg);
+  padding:18px 20px;box-shadow:var(--shadow-md);
+  border:1px solid rgba(255,255,255,.15);
+}
+.hf-1{bottom:100px;right:40px;max-width:252px;opacity:0;animation:up .7s .9s forwards}
+.hf-2{top:120px;right:40px;max-width:220px;opacity:0;animation:up .7s 1.1s forwards}
+.hf-3{top:50%;left:40px;transform:translateY(-50%);max-width:190px;opacity:0;animation:up .7s 1.3s forwards}
+
+.hf-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.hf-label.green{color:var(--green)}
+.hf-label.amber{color:var(--amber)}
+.hf-label.teal{color:var(--teal)}
+.hf-quote{font-family:'Lora',serif;font-size:13.5px;font-style:italic;color:var(--ink-soft);line-height:1.55;margin-bottom:12px}
+.hf-person{display:flex;align-items:center;gap:8px}
+.hf-av{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;flex-shrink:0}
+.hf-name{font-size:12px;font-weight:600;color:var(--ink)}
+.hf-role{font-size:11px;color:var(--ink-muted);margin-top:1px}
+.hf-big{font-family:'Lora',serif;font-size:36px;font-weight:600;color:var(--ink);line-height:1;letter-spacing:-.02em}
+.hf-big sup{font-size:18px;color:var(--amber);vertical-align:super}
+.hf-desc{font-size:12px;color:var(--ink-muted);line-height:1.4;margin-top:4px}
+.hf-bar{display:flex;align-items:center;gap:8px;margin-top:10px;padding:8px 10px;background:var(--teal-pale);border-radius:8px;font-size:11px;font-weight:500;color:var(--teal)}
+.hf-bdot{width:6px;height:6px;border-radius:50%;background:var(--teal);flex-shrink:0}
+
+/* ── MARQUEE ── */
+.mq{background:var(--ink);padding:14px 0;overflow:hidden;white-space:nowrap}
+.mq-track{display:inline-flex;animation:marquee 32s linear infinite}
+.mq-item{display:inline-flex;align-items:center;gap:24px;padding:0 36px;font-size:12px;font-weight:500;color:rgba(255,255,255,.45);letter-spacing:.08em;text-transform:uppercase}
+.mq-rule{width:1px;height:12px;background:rgba(255,255,255,.12)}
+
+/* ── SECTION COMMONS ── */
+.eyebrow{font-size:11px;font-weight:600;color:var(--amber);letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:'';width:24px;height:1.5px;background:var(--amber)}
+.sec-title{font-family:'Lora',serif;font-size:clamp(28px,3.2vw,44px);font-weight:600;line-height:1.1;letter-spacing:-.02em;color:var(--ink);margin-bottom:14px}
+.sec-title em{font-style:italic;color:var(--amber)}
+.sec-sub{font-size:16px;font-weight:300;color:var(--ink-muted);line-height:1.75;max-width:520px;margin-bottom:60px}
+
+/* ── PROBLEM ── */
+.problem{background:var(--ink);padding:100px 52px;position:relative;overflow:hidden}
+.problem::before{content:'';position:absolute;width:700px;height:350px;background:radial-gradient(ellipse,rgba(192,122,40,.07) 0%,transparent 65%);top:0;left:50%;transform:translateX(-50%);pointer-events:none}
+.prob-eyebrow{font-size:11px;font-weight:600;color:var(--amber);letter-spacing:.12em;text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.prob-eyebrow::before{content:'';width:24px;height:1.5px;background:var(--amber)}
+.prob-h2{font-family:'Lora',serif;font-size:clamp(30px,3.5vw,50px);font-weight:600;color:white;line-height:1.1;letter-spacing:-.02em;max-width:720px;margin-bottom:16px}
+.prob-h2 em{font-style:italic;color:var(--amber)}
+.prob-sub{font-size:16px;font-weight:300;color:rgba(255,255,255,.45);max-width:560px;line-height:1.75;margin-bottom:72px}
+.prob-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.prob-card{border:1px solid rgba(255,255,255,.07);border-radius:var(--r-lg);overflow:hidden;background:rgba(255,255,255,.03);transition:all .3s}
+.prob-card:hover{background:rgba(255,255,255,.06);border-color:rgba(192,122,40,.25)}
+
+/* Illustrated card tops */
+.prob-card-vis{height:180px;position:relative;overflow:hidden}
+.prob-card-body{padding:28px 28px 32px}
+.prob-for{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+.for-c{color:#4ADE80}.for-f{color:var(--amber)}
+.prob-card-title{font-family:'Lora',serif;font-size:20px;font-weight:600;color:white;margin-bottom:16px;line-height:1.25}
+.prob-list{list-style:none}
+.prob-list li{font-size:14px;font-weight:300;color:rgba(255,255,255,.5);padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;align-items:flex-start;gap:10px;line-height:1.5}
+.prob-list li:last-child{border-bottom:none}
+.prob-x{width:16px;height:16px;border-radius:50%;background:rgba(220,60,60,.15);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#E05252;flex-shrink:0;margin-top:2px}
+
+/* ── HOW IT WORKS ── */
+.how{padding:100px 52px;background:var(--sand)}
+.how-tracks{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.how-track{background:var(--white);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow);border:1px solid rgba(28,25,23,.06)}
+.track-vis{height:160px;position:relative;overflow:hidden}
+.track-vis-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 20%,rgba(28,25,23,.75) 100%)}
+.track-vis-label{position:absolute;bottom:18px;left:22px}
+.track-for{font-size:15px;font-weight:600;color:white;margin-bottom:2px}
+.track-tagline{font-size:12px;color:rgba(255,255,255,.6);font-weight:300}
+.track-steps{padding:8px 0}
+.track-step{display:flex;gap:16px;align-items:flex-start;padding:18px 24px;border-bottom:1px solid var(--sand);transition:background .2s}
+.track-step:last-child{border-bottom:none}
+.track-step:hover{background:var(--sand)}
+.step-badge{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:1px}
+.badge-c{background:var(--green-bg);color:var(--green)}
+.badge-f{background:var(--amber-pale);color:var(--amber)}
+.step-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.step-desc{font-size:13px;font-weight:300;color:var(--ink-muted);line-height:1.6}
+.step-chip{display:inline-block;margin-top:6px;padding:2px 9px;border-radius:100px;font-size:11px;font-weight:500;background:var(--sand-2);color:var(--ink-soft)}
+
+/* ── CONVO ── */
+.convo{padding:100px 52px;background:var(--sand-2)}
+.convo-inner{display:grid;grid-template-columns:1fr 1fr;gap:72px;align-items:center}
+
+.convo-vis{
+  border-radius:var(--r-lg);overflow:hidden;
+  box-shadow:var(--shadow-lg);position:relative;
+  background:linear-gradient(160deg,#1B3A3A 0%,#1C1917 60%,#2A1F1A 100%);
+  min-height:460px;display:flex;align-items:center;justify-content:center;
+}
+.convo-vis-caption{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:32px 28px 24px;
+  background:linear-gradient(to top,rgba(28,25,23,.9) 0%,transparent 100%);
+}
+.convo-caption-text{font-family:'Lora',serif;font-size:17px;font-style:italic;color:rgba(255,255,255,.82);line-height:1.55}
+.convo-caption-attr{font-size:12px;color:rgba(255,255,255,.35);margin-top:8px;font-weight:300}
+
+.chat-wrap{background:var(--white);border-radius:24px;overflow:hidden;box-shadow:var(--shadow-lg);border:1px solid rgba(28,25,23,.07)}
+.chat-top{background:var(--ink);padding:14px 20px;display:flex;align-items:center;gap:12px}
+.chat-av{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--amber),#B86A1A);display:flex;align-items:center;justify-content:center;font-family:'Lora',serif;font-size:15px;font-weight:700;color:white;position:relative;flex-shrink:0}
+.chat-online{position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;background:#22A06B;border-radius:50%;border:2px solid var(--ink)}
+.chat-av-name{font-size:14px;font-weight:600;color:white}
+.chat-av-status{font-size:11px;color:rgba(255,255,255,.4);margin-top:1px}
+.chat-body{padding:20px;background:#FAFAF8;display:flex;flex-direction:column;gap:14px;min-height:340px}
+.chat-date{align-self:center;background:var(--sand-2);color:var(--ink-muted);font-size:11px;font-weight:500;padding:3px 12px;border-radius:100px}
+.cm{display:flex;gap:8px;align-items:flex-start}
+.cm.out{flex-direction:row-reverse}
+.cm-av{width:28px;height:28px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.cm-av.m{background:linear-gradient(135deg,var(--amber),#B86A1A);color:white;font-family:'Lora',serif;font-size:13px}
+.cm-av.u{background:var(--sand-3);color:var(--ink-soft)}
+.cm-bub{max-width:78%;padding:11px 14px;font-size:13px;line-height:1.6;font-weight:400}
+.cm-bub.in{background:var(--white);color:var(--ink-soft);border-radius:4px 14px 14px 14px;box-shadow:0 1px 4px rgba(28,25,23,.07);border:1px solid rgba(28,25,23,.05)}
+.cm-bub.out-b{background:var(--ink);color:rgba(255,255,255,.88);border-radius:14px 4px 14px 14px}
+.cm-bub strong{color:var(--amber);font-weight:600}
+.match-chips{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.mc{background:var(--sand);border-radius:10px;padding:10px 12px;border:1px solid rgba(28,25,23,.07);cursor:pointer;transition:all .2s}
+.mc:hover{border-color:var(--amber);background:var(--amber-pale)}
+.mc-top{display:flex;justify-content:space-between;align-items:center}
+.mc-role{font-size:12.5px;font-weight:600;color:var(--ink)}
+.mc-score{font-size:10.5px;font-weight:700;color:var(--green);background:var(--green-bg);padding:2px 7px;border-radius:100px}
+.mc-meta{display:flex;gap:6px;margin-top:5px}
+.mc-tag{font-size:10px;color:var(--ink-muted);padding:2px 7px;background:var(--white);border-radius:4px;border:1px solid rgba(28,25,23,.08)}
+.chat-inbar{padding:12px 16px;background:var(--white);border-top:1px solid var(--sand-2);display:flex;align-items:center;gap:10px}
+.chat-infield{flex:1;background:var(--sand);border:1.5px solid var(--sand-3);border-radius:100px;padding:9px 16px;font-size:13px;color:var(--ink-muted);font-family:'Plus Jakarta Sans',sans-serif}
+.chat-send-btn{width:36px;height:36px;border-radius:50%;background:var(--teal);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.chat-send-btn:hover{background:var(--teal-2);transform:scale(1.05)}
+
+/* ── STATS ── */
+.stats-sec{padding:0 52px 80px;background:var(--sand-2)}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);background:var(--white);border-radius:var(--r-lg);box-shadow:var(--shadow);border:1px solid rgba(28,25,23,.07);overflow:hidden}
+.stat-cell{padding:36px 24px;text-align:center;border-right:1px solid rgba(28,25,23,.06);position:relative;transition:background .3s}
+.stat-cell:hover{background:var(--sand)}
+.stat-cell:last-child{border-right:none}
+.stat-cell::after{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:36px;height:3px;background:var(--amber);border-radius:0 0 4px 4px;opacity:0;transition:opacity .3s}
+.stat-cell:hover::after{opacity:1}
+.stat-n{font-family:'Lora',serif;font-size:44px;font-weight:600;color:var(--ink);line-height:1;letter-spacing:-.03em;margin-bottom:8px}
+.stat-n sup{font-size:22px;color:var(--amber);vertical-align:super}
+.stat-l{font-size:13px;font-weight:400;color:var(--ink-muted);line-height:1.5}
+
+/* ── FOUNDERS ── */
+.founders-sec{padding:100px 52px;background:var(--sand)}
+.founders-inner{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
+.founders-vis{
+  border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-lg);
+  background:linear-gradient(160deg,#1B3A3A 0%,#162E2A 100%);
+  min-height:420px;position:relative;display:flex;align-items:center;justify-content:center;
+}
+.founders-vis-inset{
+  position:absolute;bottom:-20px;right:-20px;width:160px;height:120px;
+  border-radius:var(--r);box-shadow:var(--shadow-md);border:4px solid var(--sand);
+  background:linear-gradient(135deg,#2A1F1A,#1C1917);
+  overflow:hidden;display:flex;align-items:center;justify-content:center;
+}
+.founders-quote{font-family:'Lora',serif;font-size:19px;font-style:italic;color:var(--ink-soft);line-height:1.65;padding:22px 26px;background:var(--white);border-radius:var(--r-lg);border-left:4px solid var(--amber);margin:28px 0;box-shadow:var(--shadow)}
+.founders-body{font-size:15px;font-weight:300;color:var(--ink-muted);line-height:1.8;margin-bottom:20px}
+.founders-body strong{color:var(--ink);font-weight:500}
+.feat-rows{display:flex;flex-direction:column;gap:12px}
+.feat-row{display:flex;align-items:flex-start;gap:14px;padding:16px 18px;background:var(--white);border-radius:var(--r);border:1px solid rgba(28,25,23,.07);transition:all .2s;box-shadow:var(--shadow)}
+.feat-row:hover{border-color:rgba(192,122,40,.3);transform:translateX(4px)}
+.feat-icon-wrap{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.feat-title{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:3px}
+.feat-desc{font-size:13px;font-weight:300;color:var(--ink-muted);line-height:1.5}
+
+/* ── STORIES ── */
+.stories-sec{padding:100px 52px;background:var(--white)}
+.stories-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:16px;margin-top:56px}
+.story-card{border-radius:var(--r-lg);overflow:hidden;border:1px solid rgba(28,25,23,.07);box-shadow:var(--shadow);transition:all .3s;display:flex;flex-direction:column}
+.story-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-md)}
+.story-vis{height:160px;position:relative;overflow:hidden}
+.story-body{padding:24px;background:var(--sand);flex:1;display:flex;flex-direction:column}
+.story-card.feat .story-body{background:var(--ink)}
+.story-stars{font-size:12px;letter-spacing:2px;margin-bottom:12px;color:var(--amber)}
+.story-text{font-family:'Lora',serif;font-size:15px;font-style:italic;color:var(--ink-soft);line-height:1.7;flex:1;margin-bottom:20px}
+.story-card.feat .story-text{color:rgba(255,255,255,.7)}
+.story-person{display:flex;align-items:center;gap:10px;padding-top:16px;border-top:1px solid rgba(28,25,23,.08)}
+.story-card.feat .story-person{border-top-color:rgba(255,255,255,.1)}
+.sp-av2{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;flex-shrink:0}
+.sp-nm{font-size:13px;font-weight:600;color:var(--ink)}
+.sp-rl{font-size:11.5px;color:var(--ink-muted);margin-top:1px}
+.story-card.feat .sp-nm{color:white}
+.story-card.feat .sp-rl{color:rgba(255,255,255,.4)}
+.sp-co{margin-left:auto;font-size:10.5px;font-weight:500;padding:3px 9px;background:var(--white);color:var(--ink-muted);border-radius:6px;white-space:nowrap}
+.story-card.feat .sp-co{background:rgba(255,255,255,.1);color:rgba(255,255,255,.45)}
+
+/* ── PRICING ── */
+.pricing-sec{padding:100px 52px;background:var(--sand)}
+.pricing-grid{display:grid;grid-template-columns:1fr 1.05fr 1fr;gap:16px;max-width:900px;margin:56px auto 0;align-items:start}
+.price-card{background:var(--white);border:1.5px solid rgba(28,25,23,.09);border-radius:var(--r-lg);padding:32px;transition:all .3s;position:relative}
+.price-card:hover{box-shadow:var(--shadow-md);transform:translateY(-4px)}
+.price-card.hl{background:var(--ink);border-color:var(--ink)}
+.pc-badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);background:var(--amber);color:white;font-size:10.5px;font-weight:700;padding:4px 16px;border-radius:100px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.pc-tier{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:10px}
+.price-card.hl .pc-tier{color:rgba(255,255,255,.45)}
+.pc-price{font-family:'Lora',serif;font-size:40px;font-weight:600;color:var(--ink);line-height:1;margin-bottom:6px;letter-spacing:-.02em}
+.price-card.hl .pc-price{color:white}
+.pc-price .unit{font-size:16px;font-weight:400;font-family:'Plus Jakarta Sans',sans-serif;color:var(--ink-muted)}
+.price-card.hl .pc-price .unit{color:rgba(255,255,255,.4)}
+.pc-note{font-size:13px;font-style:italic;font-weight:300;color:var(--ink-muted);margin-bottom:24px}
+.price-card.hl .pc-note{color:rgba(255,255,255,.4)}
+.pc-div{height:1px;background:rgba(28,25,23,.07);margin-bottom:20px}
+.price-card.hl .pc-div{background:rgba(255,255,255,.1)}
+.pc-feat{display:flex;align-items:flex-start;gap:9px;font-size:13.5px;font-weight:400;color:var(--ink-soft);margin-bottom:11px;line-height:1.45}
+.price-card.hl .pc-feat{color:rgba(255,255,255,.72)}
+.pc-chk{width:16px;height:16px;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;margin-top:2px}
+.chk-g{background:var(--green-bg);color:var(--green)}
+.chk-a{background:var(--amber-pale);color:var(--amber)}
+.chk-w{background:rgba(255,255,255,.12);color:rgba(255,255,255,.8)}
+.pc-cta{display:block;width:100%;margin-top:24px;padding:13px;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:600;text-align:center;text-decoration:none;border-radius:12px;cursor:pointer;transition:all .2s}
+.cta-dk{background:transparent;color:var(--ink);border:1.5px solid rgba(28,25,23,.2)}
+.cta-dk:hover{background:var(--sand)}
+.cta-am{background:var(--amber);color:white;border:none;box-shadow:0 4px 16px rgba(192,122,40,.3)}
+.cta-am:hover{background:var(--amber-2);box-shadow:0 6px 24px rgba(192,122,40,.4)}
+.cta-lt{background:transparent;color:rgba(255,255,255,.8);border:1.5px solid rgba(255,255,255,.18)}
+.cta-lt:hover{background:rgba(255,255,255,.07)}
+
+/* ── FINAL CTA ── */
+.final-sec{
+  background:var(--ink);padding:120px 52px;
+  position:relative;overflow:hidden;
+}
+.final-sec::before{
+  content:'';position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(192,122,40,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(192,122,40,.03) 1px,transparent 1px);
+  background-size:60px 60px;
+}
+.final-sec::after{
+  content:'';position:absolute;
+  width:700px;height:400px;
+  background:radial-gradient(ellipse,rgba(192,122,40,.09) 0%,transparent 65%);
+  top:50%;left:50%;transform:translate(-50%,-50%);
+}
+.final-inner{position:relative;z-index:1;text-align:center}
+.final-kicker{font-size:11px;font-weight:600;color:var(--amber);letter-spacing:.14em;text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;justify-content:center;gap:10px}
+.final-kicker::before,.final-kicker::after{content:'';width:32px;height:1px;background:rgba(192,122,40,.4)}
+.final-h2{font-family:'Lora',serif;font-size:clamp(34px,5vw,62px);font-weight:600;color:white;line-height:1.08;letter-spacing:-.025em;max-width:680px;margin:0 auto 20px}
+.final-h2 em{font-style:italic;color:var(--amber)}
+.final-sub{font-size:16px;font-weight:300;color:rgba(255,255,255,.45);max-width:460px;line-height:1.7;margin:0 auto 48px}
+.final-btns{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
+.btn-fp{display:inline-flex;align-items:center;gap:10px;padding:16px 34px;background:var(--white);color:var(--ink);font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:600;border:none;border-radius:100px;cursor:pointer;text-decoration:none;transition:all .25s}
+.btn-fp:hover{background:var(--sand);transform:translateY(-2px);box-shadow:0 8px 28px rgba(255,255,255,.1)}
+.btn-fs{display:inline-flex;align-items:center;gap:10px;padding:16px 28px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.85);font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:500;border:1.5px solid rgba(255,255,255,.18);border-radius:100px;cursor:pointer;text-decoration:none;transition:all .2s}
+.btn-fs:hover{background:rgba(255,255,255,.15);color:white}
+.final-note{margin-top:32px;font-size:13px;color:rgba(255,255,255,.2);font-weight:300}
+
+/* ── FOOTER ── */
+footer{background:#121010;padding:64px 52px 40px}
+.foot-top{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:56px;margin-bottom:56px;padding-bottom:56px;border-bottom:1px solid rgba(255,255,255,.06)}
+.foot-desc{font-size:14px;font-weight:300;color:rgba(255,255,255,.3);line-height:1.75;margin-top:14px;font-style:italic;max-width:230px}
+.fc-hd{font-size:10px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:18px}
+.fc-lnks{list-style:none}
+.fc-lnks li{margin-bottom:10px}
+.fc-lnks a{font-size:13.5px;font-weight:300;color:rgba(255,255,255,.45);text-decoration:none;transition:color .2s}
+.fc-lnks a:hover{color:rgba(255,255,255,.85)}
+.foot-btm{display:flex;justify-content:space-between;align-items:center}
+.fc-copy{font-size:12px;color:rgba(255,255,255,.2);font-weight:300}
+.fc-made{font-size:12px;color:rgba(255,255,255,.2);display:flex;align-items:center;gap:6px}
+.fc-made span{color:var(--amber)}
+
+/* ── ANIMATIONS ── */
+@keyframes up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .65s ease,transform .65s ease}
+.reveal.in{opacity:1;transform:none}
+.d1{transition-delay:.1s}.d2{transition-delay:.2s}.d3{transition-delay:.3s}.d4{transition-delay:.4s}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1080px){
+  .hero{grid-template-columns:1fr}
+  .hero-right{display:none}
+  .hero-left{padding:120px 28px 80px}
+  nav{padding:0 24px}
+  .nav-mid{display:none}
+}
+@media(max-width:768px){
+  .prob-grid,.how-tracks,.convo-inner,.founders-inner,
+  .stories-grid,.pricing-grid,.foot-top{grid-template-columns:1fr}
+  .stats-row{grid-template-columns:1fr 1fr}
+  .problem,.how,.convo,.stats-sec,.founders-sec,
+  .stories-sec,.pricing-sec,.final-sec,footer{padding-left:24px;padding-right:24px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav">
+  <a href="#" class="nav-logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" width="18" height="18">
+        <circle cx="12" cy="9" r="4" fill="white"/>
+        <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="white" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <span class="logo-type">Mitra<span>.</span></span>
+  </a>
+  <ul class="nav-mid">
+    <li><a href="#how">How it works</a></li>
+    <li><a href="#founders">For founders</a></li>
+    <li><a href="#stories">Stories</a></li>
+    <li><a href="#pricing">Pricing</a></li>
+  </ul>
+  <div class="nav-end">
+    <a href="#" class="btn-ghost">Sign in</a>
+    <a href="#" class="btn-amber">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+      Chat with Mitra
+    </a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-left">
+    <div class="aud-tog" id="tog">
+      <button class="tog-btn on" data-a="c" onclick="sw('c')">I'm looking for a role</button>
+      <button class="tog-btn" data-a="f" onclick="sw('f')">I'm hiring</button>
+    </div>
+    <h1 class="hero-h1">
+      <span class="hl-c">Stop sending CVs<br>into the void.<br><em>Get introduced.</em></span>
+      <span class="hl-f">Stop drowning in CVs.<br>Get <em>the right person</em><br>introduced to you.</span>
+    </h1>
+    <p class="hero-sub">
+      <span class="sub-c">Mitra is your personal AI talent agent. A 2-minute conversation on WhatsApp — then we match you to India's best-funded startups and introduce you directly to the founder. No cold applications. No ghosting. Ever.</span>
+      <span class="sub-f">Mitra is your always-on talent partner. We source, screen, and introduce pre-qualified candidates who are genuinely motivated to join a company like yours — not a pile of resumes with no context.</span>
+    </p>
+    <div class="hero-ctas">
+      <a href="#" class="btn-hero-p" id="heroCta">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Start on WhatsApp — free
+      </a>
+      <a href="#how" class="btn-hero-s">
+        See how it works
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8l5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </div>
+    <div class="hero-proof">
+      <div class="proof-item"><div class="proof-dot"></div>Free for candidates, always</div>
+      <div class="proof-sep"></div>
+      <div class="proof-item"><div class="proof-dot"></div>Avg. 8 days to first interview</div>
+      <div class="proof-sep"></div>
+      <div class="proof-item"><div class="proof-dot"></div>Zero ghosting — guaranteed</div>
+      <div class="proof-sep"></div>
+      <div class="proof-item"><div class="proof-dot"></div>Pan-India · remote &amp; hybrid</div>
+    </div>
+  </div>
+
+  <!-- Hero right: rich SVG scene + floating cards -->
+  <div class="hero-right">
+    <div class="hero-scene">
+      <!-- Large ambient SVG illustration — office/workspace scene -->
+      <svg viewBox="0 0 560 700" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;opacity:0;animation:up 1.2s 0.4s forwards">
+        <!-- Background depth layers -->
+        <defs>
+          <radialGradient id="glow1" cx="50%" cy="40%" r="50%">
+            <stop offset="0%" stop-color="#C07A28" stop-opacity="0.12"/>
+            <stop offset="100%" stop-color="#C07A28" stop-opacity="0"/>
+          </radialGradient>
+          <radialGradient id="glow2" cx="30%" cy="70%" r="40%">
+            <stop offset="0%" stop-color="#1B5E5A" stop-opacity="0.1"/>
+            <stop offset="100%" stop-color="#1B5E5A" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="desk" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#2A2118"/>
+            <stop offset="100%" stop-color="#1A150F"/>
+          </linearGradient>
+          <linearGradient id="screen" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#0D2A2A"/>
+            <stop offset="100%" stop-color="#1A3A2A"/>
+          </linearGradient>
+          <linearGradient id="person" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#8B6B4A"/>
+            <stop offset="100%" stop-color="#6B4E35"/>
+          </linearGradient>
+          <filter id="blur1"><feGaussianBlur stdDeviation="3"/></filter>
+        </defs>
+
+        <!-- Glows -->
+        <rect width="560" height="700" fill="url(#glow1)"/>
+        <rect width="560" height="700" fill="url(#glow2)"/>
+
+        <!-- Floor -->
+        <rect x="0" y="520" width="560" height="180" fill="#151210" opacity="0.8"/>
+
+        <!-- Back wall panels -->
+        <rect x="60" y="80" width="180" height="240" rx="8" fill="#242018" opacity="0.6"/>
+        <rect x="320" y="100" width="160" height="200" rx="8" fill="#1E1A14" opacity="0.5"/>
+
+        <!-- Wall art / lines decorative -->
+        <line x1="80" y1="110" x2="220" y2="110" stroke="#C07A28" stroke-width="1.5" opacity="0.25"/>
+        <line x1="80" y1="130" x2="180" y2="130" stroke="#C07A28" stroke-width="1" opacity="0.15"/>
+        <line x1="80" y1="145" x2="200" y2="145" stroke="#C07A28" stroke-width="1" opacity="0.1"/>
+
+        <!-- Large monitor -->
+        <rect x="130" y="260" width="240" height="150" rx="10" fill="#0A0A0A" stroke="#2A2420" stroke-width="2"/>
+        <rect x="136" y="266" width="228" height="138" rx="7" fill="url(#screen)"/>
+        <!-- Screen content -->
+        <rect x="148" y="278" width="100" height="8" rx="3" fill="#C07A28" opacity="0.7"/>
+        <rect x="148" y="292" width="140" height="5" rx="2" fill="rgba(255,255,255,0.15)"/>
+        <rect x="148" y="303" width="120" height="5" rx="2" fill="rgba(255,255,255,0.1)"/>
+        <rect x="148" y="318" width="200" height="40" rx="5" fill="rgba(27,94,90,0.25)" stroke="rgba(27,94,90,0.4)" stroke-width="1"/>
+        <rect x="156" y="326" width="80" height="6" rx="2" fill="rgba(255,255,255,0.4)"/>
+        <rect x="156" y="337" width="60" height="4" rx="2" fill="rgba(255,255,255,0.2)"/>
+        <rect x="258" y="324" width="36" height="14" rx="4" fill="rgba(192,122,40,0.5)"/>
+        <rect x="148" y="368" width="180" height="28" rx="5" fill="rgba(255,255,255,0.04)"/>
+        <rect x="156" y="374" width="70" height="5" rx="2" fill="rgba(255,255,255,0.3)"/>
+        <rect x="156" y="384" width="50" height="4" rx="2" fill="rgba(255,255,255,0.15)"/>
+        <!-- Monitor stand -->
+        <rect x="238" y="410" width="24" height="24" fill="#151210"/>
+        <rect x="210" y="430" width="80" height="6" rx="3" fill="#1A150F"/>
+
+        <!-- Desk surface -->
+        <rect x="60" y="436" width="440" height="20" rx="4" fill="url(#desk)"/>
+        <rect x="60" y="454" width="440" height="8" rx="2" fill="#12100D" opacity="0.8"/>
+
+        <!-- Keyboard -->
+        <rect x="160" y="440" width="160" height="12" rx="3" fill="#1A150F" stroke="#2A2420" stroke-width="1"/>
+        <rect x="164" y="442" width="152" height="8" rx="2" fill="#0D0B09"/>
+        <!-- Key rows -->
+        <rect x="166" y="443" width="8" height="3" rx="1" fill="#2A2420"/>
+        <rect x="177" y="443" width="8" height="3" rx="1" fill="#2A2420"/>
+        <rect x="188" y="443" width="8" height="3" rx="1" fill="#2A2420"/>
+        <rect x="199" y="443" width="8" height="3" rx="1" fill="#C07A28" opacity="0.4"/>
+        <rect x="210" y="443" width="8" height="3" rx="1" fill="#2A2420"/>
+        <rect x="166" y="448" width="140" height="2" rx="1" fill="#2A2420" opacity="0.5"/>
+
+        <!-- Mouse -->
+        <ellipse cx="354" cy="447" rx="14" ry="9" fill="#1A150F" stroke="#2A2420" stroke-width="1"/>
+        <line x1="354" y1="439" x2="354" y2="455" stroke="#2A2420" stroke-width="1"/>
+
+        <!-- Coffee cup -->
+        <rect x="420" y="425" width="32" height="28" rx="4" fill="#2A1F14"/>
+        <rect x="422" y="427" width="28" height="6" rx="2" fill="#C07A28" opacity="0.4"/>
+        <path d="M452 432 Q460 432 460 437 Q460 442 452 442" stroke="#2A2420" stroke-width="2" fill="none"/>
+        <rect x="418" y="449" width="36" height="4" rx="2" fill="#1A150F"/>
+
+        <!-- Notebook -->
+        <rect x="80" y="430" width="60" height="44" rx="3" fill="#E8DFD0" transform="rotate(-3 80 430)"/>
+        <line x1="88" y1="436" x2="132" y2="434" stroke="#C07A28" stroke-width="1" opacity="0.4"/>
+        <line x1="88" y1="442" x2="132" y2="440" stroke="rgba(28,25,23,0.15)" stroke-width="1"/>
+        <line x1="88" y1="448" x2="130" y2="446" stroke="rgba(28,25,23,0.15)" stroke-width="1"/>
+        <line x1="88" y1="454" x2="128" y2="452" stroke="rgba(28,25,23,0.15)" stroke-width="1"/>
+        <rect x="82" y="430" width="4" height="44" rx="2" fill="#C07A28" opacity="0.5" transform="rotate(-3 82 430)"/>
+
+        <!-- Person silhouette (seated, working) -->
+        <!-- Chair -->
+        <rect x="220" y="490" width="120" height="8" rx="4" fill="#1A150F"/>
+        <rect x="248" y="498" width="8" height="30" fill="#151210"/>
+        <rect x="304" y="498" width="8" height="30" fill="#151210"/>
+        <rect x="240" y="524" width="80" height="6" rx="3" fill="#1A150F"/>
+        <!-- Body -->
+        <ellipse cx="280" cy="478" rx="28" ry="20" fill="#2A1F14" opacity="0.9"/>
+        <!-- Head -->
+        <circle cx="280" cy="448" r="22" fill="url(#person)"/>
+        <!-- Hair -->
+        <ellipse cx="280" cy="434" rx="22" ry="12" fill="#1A0F08"/>
+        <!-- Shoulders -->
+        <path d="M240 480 Q260 470 280 468 Q300 470 320 480 L322 500 L238 500 Z" fill="#1E1A14"/>
+        <!-- Arms toward keyboard -->
+        <path d="M248 490 Q230 492 215 485" stroke="#2A1F14" stroke-width="14" stroke-linecap="round" fill="none"/>
+        <path d="M312 490 Q330 492 345 485" stroke="#2A1F14" stroke-width="14" stroke-linecap="round" fill="none"/>
+        <!-- Face details -->
+        <circle cx="271" cy="446" r="3" fill="#1A0F08" opacity="0.7"/>
+        <circle cx="289" cy="446" r="3" fill="#1A0F08" opacity="0.7"/>
+        <path d="M273 455 Q280 459 287 455" stroke="#1A0F08" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.6"/>
+
+        <!-- Ambient particles / dots -->
+        <circle cx="420" cy="180" r="3" fill="#C07A28" opacity="0.3" style="animation:pulse 3s infinite"/>
+        <circle cx="100" cy="350" r="2" fill="#1B5E5A" opacity="0.4" style="animation:pulse 4s 1s infinite"/>
+        <circle cx="460" cy="300" r="2.5" fill="#C07A28" opacity="0.2" style="animation:pulse 3.5s 0.5s infinite"/>
+        <circle cx="80" cy="200" r="2" fill="rgba(255,255,255,0.15)" style="animation:pulse 5s 2s infinite"/>
+
+        <!-- Decorative grid lines -->
+        <line x1="0" y1="200" x2="560" y2="200" stroke="rgba(192,122,40,0.04)" stroke-width="1"/>
+        <line x1="0" y1="400" x2="560" y2="400" stroke="rgba(192,122,40,0.04)" stroke-width="1"/>
+        <line x1="140" y1="0" x2="140" y2="700" stroke="rgba(192,122,40,0.04)" stroke-width="1"/>
+        <line x1="420" y1="0" x2="420" y2="700" stroke="rgba(192,122,40,0.04)" stroke-width="1"/>
+      </svg>
+
+      <!-- Floating card 1: candidate story -->
+      <div class="hero-float hf-1">
+        <div class="hf-label green">Placed via Mitra</div>
+        <div class="hf-quote">"4 months, 60 applications, zero callbacks. Mitra had me talking to a founder in 4 days."</div>
+        <div class="hf-person">
+          <div class="hf-av" style="background:linear-gradient(135deg,#1B5E5A,#237870)">A</div>
+          <div>
+            <div class="hf-name">Aakash Verma</div>
+            <div class="hf-role">Staff Engineer — now at Setu</div>
+          </div>
+        </div>
+        <div class="hf-bar">
+          <div class="hf-bdot"></div>
+          Introduced · Offer accepted in 12 days
+        </div>
+      </div>
+
+      <!-- Floating card 2: stat -->
+      <div class="hero-float hf-2">
+        <div class="hf-label amber">Avg. time to hire</div>
+        <div class="hf-big">8<sup>d</sup></div>
+        <div class="hf-desc">from first conversation<br>to interview booked</div>
+      </div>
+
+      <!-- Floating card 3: founder -->
+      <div class="hero-float hf-3">
+        <div class="hf-label teal">Founder, Hyperface</div>
+        <div class="hf-quote">"2 of my best hires this year came through Mitra."</div>
+        <div class="hf-person">
+          <div class="hf-av" style="background:linear-gradient(135deg,#C07A28,#A06020)">P</div>
+          <div>
+            <div class="hf-name">Priya Nair</div>
+            <div class="hf-role">Co-founder</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="mq">
+  <div class="mq-track">
+    <span class="mq-item"><span class="mq-rule"></span>Free for candidates — always</span>
+    <span class="mq-item"><span class="mq-rule"></span>Warm introductions, not cold applications</span>
+    <span class="mq-item"><span class="mq-rule"></span>Average 8 days to first interview</span>
+    <span class="mq-item"><span class="mq-rule"></span>WhatsApp-native · India-focused</span>
+    <span class="mq-item"><span class="mq-rule"></span>Zero ghosting — guaranteed</span>
+    <span class="mq-item"><span class="mq-rule"></span>Peak XV · Accel · Blume portfolio startups</span>
+    <span class="mq-item"><span class="mq-rule"></span>Free for candidates — always</span>
+    <span class="mq-item"><span class="mq-rule"></span>Warm introductions, not cold applications</span>
+    <span class="mq-item"><span class="mq-rule"></span>Average 8 days to first interview</span>
+    <span class="mq-item"><span class="mq-rule"></span>WhatsApp-native · India-focused</span>
+    <span class="mq-item"><span class="mq-rule"></span>Zero ghosting — guaranteed</span>
+    <span class="mq-item"><span class="mq-rule"></span>Peak XV · Accel · Blume portfolio startups</span>
+  </div>
+</div>
+
+<!-- PROBLEM -->
+<section class="problem">
+  <div class="prob-eyebrow">The problem we solve</div>
+  <h2 class="prob-h2 reveal">The hiring system in India<br>is broken for <em>everyone.</em></h2>
+  <p class="prob-sub reveal d1">Whether you're looking for your next role or trying to fill one — the existing tools are failing you. We built Mitra to fix both sides at once.</p>
+  <div class="prob-grid reveal d2">
+
+    <div class="prob-card">
+      <!-- SVG illustration: frustrated candidate -->
+      <div class="prob-card-vis">
+        <svg viewBox="0 0 460 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+          <rect width="460" height="180" fill="#1A150F"/>
+          <defs>
+            <linearGradient id="pg1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#2A1F14"/>
+              <stop offset="100%" stop-color="#1A150F"/>
+            </linearGradient>
+          </defs>
+          <!-- Background screen glow -->
+          <rect x="100" y="20" width="260" height="140" rx="12" fill="url(#pg1)" opacity="0.8"/>
+          <!-- Job board UI mockup -->
+          <rect x="110" y="30" width="240" height="120" rx="8" fill="#0D0A07" stroke="#2A2418" stroke-width="1"/>
+          <rect x="118" y="38" width="120" height="6" rx="3" fill="#C07A28" opacity="0.5"/>
+          <rect x="118" y="50" width="220" height="20" rx="4" fill="#1A150F"/>
+          <rect x="122" y="54" width="80" height="5" rx="2" fill="rgba(255,255,255,0.3)"/>
+          <rect x="122" y="61" width="60" height="4" rx="2" fill="rgba(255,255,255,0.15)"/>
+          <rect x="290" y="52" width="40" height="16" rx="4" fill="#2A1F14"/>
+          <rect x="118" y="76" width="220" height="20" rx="4" fill="#1A150F"/>
+          <rect x="122" y="80" width="90" height="5" rx="2" fill="rgba(255,255,255,0.25)"/>
+          <rect x="290" y="78" width="40" height="16" rx="4" fill="#2A1F14"/>
+          <rect x="118" y="102" width="220" height="20" rx="4" fill="#1A150F"/>
+          <rect x="122" y="106" width="70" height="5" rx="2" fill="rgba(255,255,255,0.2)"/>
+          <rect x="290" y="104" width="40" height="16" rx="4" fill="#2A1F14"/>
+          <!-- X marks for rejected apps -->
+          <circle cx="28" cy="50" r="16" fill="rgba(220,60,60,0.12)" stroke="rgba(220,60,60,0.3)" stroke-width="1"/>
+          <line x1="22" y1="44" x2="34" y2="56" stroke="#E05252" stroke-width="2" stroke-linecap="round"/>
+          <line x1="34" y1="44" x2="22" y2="56" stroke="#E05252" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="28" cy="90" r="16" fill="rgba(220,60,60,0.12)" stroke="rgba(220,60,60,0.3)" stroke-width="1"/>
+          <line x1="22" y1="84" x2="34" y2="96" stroke="#E05252" stroke-width="2" stroke-linecap="round"/>
+          <line x1="34" y1="84" x2="22" y2="96" stroke="#E05252" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="28" cy="130" r="16" fill="rgba(220,60,60,0.12)" stroke="rgba(220,60,60,0.3)" stroke-width="1"/>
+          <line x1="22" y1="124" x2="34" y2="136" stroke="#E05252" stroke-width="2" stroke-linecap="round"/>
+          <line x1="34" y1="124" x2="22" y2="136" stroke="#E05252" stroke-width="2" stroke-linecap="round"/>
+          <!-- Ghosted label -->
+          <rect x="340" y="40" width="100" height="24" rx="12" fill="rgba(220,60,60,0.1)" stroke="rgba(220,60,60,0.2)" stroke-width="1"/>
+          <text x="390" y="57" text-anchor="middle" font-size="10" fill="#E05252" font-family="sans-serif" font-weight="600">GHOSTED</text>
+          <rect x="340" y="80" width="100" height="24" rx="12" fill="rgba(220,60,60,0.1)" stroke="rgba(220,60,60,0.2)" stroke-width="1"/>
+          <text x="390" y="97" text-anchor="middle" font-size="10" fill="#E05252" font-family="sans-serif" font-weight="600">NO REPLY</text>
+          <rect x="340" y="120" width="100" height="24" rx="12" fill="rgba(220,60,60,0.1)" stroke="rgba(220,60,60,0.2)" stroke-width="1"/>
+          <text x="390" y="137" text-anchor="middle" font-size="10" fill="#E05252" font-family="sans-serif" font-weight="600">REJECTED</text>
+        </svg>
+      </div>
+      <div class="prob-card-body">
+        <div class="prob-for for-c">For candidates</div>
+        <div class="prob-card-title">You're qualified.<br>The system ignores you.</div>
+        <ul class="prob-list">
+          <li><div class="prob-x">×</div>You apply to 50 jobs and hear back from 3</li>
+          <li><div class="prob-x">×</div>You don't know the right people at funded startups</li>
+          <li><div class="prob-x">×</div>Your CV is keyword-filtered before a human sees it</li>
+          <li><div class="prob-x">×</div>Salary data is opaque — you negotiate blind</li>
+          <li><div class="prob-x">×</div>Nobody is actively fighting for you</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="prob-card">
+      <!-- SVG illustration: founder overwhelmed with CVs -->
+      <div class="prob-card-vis">
+        <svg viewBox="0 0 460 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+          <rect width="460" height="180" fill="#1A150F"/>
+          <!-- Stack of CVs / inbox overflowing -->
+          <rect x="40" y="100" width="380" height="60" rx="6" fill="#1E1A14"/>
+          <!-- CV stack visual -->
+          <rect x="60" y="30" width="140" height="100" rx="4" fill="#E8DFD0" transform="rotate(-8 60 30)"/>
+          <rect x="60" y="30" width="140" height="100" rx="4" fill="#EDE6D9" transform="rotate(-4 60 30)"/>
+          <rect x="60" y="30" width="140" height="100" rx="4" fill="#F6F1EA"/>
+          <line x1="72" y1="50" x2="188" y2="50" stroke="#C07A28" stroke-width="2" opacity="0.4"/>
+          <line x1="72" y1="62" x2="188" y2="62" stroke="rgba(28,25,23,0.15)" stroke-width="1.5"/>
+          <line x1="72" y1="72" x2="160" y2="72" stroke="rgba(28,25,23,0.1)" stroke-width="1.5"/>
+          <line x1="72" y1="82" x2="175" y2="82" stroke="rgba(28,25,23,0.1)" stroke-width="1.5"/>
+          <line x1="72" y1="92" x2="150" y2="92" stroke="rgba(28,25,23,0.1)" stroke-width="1.5"/>
+          <!-- More CVs flying in -->
+          <rect x="220" y="40" width="120" height="86" rx="4" fill="#EDE6D9" transform="rotate(5 220 40)" opacity="0.8"/>
+          <line x1="232" y1="58" x2="328" y2="56" stroke="rgba(28,25,23,0.2)" stroke-width="1.5" transform="rotate(5 220 40)"/>
+          <line x1="232" y1="68" x2="310" y2="66" stroke="rgba(28,25,23,0.1)" stroke-width="1.5" transform="rotate(5 220 40)"/>
+          <rect x="350" y="20" width="90" height="70" rx="4" fill="#E8DFD0" transform="rotate(-6 350 20)" opacity="0.6"/>
+          <!-- Overflow arrows -->
+          <path d="M250 15 L260 28 L240 28 Z" fill="#C07A28" opacity="0.5"/>
+          <path d="M380 10 L390 23 L370 23 Z" fill="#C07A28" opacity="0.4"/>
+          <path d="M130 12 L140 25 L120 25 Z" fill="#C07A28" opacity="0.3"/>
+          <!-- Count badge -->
+          <circle cx="410" cy="55" r="28" fill="rgba(220,60,60,0.15)" stroke="rgba(220,60,60,0.3)" stroke-width="1.5"/>
+          <text x="410" y="52" text-anchor="middle" font-size="16" fill="#E05252" font-family="sans-serif" font-weight="700">500+</text>
+          <text x="410" y="67" text-anchor="middle" font-size="9" fill="rgba(220,80,80,0.7)" font-family="sans-serif">CVs</text>
+        </svg>
+      </div>
+      <div class="prob-card-body">
+        <div class="prob-for for-f">For founders</div>
+        <div class="prob-card-title">You're drowning in CVs.<br>None of them are right.</div>
+        <ul class="prob-list">
+          <li><div class="prob-x">×</div>Job boards flood you with hundreds of irrelevant applicants</li>
+          <li><div class="prob-x">×</div>Agencies charge 15–20% and send mediocre fits</li>
+          <li><div class="prob-x">×</div>Your engineers spend 20+ hours per hire on screening</li>
+          <li><div class="prob-x">×</div>You can't tell who actually wants your specific company</li>
+          <li><div class="prob-x">×</div>Good candidates accept elsewhere before you respond</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="eyebrow reveal">How it works</div>
+  <h2 class="sec-title reveal d1">Two paths. One agent.<br><em>Real introductions.</em></h2>
+  <p class="sec-sub reveal d2">Whether you're a candidate or a founder, Mitra works on your behalf — not as a platform, but as a partner.</p>
+  <div class="how-tracks reveal d3">
+
+    <div class="how-track">
+      <div class="track-vis">
+        <!-- SVG: candidate journey illustration -->
+        <svg viewBox="0 0 460 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+          <rect width="460" height="160" fill="#1B3A3A"/>
+          <rect width="460" height="160" fill="url(#glow2)" opacity="0.5"/>
+          <!-- WhatsApp bubble sequence -->
+          <rect x="30" y="30" width="180" height="36" rx="18" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+          <rect x="34" y="42" width="100" height="6" rx="3" fill="rgba(255,255,255,0.3)"/>
+          <rect x="34" y="52" width="70" height="4" rx="2" fill="rgba(255,255,255,0.15)"/>
+          <rect x="250" y="50" width="180" height="36" rx="18" fill="rgba(192,122,40,0.2)" stroke="rgba(192,122,40,0.3)" stroke-width="1"/>
+          <rect x="254" y="62" width="120" height="6" rx="3" fill="rgba(192,122,40,0.6)"/>
+          <rect x="254" y="72" width="90" height="4" rx="2" fill="rgba(192,122,40,0.3)"/>
+          <!-- Arrow connecting -->
+          <path d="M220 48 L240 48" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-dasharray="4,3" stroke-linecap="round"/>
+          <!-- Match cards -->
+          <rect x="30" y="90" width="120" height="50" rx="8" fill="rgba(27,94,90,0.3)" stroke="rgba(27,94,90,0.5)" stroke-width="1"/>
+          <rect x="38" y="98" width="70" height="5" rx="2" fill="rgba(255,255,255,0.5)"/>
+          <rect x="38" y="108" width="50" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
+          <rect x="100" y="108" width="40" height="16" rx="8" fill="rgba(26,122,74,0.4)"/>
+          <rect x="38" y="120" width="106" height="12" rx="4" fill="rgba(255,255,255,0.06)"/>
+          <rect x="170" y="90" width="120" height="50" rx="8" fill="rgba(27,94,90,0.2)" stroke="rgba(27,94,90,0.3)" stroke-width="1"/>
+          <rect x="178" y="98" width="60" height="5" rx="2" fill="rgba(255,255,255,0.4)"/>
+          <rect x="178" y="108" width="45" height="4" rx="2" fill="rgba(255,255,255,0.2)"/>
+          <!-- Check mark success -->
+          <circle cx="400" cy="115" r="32" fill="rgba(26,122,74,0.15)" stroke="rgba(26,122,74,0.4)" stroke-width="2"/>
+          <path d="M385 115 L397 127 L417 103" stroke="#4ADE80" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <div class="track-vis-overlay"></div>
+        <div class="track-vis-label">
+          <div class="track-for">For candidates</div>
+          <div class="track-tagline">Your personal job search agent</div>
+        </div>
+      </div>
+      <div class="track-steps">
+        <div class="track-step"><div class="step-badge badge-c">1</div><div><div class="step-title">Chat with Mitra on WhatsApp</div><div class="step-desc">A 2-minute conversation — not a form. Your experience, what you want, what you will not compromise on.</div><span class="step-chip">2 min · WhatsApp</span></div></div>
+        <div class="track-step"><div class="step-badge badge-c">2</div><div><div class="step-title">We reason through your fit</div><div class="step-desc">Our AI evaluates trajectory, motivation, stage readiness, and culture fit — not just keywords on a resume.</div><span class="step-chip">AI reasoning · No black boxes</span></div></div>
+        <div class="track-step"><div class="step-badge badge-c">3</div><div><div class="step-title">Receive 3–5 curated matches</div><div class="step-desc">Never a list of 50. Each match includes exactly why we think it's right for you.</div><span class="step-chip">Max 5 · All explained</span></div></div>
+        <div class="track-step"><div class="step-badge badge-c">4</div><div><div class="step-title">We introduce you to the founder</div><div class="step-desc">A personal, contextual introduction — the kind a well-connected friend sends — with a 48-hour response guarantee.</div><span class="step-chip">Warm intro · 48h guarantee</span></div></div>
+      </div>
+    </div>
+
+    <div class="how-track">
+      <div class="track-vis">
+        <!-- SVG: founder pipeline illustration -->
+        <svg viewBox="0 0 460 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+          <rect width="460" height="160" fill="#2A1F14"/>
+          <!-- Funnel visualization -->
+          <path d="M30 20 L430 20 L360 80 L100 80 Z" fill="rgba(192,122,40,0.08)" stroke="rgba(192,122,40,0.2)" stroke-width="1"/>
+          <!-- Stage labels -->
+          <rect x="50" y="25" width="80" height="14" rx="3" fill="rgba(255,255,255,0.06)"/>
+          <text x="90" y="36" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.4)" font-family="sans-serif">500+ sourced</text>
+          <rect x="190" y="25" width="80" height="14" rx="3" fill="rgba(255,255,255,0.06)"/>
+          <text x="230" y="36" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.4)" font-family="sans-serif">AI screened</text>
+          <rect x="330" y="25" width="80" height="14" rx="3" fill="rgba(255,255,255,0.06)"/>
+          <text x="370" y="36" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.4)" font-family="sans-serif">Interviewed</text>
+          <!-- Arrow down -->
+          <path d="M230 80 L230 95" stroke="rgba(192,122,40,0.4)" stroke-width="2" stroke-linecap="round"/>
+          <path d="M223 90 L230 100 L237 90" stroke="rgba(192,122,40,0.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <!-- Final 3-5 candidates -->
+          <rect x="100" y="105" width="260" height="40" rx="8" fill="rgba(192,122,40,0.12)" stroke="rgba(192,122,40,0.3)" stroke-width="1"/>
+          <text x="230" y="121" text-anchor="middle" font-size="11" fill="rgba(192,122,40,0.9)" font-family="sans-serif" font-weight="600">3–5 hire-ready candidates</text>
+          <text x="230" y="136" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.35)" font-family="sans-serif">with full context, scores & match rationale</text>
+          <!-- People icons -->
+          <circle cx="35" cy="125" r="18" fill="rgba(27,94,90,0.2)" stroke="rgba(27,94,90,0.35)" stroke-width="1"/>
+          <circle cx="35" cy="119" r="6" fill="rgba(27,94,90,0.5)"/>
+          <path d="M22 135 Q35 128 48 135" stroke="rgba(27,94,90,0.5)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <circle cx="425" cy="125" r="18" fill="rgba(26,122,74,0.2)" stroke="rgba(26,122,74,0.35)" stroke-width="1"/>
+          <path d="M416 122 L422 129 L435 115" stroke="#4ADE80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+        <div class="track-vis-overlay"></div>
+        <div class="track-vis-label">
+          <div class="track-for">For founders</div>
+          <div class="track-tagline">Your always-on talent partner</div>
+        </div>
+      </div>
+      <div class="track-steps">
+        <div class="track-step"><div class="step-badge badge-f">1</div><div><div class="step-title">Share your hiring need</div><div class="step-desc">Send the role via WhatsApp or email. No contracts, no onboarding. We ask the five questions your JD doesn't answer.</div><span class="step-chip">24h activation</span></div></div>
+        <div class="track-step"><div class="step-badge badge-f">2</div><div><div class="step-title">We source and screen deeply</div><div class="step-desc">Our AI runs the full intake — evaluating intent, trajectory, and cultural alignment, not just listed skills.</div><span class="step-chip">Full AI screening</span></div></div>
+        <div class="track-step"><div class="step-badge badge-f">3</div><div><div class="step-title">Receive 3–5 pre-qualified intros</div><div class="step-desc">Profile, match rationale, salary expectation, notice period, and why they want your company specifically.</div><span class="step-chip">Full context on every intro</span></div></div>
+        <div class="track-step"><div class="step-badge badge-f">4</div><div><div class="step-title">Interview, decide, pay only when you hire</div><div class="step-desc">No upfront fees. 8% of first-year CTC when you hire. 90-day replacement guarantee included.</div><span class="step-chip">8% success fee · 90-day guarantee</span></div></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- CONVERSATION SECTION -->
+<section class="convo">
+  <div class="convo-inner">
+    <div class="convo-vis reveal">
+      <!-- Conversation illustration SVG -->
+      <svg viewBox="0 0 400 460" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-height:460px;position:relative;z-index:1">
+        <defs>
+          <linearGradient id="convoBg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#1B3A3A"/>
+            <stop offset="50%" stop-color="#1C1917"/>
+            <stop offset="100%" stop-color="#2A1F1A"/>
+          </linearGradient>
+        </defs>
+        <rect width="400" height="460" fill="url(#convoBg)"/>
+
+        <!-- Ambient grid -->
+        <line x1="0" y1="115" x2="400" y2="115" stroke="rgba(192,122,40,0.05)" stroke-width="1"/>
+        <line x1="0" y1="230" x2="400" y2="230" stroke="rgba(192,122,40,0.05)" stroke-width="1"/>
+        <line x1="0" y1="345" x2="400" y2="345" stroke="rgba(192,122,40,0.05)" stroke-width="1"/>
+        <line x1="100" y1="0" x2="100" y2="460" stroke="rgba(192,122,40,0.05)" stroke-width="1"/>
+        <line x1="300" y1="0" x2="300" y2="460" stroke="rgba(192,122,40,0.05)" stroke-width="1"/>
+
+        <!-- Large decorative M letterform -->
+        <text x="200" y="300" text-anchor="middle" font-family="Georgia,serif" font-size="280" font-weight="700" fill="rgba(192,122,40,0.04)" letter-spacing="-10">M</text>
+
+        <!-- Person silhouette at desk looking at phone -->
+        <!-- Desk surface -->
+        <rect x="40" y="340" width="320" height="12" rx="4" fill="#1A150F" opacity="0.8"/>
+        <!-- Body -->
+        <ellipse cx="200" cy="300" rx="50" ry="38" fill="#2A1F14"/>
+        <!-- Head -->
+        <circle cx="200" cy="252" r="38" fill="#8B6B4A"/>
+        <ellipse cx="200" cy="234" rx="38" ry="20" fill="#1A0F08"/>
+        <!-- Arms reaching for phone -->
+        <path d="M168 305 Q148 315 136 305 L128 295" stroke="#2A1F14" stroke-width="18" stroke-linecap="round" fill="none"/>
+        <path d="M232 305 Q252 315 264 305 L272 295" stroke="#2A1F14" stroke-width="18" stroke-linecap="round" fill="none"/>
+        <!-- Phone in hands -->
+        <rect x="178" y="280" width="44" height="72" rx="6" fill="#0A0A0A" stroke="#2A2420" stroke-width="1.5"/>
+        <rect x="181" y="283" width="38" height="63" rx="4" fill="#0D2A20"/>
+        <!-- Phone screen: chat bubbles -->
+        <rect x="183" y="286" width="24" height="8" rx="3" fill="rgba(192,122,40,0.6)"/>
+        <rect x="193" y="298" width="22" height="7" rx="3" fill="rgba(255,255,255,0.15)"/>
+        <rect x="183" y="309" width="26" height="7" rx="3" fill="rgba(192,122,40,0.4)"/>
+        <rect x="193" y="320" width="20" height="7" rx="3" fill="rgba(255,255,255,0.1)"/>
+        <!-- Face details -->
+        <circle cx="187" cy="250" r="5" fill="#1A0F08" opacity="0.8"/>
+        <circle cx="213" cy="250" r="5" fill="#1A0F08" opacity="0.8"/>
+        <path d="M189 263 Q200 269 211 263" stroke="#1A0F08" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.6"/>
+
+        <!-- Floating chat notification above -->
+        <rect x="60" y="60" width="280" height="60" rx="12" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+        <circle cx="88" cy="90" r="18" fill="linear-gradient(135deg,#C07A28,#B86A1A)"/>
+        <text x="88" y="96" text-anchor="middle" font-size="16" fill="white" font-family="Georgia,serif" font-weight="700">M</text>
+        <rect x="114" y="74" width="140" height="7" rx="3" fill="rgba(192,122,40,0.6)"/>
+        <rect x="114" y="86" width="180" height="5" rx="2" fill="rgba(255,255,255,0.2)"/>
+        <rect x="114" y="96" width="160" height="5" rx="2" fill="rgba(255,255,255,0.12)"/>
+        <!-- Notification dot -->
+        <circle cx="330" cy="70" r="8" fill="#22A06B" stroke="#1B3A3A" stroke-width="2"/>
+
+        <!-- Ambient particles -->
+        <circle cx="60" cy="180" r="3" fill="#C07A28" opacity="0.25" style="animation:pulse 3s infinite"/>
+        <circle cx="350" cy="200" r="2" fill="#1B5E5A" opacity="0.35" style="animation:pulse 4s 1s infinite"/>
+        <circle cx="340" cy="120" r="2.5" fill="rgba(255,255,255,0.1)" style="animation:pulse 5s 0.5s infinite"/>
+      </svg>
+      <div class="convo-vis-caption">
+        <p class="convo-caption-text">"Mitra asked me why I was really thinking of moving — not what my skills were. That was the moment I knew this was different."</p>
+        <p class="convo-caption-attr">Candidate placed · India</p>
+      </div>
+    </div>
+
+    <div class="reveal d2">
+      <div class="eyebrow">The Mitra experience</div>
+      <h2 class="sec-title" style="margin-bottom:14px;">A conversation,<br>not a <em>form.</em></h2>
+      <p style="font-size:15px;font-weight:300;color:var(--ink-muted);line-height:1.8;margin-bottom:32px;">Every platform makes you fill in fields. Mitra has a real conversation on WhatsApp, where you already are. A conversation surfaces <strong style="color:var(--ink);font-weight:500;">intent</strong>, and intent is what determines whether an introduction becomes an offer.</p>
+      <div class="chat-wrap">
+        <div class="chat-top">
+          <div class="chat-av">M<div class="chat-online"></div></div>
+          <div>
+            <div class="chat-av-name">Mitra</div>
+            <div class="chat-av-status">AI Talent Agent · Online now</div>
+          </div>
+        </div>
+        <div class="chat-body">
+          <div class="chat-date">Today · 10:14 AM</div>
+          <div class="cm" style="animation:up .4s .4s both;opacity:0"><div class="cm-av m">M</div><div class="cm-bub in">Before we look at roles — <strong>why are you thinking of moving right now?</strong></div></div>
+          <div class="cm out" style="animation:up .4s 1.0s both;opacity:0"><div class="cm-av u">Y</div><div class="cm-bub out-b">3 years at Infosys maintaining legacy code. I want to actually build something that matters.</div></div>
+          <div class="cm" style="animation:up .4s 1.7s both;opacity:0"><div class="cm-av m">M</div><div class="cm-bub in"><strong>What's the last thing you built that you were genuinely proud of?</strong></div></div>
+          <div class="cm out" style="animation:up .4s 2.4s both;opacity:0"><div class="cm-av u">Y</div><div class="cm-bub out-b">A real-time fraud detection pipeline. Nobody asked me to. Cut false positives by 40%.</div></div>
+          <div class="cm" style="animation:up .4s 3.1s both;opacity:0">
+            <div class="cm-av m">M</div>
+            <div class="cm-bub in">That tells me exactly the environment where you'll thrive. <strong>2 strong matches:</strong>
+              <div class="match-chips">
+                <div class="mc"><div class="mc-top"><span class="mc-role">Staff Engineer · Setu (Series B)</span><span class="mc-score">96% fit</span></div><div class="mc-meta"><span class="mc-tag">₹42–52L</span><span class="mc-tag">Remote</span><span class="mc-tag">Fintech</span></div></div>
+                <div class="mc"><div class="mc-top"><span class="mc-role">Senior Backend · Hyperface (Series A)</span><span class="mc-score">88% fit</span></div><div class="mc-meta"><span class="mc-tag">₹38–46L</span><span class="mc-tag">Hybrid · BLR</span><span class="mc-tag">Payments</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-inbar">
+          <div class="chat-infield">Intro me to Setu please</div>
+          <button class="chat-send-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats-sec">
+  <div class="stats-row reveal">
+    <div class="stat-cell"><div class="stat-n">8<sup>d</sup></div><div class="stat-l">Average days to first<br>interview after intro</div></div>
+    <div class="stat-cell"><div class="stat-n">0</div><div class="stat-l">Candidates ghosted —<br>our iron promise</div></div>
+    <div class="stat-cell"><div class="stat-n">7<sup>%</sup></div><div class="stat-l">Success fee — half what<br>agencies charge</div></div>
+    <div class="stat-cell"><div class="stat-n">Free</div><div class="stat-l">For candidates —<br>forever, no asterisk</div></div>
+  </div>
+</section>
+
+<!-- FOR FOUNDERS -->
+<section class="founders-sec" id="founders">
+  <div class="founders-inner">
+    <div class="reveal">
+      <div class="founders-vis">
+        <!-- Founder illustration SVG -->
+        <svg viewBox="0 0 380 420" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-height:420px">
+          <rect width="380" height="420" fill="url(#convoBg)"/>
+          <!-- Whiteboard / presentation -->
+          <rect x="40" y="40" width="300" height="200" rx="8" fill="#1E1A14" stroke="#2A2420" stroke-width="1.5"/>
+          <rect x="44" y="44" width="292" height="192" rx="6" fill="#242018"/>
+          <!-- Chart on whiteboard -->
+          <polyline points="60,200 90,170 130,180 170,140 210,150 250,110 290,90 320,80" stroke="#C07A28" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="90" cy="170" r="4" fill="#C07A28"/>
+          <circle cx="170" cy="140" r="4" fill="#C07A28"/>
+          <circle cx="250" cy="110" r="4" fill="#C07A28"/>
+          <circle cx="320" cy="80" r="4" fill="#C07A28" style="animation:pulse 2s infinite"/>
+          <line x1="56" y1="215" x2="336" y2="215" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+          <line x1="56" y1="55" x2="56" y2="215" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+          <!-- Axis labels -->
+          <rect x="60" y="220" width="50" height="8" rx="2" fill="rgba(255,255,255,0.08)"/>
+          <rect x="150" y="220" width="50" height="8" rx="2" fill="rgba(255,255,255,0.08)"/>
+          <rect x="240" y="220" width="50" height="8" rx="2" fill="rgba(255,255,255,0.08)"/>
+          <!-- Founder figure (standing) -->
+          <circle cx="190" cy="298" r="28" fill="#8B6B4A"/>
+          <ellipse cx="190" cy="280" rx="28" ry="16" fill="#1A0F08"/>
+          <ellipse cx="190" cy="330" rx="40" ry="28" fill="#1E1A14"/>
+          <path d="M152 350 L162 380 L180 370 L190 385 L200 370 L218 380 L228 350" fill="#1E1A14" stroke="#1A150F" stroke-width="1"/>
+          <!-- Arm pointing at board -->
+          <path d="M165 330 Q120 310 80 260" stroke="#1E1A14" stroke-width="16" stroke-linecap="round" fill="none"/>
+          <path d="M215 330 Q240 335 260 325" stroke="#1E1A14" stroke-width="16" stroke-linecap="round" fill="none"/>
+          <!-- Other people (team) seated -->
+          <circle cx="60" cy="390" r="20" fill="#6B5040" opacity="0.7"/>
+          <circle cx="60" cy="382" r="10" fill="#8B6B4A" opacity="0.7"/>
+          <circle cx="110" cy="395" r="18" fill="#5A4535" opacity="0.7"/>
+          <circle cx="110" cy="388" r="9" fill="#7A5B45" opacity="0.7"/>
+          <circle cx="270" cy="392" r="18" fill="#6B5040" opacity="0.7"/>
+          <circle cx="270" cy="385" r="9" fill="#8B6B4A" opacity="0.7"/>
+          <circle cx="320" cy="388" r="20" fill="#5A4535" opacity="0.7"/>
+          <circle cx="320" cy="380" r="10" fill="#7A5B45" opacity="0.7"/>
+          <!-- Ambient light -->
+          <circle cx="190" cy="200" r="80" fill="rgba(192,122,40,0.04)"/>
+        </svg>
+        <!-- Inset card -->
+        <div class="founders-vis-inset">
+          <svg viewBox="0 0 160 120" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+            <rect width="160" height="120" fill="#1C1917"/>
+            <rect x="10" y="15" width="140" height="90" rx="8" fill="#242018"/>
+            <!-- Mini pipeline funnel -->
+            <path d="M20 25 L140 25 L120 55 L40 55 Z" fill="rgba(192,122,40,0.1)" stroke="rgba(192,122,40,0.2)" stroke-width="1"/>
+            <rect x="55" y="65" width="50" height="28" rx="5" fill="rgba(27,94,90,0.2)" stroke="rgba(27,94,90,0.35)" stroke-width="1"/>
+            <text x="80" y="76" text-anchor="middle" font-size="9" fill="rgba(27,94,90,0.9)" font-family="sans-serif" font-weight="600">3–5</text>
+            <text x="80" y="87" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.3)" font-family="sans-serif">candidates</text>
+            <text x="80" y="35" text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.3)" font-family="sans-serif">500+ sourced</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="founders-content reveal d2">
+      <div class="eyebrow">For founders</div>
+      <h2 class="sec-title" style="margin-bottom:0;">Hire on instinct,<br>not <em>keyword filters.</em></h2>
+      <blockquote class="founders-quote">"You know within 10 minutes whether someone is right. The problem is getting to that conversation."</blockquote>
+      <p class="founders-body">Mitra solves the <strong>access problem</strong>, not the assessment problem. We find candidates who are genuinely motivated to join a company like yours — introduced with the full context you need to make a fast, confident decision.</p>
+      <p class="founders-body" style="margin-bottom:32px;">We only work with <strong>funded, curated startups</strong>. No enterprise. No MNCs. Just builders hiring builders — every candidate we send already understands what they're signing up for.</p>
+      <div class="feat-rows">
+        <div class="feat-row">
+          <div class="feat-icon-wrap" style="background:var(--green-bg)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A7A4A" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div><div class="feat-title">3–5 pre-qualified introductions per week</div><div class="feat-desc">Every candidate has been fully intake-screened — we know why they're moving and why your company interests them.</div></div>
+        </div>
+        <div class="feat-row">
+          <div class="feat-icon-wrap" style="background:var(--amber-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C07A28" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div><div class="feat-title">Active in 24 hours, not 2 weeks</div><div class="feat-desc">Share the role via WhatsApp. No contracts, no onboarding calls. We start the same day.</div></div>
+        </div>
+        <div class="feat-row">
+          <div class="feat-icon-wrap" style="background:var(--teal-pale)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B5E5A" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </div>
+          <div><div class="feat-title">We tell you what candidates won't</div><div class="feat-desc">Competing offers, real salary expectations, whether they've mentally already left their role. The context that changes how you engage.</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STORIES -->
+<section class="stories-sec" id="stories">
+  <div class="reveal">
+    <div class="eyebrow">Real stories</div>
+    <h2 class="sec-title">People whose careers changed<br>through one <em>introduction.</em></h2>
+  </div>
+  <div class="stories-grid">
+
+    <div class="story-card feat reveal d1">
+      <div class="story-vis">
+        <svg viewBox="0 0 460 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+          <rect width="460" height="160" fill="#1B3A3A"/>
+          <text x="230" y="120" text-anchor="middle" font-family="Georgia,serif" font-size="200" font-weight="700" fill="rgba(27,94,90,0.15)" letter-spacing="-5">A</text>
+          <!-- Success timeline -->
+          <line x1="40" y1="90" x2="420" y2="90" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+          <circle cx="80" cy="90" r="8" fill="rgba(27,94,90,0.4)" stroke="rgba(27,94,90,0.7)" stroke-width="1.5"/>
+          <circle cx="200" cy="90" r="8" fill="rgba(192,122,40,0.4)" stroke="rgba(192,122,40,0.7)" stroke-width="1.5"/>
+          <circle cx="320" cy="90" r="8" fill="rgba(26,122,74,0.4)" stroke="rgba(26,122,74,0.7)" stroke-width="1.5"/>
+          <circle cx="400" cy="90" r="12" fill="rgba(26,122,74,0.3)" stroke="rgba(26,122,74,0.6)" stroke-width="2"/>
+          <path d="M392 90 L398 96 L412 80" stroke="#4ADE80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <text x="80" y="114" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.35)" font-family="sans-serif">Chat</text>
+          <text x="200" y="114" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.35)" font-family="sans-serif">Matched</text>
+          <text x="320" y="114" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.35)" font-family="sans-serif">Intro sent</text>
+          <text x="400" y="114" text-anchor="middle" font-size="9" fill="rgba(74,222,128,0.7)" font-family="sans-serif">Hired!</text>
+          <text x="240" y="50" text-anchor="middle" font-size="13" fill="rgba(192,122,40,0.6)" font-family="Georgia,serif" font-style="italic">11 days · Setu · Series B</text>
+        </svg>
+      </div>
+      <div class="story-body">
+        <div class="story-stars">★★★★★</div>
+        <div class="story-text">"I had applied to 60 companies over 4 months. Ghosted by most. Mitra had me talking to a Series B founder within 72 hours of our first WhatsApp conversation. The introduction they sent was better than anything I could have written about myself. Offer accepted in 11 days."</div>
+        <div class="story-person">
+          <div class="sp-av2" style="background:linear-gradient(135deg,#1B5E5A,#237870)">A</div>
+          <div><div class="sp-nm">Arjun Krishnamurthy</div><div class="sp-rl">Staff Engineer · now at Setu</div></div>
+          <div class="sp-co">India</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="story-card reveal d2">
+      <div class="story-vis">
+        <svg viewBox="0 0 460 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+          <rect width="460" height="160" fill="#2A1F14"/>
+          <text x="230" y="120" text-anchor="middle" font-family="Georgia,serif" font-size="200" font-weight="700" fill="rgba(192,122,40,0.1)" letter-spacing="-5">P</text>
+          <!-- Candidate intro cards flowing to founder -->
+          <rect x="20" y="40" width="110" height="60" rx="8" fill="rgba(27,94,90,0.2)" stroke="rgba(27,94,90,0.3)" stroke-width="1"/>
+          <rect x="28" y="50" width="60" height="5" rx="2" fill="rgba(255,255,255,0.35)"/>
+          <rect x="28" y="60" width="45" height="4" rx="2" fill="rgba(255,255,255,0.15)"/>
+          <rect x="28" y="72" width="80" height="16" rx="4" fill="rgba(27,94,90,0.2)"/>
+          <rect x="32" y="76" width="40" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
+          <path d="M135 70 L155 70" stroke="rgba(192,122,40,0.4)" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round"/>
+          <path d="M150 65 L158 70 L150 75" stroke="rgba(192,122,40,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="220" cy="70" r="36" fill="rgba(192,122,40,0.06)" stroke="rgba(192,122,40,0.15)" stroke-width="1"/>
+          <circle cx="220" cy="58" r="14" fill="#8B6B4A" opacity="0.7"/>
+          <ellipse cx="220" cy="83" rx="20" ry="14" fill="#2A1F14" opacity="0.7"/>
+          <path d="M275 70 L295 70" stroke="rgba(192,122,40,0.4)" stroke-width="1.5" stroke-dasharray="4,3" stroke-linecap="round"/>
+          <path d="M290 65 L298 70 L290 75" stroke="rgba(192,122,40,0.4)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <rect x="310" y="40" width="120" height="60" rx="8" fill="rgba(192,122,40,0.12)" stroke="rgba(192,122,40,0.25)" stroke-width="1"/>
+          <rect x="318" y="50" width="70" height="5" rx="2" fill="rgba(255,255,255,0.4)"/>
+          <rect x="318" y="60" width="55" height="4" rx="2" fill="rgba(255,255,255,0.2)"/>
+          <rect x="358" y="74" width="60" height="16" rx="4" fill="rgba(192,122,40,0.3)"/>
+          <rect x="362" y="78" width="36" height="4" rx="2" fill="rgba(192,122,40,0.8)"/>
+          <text x="220" y="130" text-anchor="middle" font-size="10" fill="rgba(192,122,40,0.5)" font-family="sans-serif">3–5 curated introductions per week</text>
+        </svg>
+      </div>
+      <div class="story-body">
+        <div class="story-stars">★★★★★</div>
+        <div class="story-text">"As a founder I was drowning in Naukri CVs. Mitra sends me 3–4 candidates a week who are genuinely relevant. Two of my best hires this year came through them. The context notes on every candidate are invaluable."</div>
+        <div class="story-person">
+          <div class="sp-av2" style="background:linear-gradient(135deg,#C07A28,#A06020)">P</div>
+          <div><div class="sp-nm">Priya Subramaniam</div><div class="sp-rl">Co-founder, Hyperface</div></div>
+          <div class="sp-co">Founder</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="story-card reveal d3">
+      <div class="story-vis">
+        <svg viewBox="0 0 460 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%">
+          <rect width="460" height="160" fill="#1C1917"/>
+          <text x="230" y="120" text-anchor="middle" font-family="Georgia,serif" font-size="200" font-weight="700" fill="rgba(255,255,255,0.03)" letter-spacing="-5">R</text>
+          <!-- Salary negotiation visual -->
+          <rect x="40" y="30" width="160" height="70" rx="8" fill="rgba(220,60,60,0.08)" stroke="rgba(220,60,60,0.2)" stroke-width="1"/>
+          <text x="120" y="56" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.35)" font-family="sans-serif">Initial offer</text>
+          <text x="120" y="76" text-anchor="middle" font-size="22" fill="rgba(220,80,80,0.7)" font-family="Georgia,serif" font-weight="700">₹36L</text>
+          <rect x="260" y="30" width="160" height="70" rx="8" fill="rgba(26,122,74,0.1)" stroke="rgba(26,122,74,0.3)" stroke-width="1"/>
+          <text x="340" y="56" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.35)" font-family="sans-serif">After negotiation</text>
+          <text x="340" y="76" text-anchor="middle" font-size="22" fill="rgba(74,222,128,0.8)" font-family="Georgia,serif" font-weight="700">₹42L</text>
+          <!-- Arrow between -->
+          <path d="M205 65 L255 65" stroke="rgba(192,122,40,0.6)" stroke-width="2" stroke-linecap="round"/>
+          <path d="M248 58 L258 65 L248 72" stroke="rgba(192,122,40,0.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <text x="230" y="62" text-anchor="middle" font-size="9" fill="rgba(192,122,40,0.7)" font-family="sans-serif" font-weight="600">+₹6L</text>
+          <text x="230" y="130" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.2)" font-family="sans-serif">Mitra wrote the counter-offer message</text>
+        </svg>
+      </div>
+      <div class="story-body">
+        <div class="story-stars">★★★★★</div>
+        <div class="story-text">"Mitra told me my offer was ₹8L below market and wrote the counter-offer message for me. I walked away with ₹6L more than the original number. The negotiation coaching alone was worth the entire experience."</div>
+        <div class="story-person">
+          <div class="sp-av2" style="background:linear-gradient(135deg,#6B4FBB,#8B6FDB)">R</div>
+          <div><div class="sp-nm">Rohit Agarwal</div><div class="sp-rl">Product Lead · now at Finbox</div></div>
+          <div class="sp-co">Hyderabad</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing-sec" id="pricing">
+  <div class="reveal" style="text-align:center">
+    <div class="eyebrow" style="justify-content:center">Pricing</div>
+    <h2 class="sec-title" style="text-align:center;margin-bottom:8px">Simple. <em>Honest.</em> No surprises.</h2>
+    <p style="font-size:15px;color:var(--ink-muted);font-weight:300;font-style:italic">For companies only — candidates are always completely free.</p>
+  </div>
+  <div class="pricing-grid">
+    <div class="price-card reveal">
+      <div class="pc-tier">Starter</div>
+      <div class="pc-price">8<span class="unit">%</span></div>
+      <div class="pc-note">of first-year CTC, per hire</div>
+      <div class="pc-div"></div>
+      <div class="pc-feat"><div class="pc-chk chk-g">✓</div>First 2 hires completely free</div>
+      <div class="pc-feat"><div class="pc-chk chk-g">✓</div>Pay only when you hire</div>
+      <div class="pc-feat"><div class="pc-chk chk-g">✓</div>90-day replacement guarantee</div>
+      <div class="pc-feat"><div class="pc-chk chk-g">✓</div>Up to 2 active roles</div>
+      <a href="#" class="pc-cta cta-dk">Start free</a>
+    </div>
+    <div class="price-card hl reveal d1">
+      <div class="pc-badge">Most Popular</div>
+      <div class="pc-tier">Growth</div>
+      <div class="pc-price"><span style="font-size:18px;color:rgba(255,255,255,.4);font-family:'Plus Jakarta Sans',sans-serif;font-weight:300">₹</span>35K<span class="unit">/mo</span></div>
+      <div class="pc-note">Unlimited roles · cancel anytime</div>
+      <div class="pc-div"></div>
+      <div class="pc-feat"><div class="pc-chk chk-w">✓</div>Unlimited active roles</div>
+      <div class="pc-feat"><div class="pc-chk chk-w">✓</div>2× weekly matching cycles</div>
+      <div class="pc-feat"><div class="pc-chk chk-w">✓</div>Hiring dashboard and market intel</div>
+      <div class="pc-feat"><div class="pc-chk chk-w">✓</div>Full candidate context notes</div>
+      <div class="pc-feat"><div class="pc-chk chk-w">✓</div>Dedicated account manager</div>
+      <a href="#" class="pc-cta cta-am">Get started</a>
+    </div>
+    <div class="price-card reveal d2">
+      <div class="pc-tier">Scale</div>
+      <div class="pc-price" style="font-size:28px;padding-top:8px">Custom</div>
+      <div class="pc-note">Series B+ · high-volume hiring</div>
+      <div class="pc-div"></div>
+      <div class="pc-feat"><div class="pc-chk chk-a">✓</div>Everything in Growth</div>
+      <div class="pc-feat"><div class="pc-chk chk-a">✓</div>Employer branding campaigns</div>
+      <div class="pc-feat"><div class="pc-chk chk-a">✓</div>Campus and fresher pipeline</div>
+      <div class="pc-feat"><div class="pc-chk chk-a">✓</div>ATS integration and API access</div>
+      <a href="#" class="pc-cta cta-dk">Talk to us</a>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final-sec">
+  <div class="final-inner reveal">
+    <div class="final-kicker">Your next chapter starts here</div>
+    <h2 class="final-h2">One conversation.<br><em>One introduction.</em><br>Everything changes.</h2>
+    <p class="final-sub">Whether you're looking for your next role or your next great hire — Mitra works for you. Not a platform. A partner.</p>
+    <div class="final-btns">
+      <a href="#" class="btn-fp">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        I'm looking for a role
+      </a>
+      <a href="#founders" class="btn-fs">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+        I'm a founder hiring
+      </a>
+    </div>
+    <p class="final-note">Serving talent and startups across India · Free for candidates, always</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="foot-top">
+    <div>
+      <a href="#" class="nav-logo" style="text-decoration:none">
+        <div class="logo-mark"><svg viewBox="0 0 24 24" fill="none" width="18" height="18"><circle cx="12" cy="9" r="4" fill="white"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <span class="logo-type">Mitra<span>.</span></span>
+      </a>
+      <p class="foot-desc">India's AI talent agent. We don't help you apply — we make the introduction ourselves.</p>
+    </div>
+    <div>
+      <div class="fc-hd">For talent</div>
+      <ul class="fc-lnks"><li><a href="#">Chat with Mitra</a></li><li><a href="#">Salary benchmark</a></li><li><a href="#">Resume review</a></li><li><a href="#">Refer and earn ₹10K</a></li></ul>
+    </div>
+    <div>
+      <div class="fc-hd">For founders</div>
+      <ul class="fc-lnks"><li><a href="#">List a role</a></li><li><a href="#">Pricing</a></li><li><a href="#">Success stories</a></li><li><a href="#">Book a call</a></li></ul>
+    </div>
+    <div>
+      <div class="fc-hd">Company</div>
+      <ul class="fc-lnks"><li><a href="#">Our manifesto</a></li><li><a href="#">Blog</a></li><li><a href="#">We are hiring</a></li><li><a href="#">Privacy</a></li></ul>
+    </div>
+  </div>
+  <div class="foot-btm">
+    <span class="fc-copy">© 2026 Mitra Labs Pvt. Ltd. · India</span>
+    <span class="fc-made">Built with <span>care</span> for India's builders</span>
+  </div>
+</footer>
+
+<script>
+function sw(a){
+  document.querySelectorAll('.tog-btn').forEach(b=>b.classList.toggle('on',b.dataset.a===a));
+  const show=(cls,v)=>document.querySelectorAll(cls).forEach(el=>el.style.display=v?'block':'none');
+  if(a==='c'){
+    show('.hl-c',1);show('.hl-f',0);show('.sub-c',1);show('.sub-f',0);
+    const c=document.getElementById('heroCta');
+    c.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> Start on WhatsApp — free`;
+    c.style.background='var(--ink)';
+  } else {
+    show('.hl-c',0);show('.hl-f',1);show('.sub-c',0);show('.sub-f',1);
+    const c=document.getElementById('heroCta');
+    c.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg> List a role — first 2 hires free`;
+    c.style.background='var(--teal)';
+  }
+}
+
+window.addEventListener('scroll',()=>document.getElementById('nav').classList.toggle('scrolled',scrollY>60));
+
+const obs=new IntersectionObserver(e=>e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('in')}),{threshold:0.1,rootMargin:'0px 0px -48px 0px'});
+document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+</script>
+</body>
+</html>

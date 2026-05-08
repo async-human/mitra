@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"c:\\\\harshal\\\\dream_big\\\\dream_big\\\\mitra_agent\\\\web\" -Name | Where-Object { $_ -notmatch '^\\\\.' -and $_ -ne 'node_modules' -and $_ -ne '.next' })",
+      "PowerShell($files = @\\(\\); Get-ChildItem -Path \"c:\\\\harshal\\\\dream_big\\\\dream_big\\\\mitra_agent\\\\backend\\\\mitra_api\" -Recurse -File | Where-Object { $_.Extension -in '.py', '.json' } | ForEach-Object { $files += $_ }; Write-Output \"Source files in backend: $\\($files.Count\\)\"; $files | Group-Object Extension | Format-Table Name, Count)",
+      "Bash(git branch *)",
+      "Bash(git push *)"
+    ]
+  }
+}
