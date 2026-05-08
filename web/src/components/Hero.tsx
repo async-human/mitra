@@ -1,12 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import { ArrowDownIcon, BriefcaseIcon, WhatsAppIcon } from "./icons";
 import { PhoneMockup } from "./PhoneMockup";
-
-type Audience = "candidate" | "founder";
+import { useAudience, type Audience } from "./AudienceContext";
 
 const COPY = {
   candidate: {
@@ -48,7 +46,7 @@ const COPY = {
 } as const;
 
 export function Hero() {
-  const [audience, setAudience] = useState<Audience>("candidate");
+  const { audience, setAudience } = useAudience();
   const copy = COPY[audience];
 
   return (

@@ -1,4 +1,9 @@
+"use client";
+
 import { Reveal } from "./Reveal";
+import { useAudience } from "./AudienceContext";
+import { whatsAppHrefFor } from "@/lib/whatsapp";
+import { BriefcaseIcon, WhatsAppIcon } from "./icons";
 
 type Step = { title: string; desc: string; chip: string };
 
@@ -48,70 +53,60 @@ const FOUNDER_STEPS: Step[] = [
   },
 ];
 
-function Track({
-  steps,
-  forLabel,
-  tagline,
-  badgeClass,
-  headClass,
-}: {
-  steps: Step[];
-  forLabel: string;
-  tagline: string;
-  badgeClass: "badge-c" | "badge-f";
-  headClass: "track-head--c" | "track-head--f";
-}) {
-  return (
-    <div className="how-track">
-      <div className={`track-head ${headClass}`}>
-        <div className="track-for">{forLabel}</div>
-        <div className="track-tagline">{tagline}</div>
-      </div>
-      <div className="track-steps">
-        {steps.map((step, i) => (
-          <div className="track-step" key={step.title}>
-            <div className={`step-badge ${badgeClass}`}>{i + 1}</div>
-            <div>
-              <div className="step-title">{step.title}</div>
-              <div className="step-desc">{step.desc}</div>
-              <span className="step-chip">{step.chip}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+const AUDIENCE_META = {
+  candidate: {
+    eyebrow: "For candidates",
+    headline: "Your personal job search agent",
+    sub: "Stop cold-applying. One honest conversation on WhatsApp — then Mitra handles everything from sourcing to the warm introduction.",
+    steps: CANDIDATE_STEPS,
+    accentClass: "how-accent--teal",
+    badgeClass: "badge-c",
+    cta: { label: "Start on WhatsApp — free", href: whatsAppHrefFor("candidate"), icon: <WhatsAppIcon size={15} />, cls: "how-cta-btn how-cta-btn--teal" },
+  },
+  founder: {
+    eyebrow: "For founders",
+    headline: "Your always-on talent partner",
+    sub: "Stop drowning in CVs. Share the role and we deliver pre-qualified introductions with full context — motivation, salary, and why they want you.",
+    steps: FOUNDER_STEPS,
+    accentClass: "how-accent--amber",
+    badgeClass: "badge-f",
+    cta: { label: "List a role — first 2 hires free", href: whatsAppHrefFor("founder"), icon: <BriefcaseIcon size={15} />, cls: "how-cta-btn how-cta-btn--amber" },
+  },
+} as const;
 
 export function HowItWorks() {
+  const { audience } = useAudience();
+  const meta = AUDIENCE_META[audience];
+
   return (
     <section className="how" id="how">
-      <Reveal className="eyebrow">How it works</Reveal>
-      <Reveal as="h2" className="sec-title" delay={1}>
-        Two paths. One agent.
-        <br />
-        <em>Real introductions.</em>
-      </Reveal>
-      <Reveal as="p" className="sec-sub" delay={2}>
-        Whether you&apos;re a candidate or a founder, Mitra works on your
-        behalf — not as a platform, but as a partner.
-      </Reveal>
-      <Reveal className="how-tracks" delay={3}>
-        <Track
-          steps={CANDIDATE_STEPS}
-          forLabel="For candidates"
-          tagline="Your personal job search agent"
-          badgeClass="badge-c"
-          headClass="track-head--c"
-        />
-        <Track
-          steps={FOUNDER_STEPS}
-          forLabel="For founders"
-          tagline="Your always-on talent partner"
-          badgeClass="badge-f"
-          headClass="track-head--f"
-        />
-      </Reveal>
+      <div className="how-inner">
+        <Reveal className={`how-header ${meta.accentClass}`}>
+          <div className="how-eyebrow">{meta.eyebrow}</div>
+          <h2 className="how-h2">{meta.headline}</h2>
+          <p className="how-sub">{meta.sub}</p>
+        </Reveal>
+
+        <Reveal className="how-steps-grid" delay={1}>
+          {meta.steps.map((step, i) => (
+            <div className={`how-step ${meta.accentClass}`} key={step.title}>
+              <div className={`how-step-num ${meta.badgeClass}`}>{i + 1}</div>
+              <div className="how-step-body">
+                <div className="how-step-title">{step.title}</div>
+                <div className="how-step-desc">{step.desc}</div>
+                <span className="how-step-chip">{step.chip}</span>
+              </div>
+            </div>
+          ))}
+        </Reveal>
+
+        <Reveal className="how-cta-row" delay={2}>
+          <a href={meta.cta.href} target="_blank" rel="noopener noreferrer" className={meta.cta.cls}>
+            {meta.cta.icon}
+            {meta.cta.label}
+          </a>
+        </Reveal>
+      </div>
     </section>
   );
 }
