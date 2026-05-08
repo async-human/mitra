@@ -113,34 +113,32 @@ function ScenarioRotor({
   );
 }
 
+import { useAudience } from "./AudienceContext";
+
 export function ProblemRotors() {
   const reduceMotion = usePrefersReducedMotion();
+  const { audience } = useAudience();
+
+  if (audience === "candidate") {
+    return (
+      <div className="prob-grid-single">
+        <ScenarioRotor
+          label="What we hear every week"
+          labelClass="for-c"
+          title={<>You&apos;re qualified.<br />The system ignores you.</>}
+          scenarios={PROBLEM_CANDIDATE_SCENARIOS}
+          reduceMotion={reduceMotion}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="prob-grid prob-grid--live">
+    <div className="prob-grid-single">
       <ScenarioRotor
-        label="For candidates"
-        labelClass="for-c"
-        title={
-          <>
-            You&apos;re qualified.
-            <br />
-            The system ignores you.
-          </>
-        }
-        scenarios={PROBLEM_CANDIDATE_SCENARIOS}
-        reduceMotion={reduceMotion}
-      />
-      <ScenarioRotor
-        label="For founders"
+        label="What founders tell us"
         labelClass="for-f"
-        title={
-          <>
-            You&apos;re drowning in noise.
-            <br />
-            You need signal.
-          </>
-        }
+        title={<>You&apos;re drowning in noise.<br />You need signal.</>}
         scenarios={PROBLEM_FOUNDER_SCENARIOS}
         reduceMotion={reduceMotion}
       />

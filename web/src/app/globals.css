@@ -331,6 +331,7 @@ body {
 .prob-h2 em { font-style: italic; color: var(--amber); }
 .prob-sub { font-size: 16px; font-weight: 300; color: rgba(255, 255, 255, 0.45); max-width: 560px; line-height: 1.75; margin-bottom: 72px; }
 .prob-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.prob-grid-single { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 680px; }
 .prob-grid--live { align-items: stretch; }
 .prob-card { border: 1px solid rgba(255, 255, 255, 0.07); border-radius: var(--r-lg); overflow: hidden; background: rgba(255, 255, 255, 0.03); transition: all 0.3s; }
 .prob-card:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(192, 122, 40, 0.25); }
@@ -814,6 +815,40 @@ body {
 .cta-am:hover { background: var(--amber-2); box-shadow: 0 6px 24px rgba(192, 122, 40, 0.4); }
 .cta-lt { background: transparent; color: rgba(255, 255, 255, 0.8); border: 1.5px solid rgba(255, 255, 255, 0.18); }
 .cta-lt:hover { background: rgba(255, 255, 255, 0.07); }
+
+/* ── CANDIDATE PRICING CARD ── */
+.candidate-pricing-card {
+  display: grid; grid-template-columns: 1fr 1.2fr; gap: 0;
+  max-width: 860px; margin: 56px auto 0;
+  background: var(--white); border-radius: var(--r-lg);
+  border: 1.5px solid rgba(28, 25, 23, 0.09); box-shadow: var(--shadow-md); overflow: hidden;
+}
+.cprice-left {
+  background: var(--void); padding: 52px 44px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.cprice-amount {
+  font-family: var(--font-lora), 'Lora', serif;
+  font-size: 72px; font-weight: 600; color: white; line-height: 1; letter-spacing: -0.04em;
+  margin-bottom: 8px;
+}
+.cprice-label { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.45); margin-bottom: 20px; letter-spacing: 0.04em; }
+.cprice-note { font-size: 14px; font-weight: 300; color: rgba(255,255,255,0.45); line-height: 1.7; margin-bottom: 32px; max-width: 280px; }
+.cprice-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 26px; background: var(--teal); color: white;
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  border: none; border-radius: 100px; cursor: pointer; text-decoration: none;
+  transition: all 0.2s; width: fit-content;
+}
+.cprice-cta:hover { background: var(--teal-2); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(27,94,90,0.4); }
+.cprice-right { padding: 44px 40px; }
+.cprice-perks-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--foreground-muted); margin-bottom: 24px; }
+.cprice-perks { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+.cprice-perks li { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; font-weight: 400; color: var(--foreground-soft); line-height: 1.45; }
+@media (max-width: 680px) {
+  .candidate-pricing-card { grid-template-columns: 1fr; }
+}
 
 /* ── FINAL CTA ── */
 .final-sec { background: var(--void); padding: 120px 52px; position: relative; overflow: hidden; }
