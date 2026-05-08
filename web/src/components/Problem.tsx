@@ -21,12 +21,16 @@ export function Problem() {
 
   return (
     <section className="problem">
-      <div className="prob-eyebrow">The problem we solve</div>
-      <Reveal as="h2" className="prob-h2">{copy.h2}</Reveal>
-      <Reveal as="p" className="prob-sub" delay={1}>{copy.sub}</Reveal>
-      <Reveal delay={2}>
-        <ProblemRotors />
-      </Reveal>
+      <div className="prob-inner">
+        <div className="prob-text">
+          <div className="prob-eyebrow">The problem we solve</div>
+          <Reveal as="h2" className="prob-h2">{copy.h2}</Reveal>
+          <Reveal as="p" className="prob-sub" delay={1}>{copy.sub}</Reveal>
+        </div>
+        <Reveal delay={2}>
+          <ProblemRotors />
+        </Reveal>
+      </div>
     </section>
   );
 }

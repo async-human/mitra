@@ -442,13 +442,14 @@ body {
 /* ── PROBLEM ── */
 .problem { background: var(--void); padding: 120px 52px; position: relative; overflow: hidden; }
 .problem::before { content: ''; position: absolute; width: 700px; height: 350px; background: radial-gradient(ellipse, rgba(192, 122, 40, 0.07) 0%, transparent 65%); top: 0; left: 50%; transform: translateX(-50%); pointer-events: none; }
+.prob-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
 .prob-eyebrow { font-size: 11px; font-weight: 600; color: var(--amber); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
 .prob-eyebrow::before { content: ''; width: 24px; height: 1.5px; background: var(--amber); }
-.prob-h2 { font-family: var(--font-lora), 'Lora', serif; font-size: clamp(30px, 3.5vw, 50px); font-weight: 600; color: white; line-height: 1.1; letter-spacing: -0.02em; max-width: 720px; margin-bottom: 16px; }
+.prob-h2 { font-family: var(--font-lora), 'Lora', serif; font-size: clamp(30px, 3.5vw, 50px); font-weight: 600; color: white; line-height: 1.1; letter-spacing: -0.02em; margin-bottom: 16px; }
 .prob-h2 em { font-style: italic; color: var(--amber); }
-.prob-sub { font-size: 16px; font-weight: 300; color: rgba(255, 255, 255, 0.45); max-width: 560px; line-height: 1.75; margin-bottom: 72px; }
+.prob-sub { font-size: 16px; font-weight: 300; color: rgba(255, 255, 255, 0.45); line-height: 1.75; margin-bottom: 0; }
 .prob-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.prob-grid-single { display: grid; grid-template-columns: 1fr; gap: 16px; max-width: 680px; }
+.prob-grid-single { display: grid; grid-template-columns: 1fr; gap: 16px; }
 .prob-grid--live { align-items: stretch; }
 .prob-card { border: 1px solid rgba(255, 255, 255, 0.07); border-radius: var(--r-lg); overflow: hidden; background: rgba(255, 255, 255, 0.03); transition: all 0.3s; }
 .prob-card:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(192, 122, 40, 0.25); }
@@ -2056,7 +2057,7 @@ body {
   .ts { padding: 24px; }
 }
 @media (max-width: 768px) {
-  .prob-grid, .how-tracks, .convo-inner, .founders-inner,
+  .prob-grid, .prob-inner, .how-tracks, .convo-inner, .founders-inner,
   .stories-grid, .pricing-grid, .foot-top { grid-template-columns: 1fr; }
   .stats-row { grid-template-columns: 1fr 1fr; }
   .problem, .how, .convo, .stats-sec, .founders-sec,
