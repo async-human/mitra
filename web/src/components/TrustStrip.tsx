@@ -11,6 +11,8 @@ const PLACEMENTS = [
   { name: "Jupiter", stage: "Series C", color: "#2255CC" },
   { name: "Jar", stage: "Series B", color: "#C03060" },
   { name: "Groww", stage: "Series D", color: "#6BBB22" },
+  { name: "Zepto", stage: "Series E", color: "#C07A28" },
+  { name: "Slice", stage: "Series B", color: "#6B4FBB" },
 ];
 
 const HIRING = [
@@ -20,42 +22,46 @@ const HIRING = [
   { name: "Razorpay", role: "2 PMs", color: "#C07A28" },
   { name: "Jupiter", role: "Backend", color: "#2255CC" },
   { name: "CRED", role: "Data Eng", color: "#6B4FBB" },
+  { name: "Jar", role: "Growth PM", color: "#C03060" },
+  { name: "Zepto", role: "Staff Eng", color: "#C07A28" },
 ];
+
+function Chip({ name, detail, color }: { name: string; detail: string; color: string }) {
+  return (
+    <div className="ts-chip">
+      <span className="ts-chip-dot" style={{ background: color }} />
+      <span className="ts-chip-name">{name}</span>
+      <span className="ts-chip-stage">{detail}</span>
+    </div>
+  );
+}
 
 export function TrustStrip() {
   const { audience } = useAudience();
-
-  if (audience === "candidate") {
-    return (
-      <section className="ts" aria-label="Recent placements">
-        <div className="ts-label">Recent placements at</div>
-        <div className="ts-chips">
-          {PLACEMENTS.map((p) => (
-            <div key={p.name} className="ts-chip">
-              <span className="ts-chip-dot" style={{ background: p.color }} />
-              <span className="ts-chip-name">{p.name}</span>
-              <span className="ts-chip-stage">{p.stage}</span>
-            </div>
-          ))}
-        </div>
-        <div className="ts-note">+ dozens more VC-backed startups across India</div>
-      </section>
-    );
-  }
+  const items = audience === "candidate" ? PLACEMENTS : HIRING;
+  const label = audience === "candidate" ? "Recent placements at" : "Currently hiring via Mitra";
 
   return (
-    <section className="ts" aria-label="Hiring partners">
-      <div className="ts-label">Currently hiring via Mitra</div>
-      <div className="ts-chips">
-        {HIRING.map((h) => (
-          <div key={h.name} className="ts-chip">
-            <span className="ts-chip-dot" style={{ background: h.color }} />
-            <span className="ts-chip-name">{h.name}</span>
-            <span className="ts-chip-stage">{h.role}</span>
-          </div>
-        ))}
+    <section className="ts" aria-label={label}>
+      <div className="ts-label">{label}</div>
+      <div className="ts-marquee-wrap">
+        <div className="ts-marquee-track">
+          {/* Duplicated for seamless loop */}
+          {[...items, ...items].map((item, i) => (
+            <Chip
+              key={i}
+              name={item.name}
+              detail={"stage" in item ? item.stage : item.role}
+              color={item.color}
+            />
+          ))}
+        </div>
       </div>
-      <div className="ts-note">Seed through Series C · India-headquartered product startups only</div>
+      <div className="ts-note">
+        {audience === "candidate"
+          ? "+ dozens more VC-backed startups across India"
+          : "Seed through Series C · India-headquartered product startups only"}
+      </div>
     </section>
   );
 }

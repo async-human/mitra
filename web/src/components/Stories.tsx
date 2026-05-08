@@ -21,7 +21,7 @@ const CANDIDATE_STORIES: Story[] = [
     stat: "11 days",
     statLabel: "from WhatsApp chat to offer accepted",
     accentColor: "#1B5E5A",
-    text: "I had applied to 60 companies over 4 months. Ghosted by most. Mitra had me talking to a Series B founder within 72 hours. The introduction they sent was better than anything I could have written about myself.",
+    text: "I had applied to 60 companies over 4 months. Ghosted by most. Mitra had me talking to a Series B founder within 72 hours. The introduction they sent was better than anything I could have written about myself. Offer accepted in 11 days.",
     name: "Arjun Krishnamurthy",
     role: "Staff Engineer · now at Setu",
     city: "Bengaluru",
@@ -31,7 +31,7 @@ const CANDIDATE_STORIES: Story[] = [
   },
   {
     stat: "+₹6L",
-    statLabel: "above initial offer, negotiated by Mitra",
+    statLabel: "above initial offer, negotiated",
     accentColor: "#6B4FBB",
     text: "Mitra told me my offer was ₹8L below market and wrote the counter-offer message for me. The negotiation coaching alone was worth the entire experience.",
     name: "Rohit Agarwal",
@@ -43,7 +43,7 @@ const CANDIDATE_STORIES: Story[] = [
   },
   {
     stat: "3 offers",
-    statLabel: "in 18 days, all from founder introductions",
+    statLabel: "in 18 days, founder intros only",
     accentColor: "#8B2252",
     text: "4 months of cold applications and one response. Then I tried Mitra. A founder called me the same week. Mitra helped me pick the right offer — not just the highest salary.",
     name: "Neha Sharma",
@@ -57,8 +57,8 @@ const CANDIDATE_STORIES: Story[] = [
 
 const FOUNDER_STORIES: Story[] = [
   {
-    stat: "2 hires",
-    statLabel: "among the best we've made this year",
+    stat: "2 best hires",
+    statLabel: "this year — both through Mitra",
     accentColor: "#C07A28",
     text: "I was drowning in Naukri CVs. Mitra sends me 3–4 candidates a week who are genuinely relevant. The context notes on every candidate are invaluable — I know why they want to join before we even speak.",
     name: "Priya Subramaniam",
@@ -70,7 +70,7 @@ const FOUNDER_STORIES: Story[] = [
   },
   {
     stat: "8%",
-    statLabel: "vs 18% agency fee — hired in 6 weeks",
+    statLabel: "vs 18% agency — hired in 6 weeks",
     accentColor: "#1B5E5A",
     text: "We wasted 3 months with a recruiter agency — charged 18%, sent CVs we could have found ourselves. Mitra had us in conversations with 4 pre-qualified candidates in the first week.",
     name: "Vikram Nair",
@@ -84,7 +84,7 @@ const FOUNDER_STORIES: Story[] = [
     stat: "4 days",
     statLabel: "to first qualified introduction",
     accentColor: "#2A4A8A",
-    text: "What I love most is the context. Every intro comes with salary expectation, why they want to join us specifically, and what they won't compromise on. We go straight to the real conversation.",
+    text: "Every intro comes with salary expectation, why they want to join us specifically, and what they won't compromise on. We go straight to the real conversation — no 'tell me about yourself'.",
     name: "Ankit Mehta",
     role: "Founder, Setu",
     city: "Founder",
@@ -93,6 +93,29 @@ const FOUNDER_STORIES: Story[] = [
     delay: 3,
   },
 ];
+
+function StoryCard({ s, featured = false }: { s: Story; featured?: boolean }) {
+  return (
+    <Reveal className={`story-card${featured ? " story-card--feat" : ""}`} delay={s.delay}>
+      <div className="story-stat-block" style={{ background: s.accentColor }}>
+        <div className="story-stat-num">{s.stat}</div>
+        <div className="story-stat-lbl">{s.statLabel}</div>
+      </div>
+      <div className="story-body">
+        <div className="story-stars" aria-label="5 out of 5 stars">★★★★★</div>
+        <p className="story-text">&ldquo;{s.text}&rdquo;</p>
+        <div className="story-person">
+          <div className="sp-av2" style={{ background: s.avatarBg }} aria-hidden="true">{s.initial}</div>
+          <div>
+            <div className="sp-nm">{s.name}</div>
+            <div className="sp-rl">{s.role}</div>
+          </div>
+          <div className="sp-co">{s.city}</div>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
 
 export function Stories() {
   const { audience } = useAudience();
@@ -107,27 +130,12 @@ export function Stories() {
         <div className="eyebrow sec-intro-eyebrow">Real stories</div>
         <h2 className="sec-title sec-title--center">{heading}</h2>
       </Reveal>
-      <div className="stories-grid">
-        {stories.map((s) => (
-          <Reveal key={s.name} className="story-card" delay={s.delay}>
-            <div className="story-stat-block" style={{ background: s.accentColor }}>
-              <div className="story-stat-num">{s.stat}</div>
-              <div className="story-stat-lbl">{s.statLabel}</div>
-            </div>
-            <div className="story-body">
-              <div className="story-stars" aria-label="5 out of 5 stars">★★★★★</div>
-              <p className="story-text">&ldquo;{s.text}&rdquo;</p>
-              <div className="story-person">
-                <div className="sp-av2" style={{ background: s.avatarBg }} aria-hidden="true">{s.initial}</div>
-                <div>
-                  <div className="sp-nm">{s.name}</div>
-                  <div className="sp-rl">{s.role}</div>
-                </div>
-                <div className="sp-co">{s.city}</div>
-              </div>
-            </div>
-          </Reveal>
-        ))}
+      <div className="stories-bento">
+        <StoryCard s={stories[0]!} featured />
+        <div className="stories-bento-col">
+          <StoryCard s={stories[1]!} />
+          <StoryCard s={stories[2]!} />
+        </div>
       </div>
       <Reveal delay={4}>
         <p className="stories-disclaimer">
