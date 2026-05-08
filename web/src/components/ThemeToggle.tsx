@@ -119,7 +119,7 @@ export function ThemeToggle() {
       type="button"
       className="theme-toggle"
       onClick={cycle}
-      aria-label={`Theme: ${label}. ${nextHint}.`}
+      aria-label={mounted ? `Theme: ${label}. ${nextHint}.` : "Choose theme"}
       disabled={!mounted}
       title={mounted ? `Theme · ${label} — click for ${preference === "system" ? "light" : preference === "light" ? "dark" : "automatic"}` : "Choose theme"}
     >
