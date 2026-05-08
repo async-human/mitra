@@ -27,6 +27,8 @@
   --shadow-lg:  0 24px 80px rgba(28, 25, 23, 0.15);
   --r:          12px;
   --r-lg:       20px;
+  /* Responsive horizontal padding — 52px min, auto-centers at 1280px content width */
+  --px: max(52px, calc((100vw - 1280px) / 2));
   /* Always-dark surfaces vs page text — keeps problem/trust/footer panels stable */
   --void:               #1C1917;
   --pill-bg:            #FFFFFF;
@@ -71,7 +73,7 @@ body {
   position: fixed; top: 0; left: 0; right: 0; z-index: 200;
   background: rgba(246, 241, 234, 0.92); backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(28, 25, 23, 0.07);
-  height: 68px; padding: 0 52px;
+  height: 68px; padding: 0 var(--px);
   display: flex; align-items: center; justify-content: space-between;
   transition: box-shadow 0.3s;
 }
@@ -440,7 +442,7 @@ body {
 }
 
 /* ── PROBLEM ── */
-.problem { background: var(--void); padding: 120px 52px; position: relative; overflow: hidden; }
+.problem { background: var(--void); padding: 120px var(--px); position: relative; overflow: hidden; }
 .problem::before { content: ''; position: absolute; width: 700px; height: 350px; background: radial-gradient(ellipse, rgba(192, 122, 40, 0.07) 0%, transparent 65%); top: 0; left: 50%; transform: translateX(-50%); pointer-events: none; }
 .prob-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
 .prob-eyebrow { font-size: 11px; font-weight: 600; color: var(--amber); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
@@ -549,7 +551,7 @@ body {
 .prob-x { width: 16px; height: 16px; border-radius: 50%; background: rgba(220, 60, 60, 0.15); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #E05252; flex-shrink: 0; margin-top: 2px; }
 
 /* ── HOW IT WORKS ── */
-.how { padding: 120px 52px; background: var(--sand); }
+.how { padding: 120px var(--px); background: var(--sand); }
 .how-inner { max-width: 1080px; margin: 0 auto; }
 
 .how-header { margin-bottom: 60px; }
@@ -594,7 +596,7 @@ body {
 }
 
 /* ── CONVO ── */
-.convo { padding: 100px 52px; background: var(--sand-2); }
+.convo { padding: 100px var(--px); background: var(--sand-2); }
 .convo-header { max-width: 600px; margin-bottom: 56px; }
 .convo-inner { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 56px; align-items: start; }
 
@@ -670,7 +672,7 @@ body {
 .chat-send-btn:hover { background: var(--teal-2); transform: scale(1.05); }
 
 /* ── STATS ── */
-.stats-sec { padding: 0 52px 80px; background: var(--sand-2); }
+.stats-sec { padding: 0 var(--px) 80px; background: var(--sand-2); }
 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--white); border-radius: var(--r-lg); box-shadow: var(--shadow); border: 1px solid rgba(28, 25, 23, 0.07); overflow: hidden; }
 .stat-cell { padding: 36px 24px; text-align: center; border-right: 1px solid rgba(28, 25, 23, 0.06); position: relative; transition: background 0.3s; }
 .stat-cell:hover { background: var(--sand); }
@@ -701,7 +703,7 @@ body {
 }
 
 /* ── FOUNDERS ── */
-.founders-sec { padding: 120px 52px; background: var(--sand); }
+.founders-sec { padding: 120px var(--px); background: var(--sand); }
 .founders-inner {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -801,7 +803,7 @@ body {
 .feat-desc { font-size: 13px; font-weight: 300; color: var(--foreground-muted); line-height: 1.5; }
 
 /* ── STORIES ── */
-.stories-sec { padding: 120px 52px; background: var(--white); }
+.stories-sec { padding: 120px var(--px); background: var(--white); }
 .stories-header { text-align: center; margin-bottom: 56px; }
 
 /* Bento layout */
@@ -874,7 +876,7 @@ body {
 }
 
 /* ── PRICING ── */
-.pricing-sec { padding: 120px 52px; background: var(--sand); }
+.pricing-sec { padding: 120px var(--px); background: var(--sand); }
 .pricing-grid { display: grid; grid-template-columns: 1fr 1.05fr 1fr; gap: 16px; max-width: 900px; margin: 56px auto 0; align-items: start; }
 .price-card { background: var(--white); border: 1.5px solid rgba(28, 25, 23, 0.09); border-radius: var(--r-lg); padding: 32px; transition: all 0.3s; position: relative; }
 .price-card:hover { box-shadow: var(--shadow-md); transform: translateY(-4px); }
@@ -965,7 +967,7 @@ body {
 }
 
 /* ── FINAL CTA ── */
-.final-sec { background: var(--void); padding: 120px 52px; position: relative; overflow: hidden; }
+.final-sec { background: var(--void); padding: 120px var(--px); position: relative; overflow: hidden; }
 .final-sec::before {
   content: ''; position: absolute; inset: 0;
   background-image:
@@ -1013,7 +1015,7 @@ body {
 .final-note { margin-top: 32px; font-size: 13px; color: rgba(255, 255, 255, 0.2); font-weight: 300; }
 
 /* ── FOOTER ── */
-.footer { background: #121010; padding: 64px 52px 40px; }
+.footer { background: #121010; padding: 64px var(--px) 40px; }
 .foot-top { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 56px; margin-bottom: 56px; padding-bottom: 56px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
 .foot-desc { font-size: 14px; font-weight: 300; color: rgba(255, 255, 255, 0.3); line-height: 1.75; margin-top: 14px; font-style: italic; max-width: 230px; }
 .fc-hd { font-size: 10px; font-weight: 700; color: rgba(255, 255, 255, 0.3); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 18px; }
@@ -1112,7 +1114,7 @@ body {
 .privacy-pulse {
   background: #151210;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 14px 52px;
+  padding: 14px var(--px);
 }
 .privacy-pulse-inner {
   max-width: 900px;
@@ -1143,7 +1145,7 @@ body {
 
 .fit-sec {
   background: var(--sand-2);
-  padding: 72px 52px 88px;
+  padding: 72px var(--px) 88px;
   border-bottom: 1px solid rgba(28, 25, 23, 0.06);
 }
 .fit-inner {
@@ -1739,7 +1741,7 @@ body {
    ───────────────────────────────────────────────────────────────── */
 .cmp-sec {
   background: var(--white);
-  padding: 100px 52px;
+  padding: 100px var(--px);
 }
 .cmp-table-wrap {
   max-width: 1100px;
@@ -1911,7 +1913,7 @@ body {
    ───────────────────────────────────────────────────────────────── */
 .faq-sec {
   background: var(--sand);
-  padding: 100px 52px;
+  padding: 100px var(--px);
 }
 .faq-list {
   max-width: 760px;
@@ -2066,9 +2068,8 @@ body {
   .hero { grid-template-columns: 1fr; }
   .hero-right { display: none; }
   .hero-left { padding: 120px 28px 80px; }
-  .nav { padding: 0 24px; }
   .nav-mid { display: none; }
-  .ts { padding: 24px; }
+  .ts { padding: 12px 0; }
 }
 @media (max-width: 768px) {
   .prob-grid, .prob-inner, .how-tracks, .convo-inner, .founders-inner,
