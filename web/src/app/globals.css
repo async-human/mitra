@@ -595,95 +595,49 @@ body {
 
 /* ── CONVO ── */
 .convo { padding: 100px 52px; background: var(--sand-2); }
-.convo-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: start; }
+.convo-header { max-width: 600px; margin-bottom: 56px; }
+.convo-inner { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 56px; align-items: start; }
 
-.convo-quote-col {
-  border-radius: var(--r-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-lg);
-  min-height: 420px;
-  display: flex;
-  align-items: stretch;
-}
-
-.convo-quote-shell {
+.convo-quotes-col {
   display: flex;
   flex-direction: column;
-  width: 100%;
-  background: linear-gradient(165deg, #1B3A3A 0%, #1C1917 52%, #141210 100%);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 16px;
+  padding-top: 8px;
 }
-
-.convo-quote-inner {
-  flex: 1;
-  padding: 40px 32px 16px;
-  display: flex;
-  align-items: center;
+.convo-qcard {
+  padding: 24px 28px;
+  background: var(--white);
+  border-radius: var(--r-lg);
+  border: 1px solid rgba(28, 25, 23, 0.07);
+  box-shadow: var(--shadow);
 }
-
-.convo-quote-pane {
-  animation: convoQuoteIn 0.5s ease both;
-  width: 100%;
-}
-
-.convo-quote-text {
+.convo-qcard-text {
   font-family: var(--font-lora), 'Lora', serif;
-  font-size: clamp(17px, 2vw, 20px);
+  font-size: 15px;
   font-style: italic;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.88);
-  line-height: 1.58;
-  margin: 0 0 16px;
+  color: var(--foreground-soft);
+  line-height: 1.6;
+  margin: 0 0 10px;
 }
-
-.convo-quote-attr {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.38);
+.convo-qcard-attr {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--foreground-muted);
   margin: 0;
-  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-.convo-quote-dots {
-  display: flex;
-  gap: 8px;
-  padding: 12px 28px 26px;
-  justify-content: center;
-}
-
-.convo-qdot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.12);
-  cursor: pointer;
-  padding: 0;
-}
-.convo-qdot.on {
-  background: var(--amber);
-}
-
-.convo-sec-title {
-  margin-bottom: 14px;
-}
-
+.convo-sec-title { margin-bottom: 14px; }
 .convo-lead {
   font-size: 15px;
   font-weight: 300;
   color: var(--foreground-muted);
   line-height: 1.8;
-  margin-bottom: 32px;
+  margin-bottom: 0;
 }
-
-.convo-strong {
-  color: var(--foreground);
-  font-weight: 500;
-}
-
-@keyframes convoQuoteIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
+.convo-strong { color: var(--foreground); font-weight: 500; }
 
 .chat-wrap { background: var(--white); border-radius: 24px; overflow: hidden; box-shadow: var(--shadow-lg); border: 1px solid rgba(28, 25, 23, 0.07); }
 .chat-top { background: var(--void); padding: 14px 20px; display: flex; align-items: center; gap: 12px; }
@@ -2283,12 +2237,6 @@ body {
   border-color: rgba(255, 255, 255, 0.09);
 }
 
-[data-theme="dark"] .convo-quote-text {
-  color: rgba(255, 255, 255, 0.94);
-}
-[data-theme="dark"] .convo-quote-attr {
-  color: rgba(255, 255, 255, 0.55);
-}
 
 [data-theme="dark"] .feat-desc {
   color: var(--foreground-soft);
