@@ -2295,6 +2295,53 @@ body {
   color: var(--void);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
 }
+/* ── DARK MODE: white-background cards → elevated surface ── */
+[data-theme="dark"] .how-step {
+  background: var(--surface-elevated);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+[data-theme="dark"] .how-step-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--foreground-soft);
+}
+[data-theme="dark"] .founders-feat {
+  background: var(--surface-elevated);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+[data-theme="dark"] .founders-quote-block {
+  background: var(--surface-elevated);
+  border-left-color: var(--amber);
+}
+[data-theme="dark"] .convo-qcard {
+  background: var(--surface-elevated);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+[data-theme="dark"] .story-card {
+  background: var(--surface-elevated);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+[data-theme="dark"] .story-body {
+  background: #232120;
+}
+[data-theme="dark"] .story-person {
+  border-top-color: rgba(255, 255, 255, 0.07);
+}
+[data-theme="dark"] .sp-co {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+[data-theme="dark"] .faq-item {
+  background: var(--surface-elevated);
+}
+[data-theme="dark"] .faq-q:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+[data-theme="dark"] .mc {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
