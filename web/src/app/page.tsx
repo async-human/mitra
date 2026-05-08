@@ -1,6 +1,7 @@
 import { Comparison } from "@/components/Comparison";
 import { Conversation } from "@/components/Conversation";
-import { FAQ, FAQ_ITEMS } from "@/components/FAQ";
+import { FAQ } from "@/components/FAQ";
+import { FAQ_ITEMS } from "@/lib/faqData";
 import { FinalCTA } from "@/components/FinalCTA";
 import { FitAudience } from "@/components/FitAudience";
 import { Footer } from "@/components/Footer";
