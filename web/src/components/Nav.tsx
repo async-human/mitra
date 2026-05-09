@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useSession, signOut } from "next-auth/react";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import { Logo } from "./Logo";
 import { ThemeToggle } from "./ThemeToggle";
@@ -11,7 +12,9 @@ import { useAudience } from "./AudienceContext";
 export function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [pastHero, setPastHero] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { audience, setAudience } = useAudience();
+  const { data: session } = useSession();
 
   useEffect(() => {
     const onScroll = () => {
@@ -52,9 +55,40 @@ export function Nav() {
           </div>
         )}
         <ThemeToggle />
-        <Link href="/sign-in" className="btn-ghost">
-          Sign in
-        </Link>
+        {session?.user ? (
+          <div className="nav-user" onMouseLeave={() => setUserMenuOpen(false)}>
+            <button
+              className="nav-user-btn"
+              onClick={() => setUserMenuOpen((o) => !o)}
+              aria-label="User menu"
+            >
+              {session.user.image ? (
+                <img src={session.user.image} alt="" className="nav-user-av" referrerPolicy="no-referrer" />
+              ) : (
+                <span className="nav-user-av nav-user-av--fallback">
+                  {session.user.name?.[0] ?? "U"}
+                </span>
+              )}
+            </button>
+            {userMenuOpen && (
+              <div className="nav-user-menu">
+                <div className="nav-user-menu-name">{session.user.name}</div>
+                <div className="nav-user-menu-email">{session.user.email}</div>
+                <hr className="nav-user-menu-sep" />
+                <button
+                  className="nav-user-menu-item nav-user-menu-item--danger"
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <Link href="/sign-in" className="btn-ghost">
+            Sign in
+          </Link>
+        )}
         <a
           href={whatsAppHrefFor(audience === "founder" ? "founder" : "candidate")}
           target="_blank"
