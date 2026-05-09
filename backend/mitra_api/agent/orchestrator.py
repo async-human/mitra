@@ -612,16 +612,42 @@ async def run_agent_turn(
     final_text: str | None = None
     rounds = 0
 
+    # On the first round, force search_jobs when the message looks like a job request —
+    # prevents the model from answering from training knowledge instead of the live DB.
+    _job_keywords = ("job", "role", "opening", "recommend", "match", "search", "find", "available",
+                     "opportunit", "position", "listing", "what's out", "show me", "suggest",
+                     "give me", "what do you have", "any roles", "any jobs")
+    _user_lower = user_content.lower()
+    _force_first = "search_jobs" if any(k in _user_lower for k in _job_keywords) else None
+
+    log.info(
+        "[agent:%s] turn start — model=%s signals=%s force_first=%s msg=%.80r",
+        whatsapp_sender_id, s.mitra_llm_model,
+        list(known_signals.keys()) if known_signals else [],
+        _force_first, user_content,
+    )
+
     while rounds < s.mitra_agent_max_tool_rounds:
         rounds += 1
+        _ft = _force_first if rounds == 1 else None
+        log.info("[agent:%s] llm round %d — force_tool=%s", whatsapp_sender_id, rounds, _ft)
+
         result = await adapter.complete(
             model=s.mitra_llm_model,
             messages=msgs,
             tools=tools,
             max_tokens=s.mitra_llm_max_tokens,
             temperature=s.mitra_llm_temperature,
+            force_tool=_ft,
         )
         assistant_tool_calls = list(result.tool_calls or [])
+
+        log.info(
+            "[agent:%s] llm round %d — finish_reason=%s tool_calls=%s",
+            whatsapp_sender_id, rounds,
+            result.finish_reason,
+            [tc.name for tc in assistant_tool_calls] or "none",
+        )
 
         if assistant_tool_calls:
             msgs.append(ChatMessage(
@@ -637,15 +663,31 @@ async def run_agent_turn(
                 except json.JSONDecodeError:
                     parsed = {"_invalid_json": tc.arguments}
 
+                log.info(
+                    "[agent:%s] tool call — %s args=%s",
+                    whatsapp_sender_id, tc.name,
+                    {k: v for k, v in parsed.items() if k != "query"} if tc.name != "search_jobs"
+                    else {"query": str(parsed.get("query", ""))[:120]},
+                )
+
                 try:
                     out = await run_tool(tc.name, parsed)
                     if tc.name == "search_jobs":
                         try:
-                            last_search_jobs_payload = json.loads(out)
+                            payload = json.loads(out)
+                            last_search_jobs_payload = payload
+                            picks = payload.get("picks") or []
+                            log.info(
+                                "[agent:%s] search_jobs returned %d result(s): %s",
+                                whatsapp_sender_id, len(picks),
+                                [(p.get("title"), p.get("company")) for p in picks[:5]],
+                            )
                         except json.JSONDecodeError:
-                            pass
+                            log.warning("[agent:%s] search_jobs result was not valid JSON", whatsapp_sender_id)
+                    else:
+                        log.info("[agent:%s] tool %s completed OK", whatsapp_sender_id, tc.name)
                 except Exception as exc:
-                    log.exception("tool %s failed", tc.name)
+                    log.exception("[agent:%s] tool %s raised: %s", whatsapp_sender_id, tc.name, exc)
                     out = json.dumps({"error": str(exc)})
 
                 msgs.append(ChatMessage(
@@ -656,12 +698,16 @@ async def run_agent_turn(
                 ))
             continue
 
+        log.info("[agent:%s] no tool calls — generating final response", whatsapp_sender_id)
         final_text = (result.content or "").strip() or \
                      "Let me know a bit more about the role you'd love next."
         break
 
     if final_text is None:
+        log.warning("[agent:%s] hit max tool rounds (%d) without final text", whatsapp_sender_id, rounds)
         final_text = "I'm working through your request — could you tell me a bit more about what you're looking for?"
+
+    log.info("[agent:%s] turn complete — response %.80r", whatsapp_sender_id, final_text)
 
     msgs.append(ChatMessage(role="assistant", content=final_text))
     try:
