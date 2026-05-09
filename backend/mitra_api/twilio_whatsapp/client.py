@@ -61,7 +61,7 @@ async def send_whatsapp_reply(
         return
     url = TWILIO_MESSAGES.format(account_sid=sid)
     # Twilio accepts x-www-form-urlencoded
-    payload = {"From": frm, "To": to_whatsapp_from_value.strip(), "Body": body[:4096]}
+    payload = {"From": frm, "To": to_whatsapp_from_value.strip(), "Body": body[:1600]}
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.post(url, data=payload, auth=(sid, token))
 

@@ -1,10 +1,15 @@
-"""Split assistant replies for WhatsApp text limits (session messages up to ~4096 chars)."""
+"""Split assistant replies for WhatsApp text limits.
+
+Twilio WhatsApp: 1600 chars/segment hard limit.
+Meta Cloud API: 4096 chars/segment.
+Default is 1500 — safe for both channels with a comfortable margin.
+"""
 
 
-def split_whatsapp_text(text: str, max_chars: int = 4000) -> list[str]:
+def split_whatsapp_text(text: str, max_chars: int = 1500) -> list[str]:
     """
     Prefer splitting on blank lines; avoids mid-UTF-8 surrogate issues (plain str slice).
-    Keeps each segment under max_chars with a small safety margin vs 4096.
+    Keeps each segment under max_chars — default 1500 is safe for Twilio (hard cap 1600).
     """
     t = text.strip()
     if len(t) <= max_chars:
