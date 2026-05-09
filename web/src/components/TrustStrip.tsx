@@ -3,27 +3,27 @@
 import { useAudience } from "./AudienceContext";
 
 const PLACEMENTS = [
-  { name: "Setu", stage: "Series B", color: "#1B5E5A" },
-  { name: "Razorpay", stage: "Series D", color: "#C07A28" },
-  { name: "CRED", stage: "Late-stage", color: "#6B4FBB" },
-  { name: "Hyperface", stage: "Series A", color: "#1A6B5A" },
-  { name: "Finbox", stage: "Series B", color: "#B06020" },
-  { name: "Jupiter", stage: "Series C", color: "#2255CC" },
-  { name: "Jar", stage: "Series B", color: "#C03060" },
-  { name: "Groww", stage: "Series D", color: "#6BBB22" },
-  { name: "Zepto", stage: "Series E", color: "#C07A28" },
-  { name: "Slice", stage: "Series B", color: "#6B4FBB" },
+  { name: "Setu", stage: "Series B", color: "#5E6AD2" },
+  { name: "Razorpay", stage: "Series D", color: "#5E6AD2" },
+  { name: "CRED", stage: "Late-stage", color: "#5E6AD2" },
+  { name: "Hyperface", stage: "Series A", color: "#5E6AD2" },
+  { name: "Finbox", stage: "Series B", color: "#5E6AD2" },
+  { name: "Jupiter", stage: "Series C", color: "#5E6AD2" },
+  { name: "Jar", stage: "Series B", color: "#5E6AD2" },
+  { name: "Groww", stage: "Series D", color: "#5E6AD2" },
+  { name: "Zepto", stage: "Series E", color: "#5E6AD2" },
+  { name: "Slice", stage: "Series B", color: "#5E6AD2" },
 ];
 
 const HIRING = [
-  { name: "Setu", role: "3 engineers", color: "#1B5E5A" },
-  { name: "Hyperface", role: "PM + Eng", color: "#1A6B5A" },
-  { name: "Finbox", role: "ML + Risk", color: "#B06020" },
-  { name: "Razorpay", role: "2 PMs", color: "#C07A28" },
-  { name: "Jupiter", role: "Backend", color: "#2255CC" },
-  { name: "CRED", role: "Data Eng", color: "#6B4FBB" },
-  { name: "Jar", role: "Growth PM", color: "#C03060" },
-  { name: "Zepto", role: "Staff Eng", color: "#C07A28" },
+  { name: "Setu", role: "3 engineers", color: "#5E6AD2" },
+  { name: "Hyperface", role: "PM + Eng", color: "#5E6AD2" },
+  { name: "Finbox", role: "ML + Risk", color: "#5E6AD2" },
+  { name: "Razorpay", role: "2 PMs", color: "#5E6AD2" },
+  { name: "Jupiter", role: "Backend", color: "#5E6AD2" },
+  { name: "CRED", role: "Data Eng", color: "#5E6AD2" },
+  { name: "Jar", role: "Growth PM", color: "#5E6AD2" },
+  { name: "Zepto", role: "Staff Eng", color: "#5E6AD2" },
 ];
 
 function Chip({ name, detail, color }: { name: string; detail: string; color: string }) {

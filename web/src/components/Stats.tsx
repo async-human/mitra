@@ -14,7 +14,7 @@ function useCountUp(target: number, duration = 1600) {
     if (!el) return;
     const obs = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) { setActive(true); obs.disconnect(); } },
-      { threshold: 0.5 }
+      { threshold: 0.4 }
     );
     obs.observe(el);
     return () => obs.disconnect();
@@ -39,7 +39,7 @@ type StatDef = {
   num: number;
   prefix?: string;
   suffix?: string;
-  display?: string; // override entire value (non-numeric)
+  display?: string;
   label: React.ReactNode;
 };
 
@@ -64,18 +64,23 @@ function StatCell({ s, index }: { s: StatDef; index: number }) {
 }
 
 const CANDIDATE_STATS: StatDef[] = [
-  { num: 8, suffix: "d", label: <>Average days to first<br />interview after intro</> },
+  { num: 8, suffix: "d", label: <>Average days to<br />first interview</> },
   { num: 0, display: "0", label: <>Candidates ghosted —<br />our iron promise</> },
-  { num: 6, prefix: "₹", suffix: "L+", label: <>Average extra salary<br />negotiated per candidate</> },
+  { num: 6, prefix: "₹", suffix: "L+", label: <>Average extra salary<br />negotiated per hire</> },
   { num: 0, display: "Free", label: <>For candidates —<br />forever, no asterisk</> },
 ];
 
 const FOUNDER_STATS: StatDef[] = [
-  { num: 8, suffix: "%", label: <>Success fee — half what<br />agencies charge</> },
+  { num: 8, suffix: "%", label: <>Success fee — half<br />what agencies charge</> },
   { num: 0, display: "3–5", label: <>Pre-qualified intros<br />per role per week</> },
-  { num: 90, suffix: "d", label: <>Replacement guarantee<br />in writing, no fine print</> },
+  { num: 90, suffix: "d", label: <>Replacement guarantee —<br />in writing</> },
   { num: 24, suffix: "h", label: <>Time to activation<br />after you share the role</> },
 ];
+
+const HEADING = {
+  candidate: <><em>8 days.</em> Not 8 weeks.</>,
+  founder: <>Numbers that<br /><em>replace the pitch.</em></>,
+};
 
 export function Stats() {
   const { audience } = useAudience();
@@ -83,15 +88,19 @@ export function Stats() {
 
   return (
     <section className="stats-sec" aria-label="Mitra by the numbers">
-      <div className="stats-row">
-        {stats.map((s, i) => <StatCell key={i} s={s} index={i} />)}
-      </div>
-      <Reveal delay={2}>
+      <Reveal className="stats-header">
+        <div className="stats-eyebrow">By the numbers</div>
+        <h2 className="stats-title">{HEADING[audience]}</h2>
+      </Reveal>
+      <Reveal delay={1}>
+        <div className="stats-row">
+          {stats.map((s, i) => <StatCell key={i} s={s} index={i} />)}
+        </div>
+      </Reveal>
+      <Reveal delay={3}>
         <p className="stats-disclaimer">
-          Headline numbers reflect our operating model and typical pipeline
-          pacing; they are{" "}
-          <strong>not audited metrics</strong>. Ask us how any of these work in
-          practice on WhatsApp.
+          Headline numbers reflect our operating model and typical pipeline pacing; they are{" "}
+          <strong>not audited metrics</strong>. Ask us how any of these work in practice on WhatsApp.
         </p>
       </Reveal>
     </section>

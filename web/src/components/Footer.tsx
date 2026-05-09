@@ -14,7 +14,6 @@ const TALENT_LINKS: FooterLink[] = [
 const FOUNDER_LINKS: FooterLink[] = [
   { label: "List a role", href: whatsAppHrefFor("founder"), external: true },
   { label: "Pricing", href: "#pricing" },
-  { label: "Success stories", href: "#stories" },
   { label: "Book a call", href: whatsAppHrefFor("founder"), external: true },
 ];
 
@@ -23,6 +22,7 @@ const COMPANY_LINKS: FooterLink[] = [
   { label: "Blog", href: "/blog" },
   { label: "We are hiring", href: "/careers" },
   { label: "Privacy", href: "/privacy" },
+  { label: "Cookie policy", href: "/cookies" },
 ];
 
 function LinkColumn({

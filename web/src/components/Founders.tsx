@@ -5,37 +5,31 @@ import { useAudience } from "./AudienceContext";
 
 const CANDIDATE_FEATURES = [
   {
-    accent: "#1B5E5A",
-    title: "Personal intro, not a CV blast",
-    body: "We write the context that makes founders want to meet you — your story, motivation, and what you've built.",
+    title: "A personal intro, not a CV blast",
+    body: "We write the context that makes founders want to meet you — your story, motivation, and what you've built. Not a forwarded PDF.",
   },
   {
-    accent: "#C07A28",
     title: "Salary negotiation included",
-    body: "We know market rates. Once you have an offer, we'll tell you if you're leaving money on the table — and write the counter.",
+    body: "We know market rates. Once you have an offer, we'll tell you if you're leaving money on the table — and write the counter for you.",
   },
   {
-    accent: "#6B4FBB",
     title: "A clear answer, always",
-    body: "Every introduction ends with a yes or a no. We stay in your corner until there's a definitive outcome.",
+    body: "Every introduction ends with a yes or a no. We stay in your corner until there's a definitive outcome. No ghosting. Ever.",
   },
 ];
 
 const FOUNDER_FEATURES = [
   {
-    accent: "#1B5E5A",
     title: "Context, not CVs",
     body: "Every intro includes motivation, notice period, salary expectation, and why this candidate wants to join your company specifically.",
   },
   {
-    accent: "#C07A28",
     title: "Live in 24 hours",
-    body: "Share the role on WhatsApp. We ask 5 questions your JD doesn't answer, and we're moving — no contracts before work starts.",
+    body: "Share the role on WhatsApp. We ask 5 questions your JD doesn't answer — then we're moving. No contracts before work starts.",
   },
   {
-    accent: "#6B4FBB",
     title: "Half the agency rate",
-    body: "8% success fee. No retainer, no subscription, no CVs without context. You pay only when you hire.",
+    body: "8% success fee. No retainer, no subscription, no pile of CVs without context. You pay only when you hire.",
   },
 ];
 
@@ -60,7 +54,6 @@ export function Founders() {
       <div className="founders-features">
         {features.map((f, i) => (
           <Reveal key={f.title} delay={([1, 2, 3] as const)[i]} className="founders-feat">
-            <div className="founders-feat-bar" style={{ background: f.accent }} />
             <div className="founders-feat-body">
               <div className="founders-feat-title">{f.title}</div>
               <p className="founders-feat-text">{f.body}</p>

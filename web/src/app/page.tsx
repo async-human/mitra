@@ -13,7 +13,6 @@ import { Pricing } from "@/components/Pricing";
 import { PrivacyPulse } from "@/components/PrivacyPulse";
 import { Problem } from "@/components/Problem";
 import { Stats } from "@/components/Stats";
-import { Stories } from "@/components/Stories";
 import { StickyMobileCta } from "@/components/StickyMobileCta";
 import { TrustStrip } from "@/components/TrustStrip";
 
@@ -71,7 +70,6 @@ export default function HomePage() {
         <HowItWorks />
         <Conversation />
         <Stats />
-        <Stories />
         <Comparison />
         <Pricing />
         <FAQ />

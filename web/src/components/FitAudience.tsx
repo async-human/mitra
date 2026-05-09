@@ -5,7 +5,7 @@ import { useAudience } from "./AudienceContext";
 
 const CONTENT = {
   candidate: {
-    title: <>Built for builders who want<br /><em>ownership</em>, not just employment.</>,
+    title: <>Built for builders who want <em>ownership</em>, not just employment.</>,
     yes: {
       label: "Strong fit",
       items: [
@@ -25,7 +25,7 @@ const CONTENT = {
     },
   },
   founder: {
-    title: <>Built for funded startups that hire<br /><em>on ownership</em>, not job titles.</>,
+    title: <>Built for funded startups that hire <em>on ownership</em>, not job titles.</>,
     yes: {
       label: "Strong fit",
       items: [

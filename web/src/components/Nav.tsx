@@ -30,7 +30,6 @@ export function Nav() {
         <li><Link href="#how">How it works</Link></li>
         <li><Link href="#fit">Who it&apos;s for</Link></li>
         <li><Link href="#founders">Warm intros</Link></li>
-        <li><Link href="#stories">Stories</Link></li>
         <li><Link href="#pricing">Pricing</Link></li>
       </ul>
       <div className="nav-end">

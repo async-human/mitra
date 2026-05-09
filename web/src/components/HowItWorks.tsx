@@ -90,7 +90,7 @@ export function HowItWorks() {
         <Reveal className="how-steps-grid" delay={1}>
           {meta.steps.map((step, i) => (
             <div className={`how-step ${meta.accentClass}`} key={step.title}>
-              <div className={`how-step-num ${meta.badgeClass}`}>{i + 1}</div>
+              <div className={`how-step-num ${meta.badgeClass}`}>0{i + 1} —</div>
               <div className="how-step-body">
                 <div className="how-step-title">{step.title}</div>
                 <div className="how-step-desc">{step.desc}</div>
