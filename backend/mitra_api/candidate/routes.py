@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field
 from mitra_api.agent.orchestrator import run_agent_turn
 from mitra_api.agent.session_store import AgentSessionStore, build_session_store
 from mitra_api.config import Settings, get_settings
+from mitra_api.db.engine import get_session_factory
+from mitra_api.tools.intros import request_intro
 
 log = logging.getLogger(__name__)
 
@@ -113,6 +115,46 @@ async def get_jobs_by_ids(
     order = {nid: i for i, nid in enumerate(numeric_ids)}
     result.sort(key=lambda j: order.get(j.id, 99))
     return result
+
+
+class IntroRequest(BaseModel):
+    session_id: str = Field(..., min_length=1, max_length=200)
+    job_id: str     = Field(..., min_length=1, max_length=200)
+    why_note: str   = Field(default="", max_length=600)
+
+
+class IntroResponse(BaseModel):
+    ok: bool
+    message: str
+    intro_id: int | None = None
+    founder_contacted: bool = False
+    already_sent: bool = False
+
+
+@router.post("/intro", response_model=IntroResponse)
+async def request_candidate_intro(body: IntroRequest) -> IntroResponse:
+    """
+    Trigger a warm intro from the web matches page.
+    The candidate is identified by their NextAuth email (session_id).
+    Signals already persisted from the chat session are used to enrich the intro.
+    """
+    sid = f"web:{body.session_id}"
+    factory = get_session_factory()
+    async with factory() as db:
+        result = await request_intro(
+            candidate_phone=sid,
+            job_external_id=body.job_id,
+            why_note=body.why_note,
+            session=db,
+        )
+
+    return IntroResponse(
+        ok=bool(result.get("ok", False)),
+        message=str(result.get("message", "Something went wrong — please try again.")),
+        intro_id=result.get("intro_id"),
+        founder_contacted=bool(result.get("founder_contacted", False)),
+        already_sent=not result.get("ok", True) and "already sent" in str(result.get("message", "")),
+    )
 
 
 @router.post("/chat", response_model=CandidateChatResponse)

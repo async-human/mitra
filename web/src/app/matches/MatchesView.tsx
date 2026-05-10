@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 
@@ -19,6 +19,8 @@ interface FullJob {
 interface MergedJob extends FullJob {
   fit: string; fit_pct: number; why: string;
 }
+
+type IntroStatus = "idle" | "loading" | "sent" | "already_sent" | "error";
 
 function parseFit(description: string): { fit: string; fit_pct: number } {
   const parts = description.split(" · ");
@@ -86,7 +88,6 @@ const RANK_LABELS = ["Top pick", "Strong match", "Worth exploring"];
 function WhyFits({ job }: { job: MergedJob }) {
   const whyText = job.why || job.summary;
   if (!whyText) return null;
-
   return (
     <div className="match-why">
       <div className="match-why-header">
@@ -98,7 +99,65 @@ function WhyFits({ job }: { job: MergedJob }) {
   );
 }
 
-function JobCard({ job, idx }: { job: MergedJob; idx: number }) {
+function IntroButton({
+  job, userEmail, status, errorMsg, onRequest,
+}: {
+  job: MergedJob;
+  userEmail?: string;
+  status: IntroStatus;
+  errorMsg: string;
+  onRequest: (job: MergedJob) => void;
+}) {
+  if (status === "sent") {
+    return (
+      <div className="match-intro-sent">
+        <span className="match-intro-sent-icon">✓</span>
+        <span>Intro sent — Mitra will follow up</span>
+      </div>
+    );
+  }
+
+  if (status === "already_sent") {
+    return (
+      <div className="match-intro-sent match-intro-sent--already">
+        <span className="match-intro-sent-icon">✓</span>
+        <span>Intro already sent</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="match-intro-col">
+      <button
+        className={`match-btn match-btn--primary${status === "loading" ? " match-btn--loading" : ""}`}
+        disabled={status === "loading" || !userEmail}
+        onClick={() => onRequest(job)}
+      >
+        {status === "loading" ? (
+          <span className="match-btn-spinner" />
+        ) : status === "error" ? (
+          "Try again"
+        ) : (
+          "Request intro"
+        )}
+      </button>
+      {status === "error" && errorMsg && (
+        <p className="match-intro-error">{errorMsg}</p>
+      )}
+    </div>
+  );
+}
+
+function JobCard({
+  job, idx, userEmail, introStatus, introError, onRequestIntro,
+}: {
+  job: MergedJob;
+  idx: number;
+  userEmail?: string;
+  introStatus: IntroStatus;
+  introError: string;
+  onRequestIntro: (job: MergedJob) => void;
+}) {
   const salary = salaryLabel(job.salary_min_lpa, job.salary_max_lpa);
   const remote = remoteLabel(job.remote_policy);
   const empType = employmentLabel(job.employment);
@@ -162,9 +221,13 @@ function JobCard({ job, idx }: { job: MergedJob; idx: number }) {
         <Link href={`/chat?about=${encodeURIComponent(job.title)}`} className="match-btn match-btn--ghost">
           Ask Mitra →
         </Link>
-        <Link href="/chat" className="match-btn match-btn--primary">
-          Request intro
-        </Link>
+        <IntroButton
+          job={job}
+          userEmail={userEmail}
+          status={introStatus}
+          errorMsg={introError}
+          onRequest={onRequestIntro}
+        />
       </div>
     </div>
   );
@@ -177,11 +240,12 @@ function matchesKey(email?: string) {
 export function MatchesView({ userName, userEmail, urlIds }: { userName?: string; userEmail?: string; urlIds?: string }) {
   const [jobs, setJobs] = useState<MergedJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [introStatuses, setIntroStatuses] = useState<Record<number, IntroStatus>>({});
+  const [introErrors, setIntroErrors] = useState<Record<number, string>>({});
   const firstName = userName?.split(" ")[0];
 
   useEffect(() => {
     async function load() {
-      // Try the user-scoped key first, then fall back to the legacy un-scoped key
       const raw = localStorage.getItem(matchesKey(userEmail))
         ?? localStorage.getItem("mitra-matches");
       let basic: BasicCard[] | null = null;
@@ -223,6 +287,43 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
     load();
   }, [urlIds, userEmail]);
 
+  const handleRequestIntro = useCallback(async (job: MergedJob) => {
+    if (!userEmail) return;
+
+    setIntroStatuses(prev => ({ ...prev, [job.id]: "loading" }));
+    setIntroErrors(prev => ({ ...prev, [job.id]: "" }));
+
+    try {
+      const res = await fetch(`${API_URL}/candidate/intro`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: userEmail,
+          job_id: String(job.id),
+          why_note: job.why || job.summary || "",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.message || `HTTP ${res.status}`);
+      }
+
+      if (data.already_sent) {
+        setIntroStatuses(prev => ({ ...prev, [job.id]: "already_sent" }));
+      } else if (data.ok) {
+        setIntroStatuses(prev => ({ ...prev, [job.id]: "sent" }));
+      } else {
+        setIntroStatuses(prev => ({ ...prev, [job.id]: "error" }));
+        setIntroErrors(prev => ({ ...prev, [job.id]: data.message || "Something went wrong." }));
+      }
+    } catch (err) {
+      setIntroStatuses(prev => ({ ...prev, [job.id]: "error" }));
+      setIntroErrors(prev => ({ ...prev, [job.id]: err instanceof Error ? err.message : "Something went wrong." }));
+    }
+  }, [userEmail]);
+
   return (
     <div className="match-root">
       <header className="match-topbar">
@@ -261,7 +362,17 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
           </div>
         ) : (
           <div className="match-grid">
-            {jobs.map((job, i) => <JobCard key={`${job.id}-${i}`} job={job} idx={i} />)}
+            {jobs.map((job, i) => (
+              <JobCard
+                key={`${job.id}-${i}`}
+                job={job}
+                idx={i}
+                userEmail={userEmail}
+                introStatus={introStatuses[job.id] ?? "idle"}
+                introError={introErrors[job.id] ?? ""}
+                onRequestIntro={handleRequestIntro}
+              />
+            ))}
           </div>
         )}
       </main>
