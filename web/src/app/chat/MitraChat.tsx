@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface JobCard { id: string; title: string; description: string; }
 
@@ -47,6 +48,7 @@ function renderText(text: string) {
 export function MitraChat({
   userName, userEmail, userImage,
 }: { userName?: string; userEmail: string; userImage?: string }) {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -64,10 +66,16 @@ export function MitraChat({
       });
       if (!res.ok) throw new Error("failed");
       const data = await res.json();
+      const cards: JobCard[] = data.job_cards ?? [];
       setMessages(prev => [...prev, {
         role: "mitra", text: data.reply,
-        jobCards: data.job_cards?.length ? data.job_cards : undefined,
+        jobCards: cards.length ? cards : undefined,
       }]);
+      if (cards.length > 0) {
+        sessionStorage.setItem("mitra-matches", JSON.stringify(cards));
+        // brief delay so the user sees the message before navigating
+        setTimeout(() => router.push("/matches"), 1200);
+      }
     } catch {
       setMessages(prev => [...prev, { role: "mitra", text: "Something went wrong — please try again." }]);
     } finally {
