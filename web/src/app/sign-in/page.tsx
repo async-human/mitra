@@ -49,10 +49,11 @@ function FounderIcon() {
   );
 }
 
-type Props = { searchParams: { role?: string; callbackUrl?: string } };
+type Props = { searchParams: Promise<{ role?: string; callbackUrl?: string }> };
 
-export default function SignInPage({ searchParams }: Props) {
-  const role = searchParams.role as "candidate" | "founder" | undefined;
+export default async function SignInPage({ searchParams }: Props) {
+  const params = await searchParams;
+  const role = params.role as "candidate" | "founder" | undefined;
   const redirectTo = role === "founder" ? "/founder/setup" : "/dashboard";
 
   // ── No role selected: show role picker ──────────────────────────────────────
