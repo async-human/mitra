@@ -108,11 +108,11 @@ function IntroButton({
   errorMsg: string;
   onRequest: (job: MergedJob) => void;
 }) {
-  if (status === "sent") {
+    if (status === "sent") {
     return (
       <div className="match-intro-sent">
         <span className="match-intro-sent-icon">✓</span>
-        <span>Intro sent — Mitra will follow up</span>
+        <span>Intro sent · check your inbox for a copy</span>
       </div>
     );
   }

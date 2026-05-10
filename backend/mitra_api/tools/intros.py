@@ -135,7 +135,17 @@ async def _load_candidate_signals(candidate_id: int, session: AsyncSession) -> d
 
 async def _send_intro(*, founder_wa: str | None, founder_email: str | None,
                       subject: str, body: str) -> bool:
+    """
+    Deliver intro to founder.  Returns True if at least one channel succeeded.
+    Also BCC's ops email (MITRA_OPS_EMAIL) so every intro is visible to the team.
+    """
+    from mitra_api.config import get_settings
+    from mitra_api.tools.email import send_email
+
+    s = get_settings()
+    ops_email = s.mitra_ops_email.strip()
     sent = False
+
     if founder_wa:
         try:
             from mitra_api.twilio_whatsapp.client import send_whatsapp_reply
@@ -147,10 +157,30 @@ async def _send_intro(*, founder_wa: str | None, founder_email: str | None,
 
     if founder_email and not sent:
         try:
-            from mitra_api.tools.email import send_email
             sent = await send_email(to=founder_email, subject=subject, text=body)
         except Exception:
             log.exception("email intro send failed for %s", founder_email)
+
+    # BCC ops on every successful founder delivery
+    if sent and ops_email and ops_email not in (founder_email or ""):
+        try:
+            await send_email(to=ops_email, subject=f"[BCC] {subject}", text=body)
+        except Exception:
+            log.warning("ops BCC email failed (non-critical)")
+
+    # Fallback: no founder channel — route to ops inbox so intro is not lost
+    if not sent and ops_email:
+        no_channel_note = (
+            f"[NO FOUNDER CHANNEL — ops fallback]\n"
+            f"founder_email={founder_email!r}  founder_wa={founder_wa!r}\n\n"
+            + body
+        )
+        try:
+            sent = await send_email(to=ops_email, subject=f"[NEEDS RELAY] {subject}", text=no_channel_note)
+            if sent:
+                log.info("intro routed to ops fallback (%s) — no founder channel", ops_email)
+        except Exception:
+            log.exception("ops fallback email failed for %s", ops_email)
 
     return sent
 
@@ -292,7 +322,7 @@ async def request_intro(
     session.add(intro)
     await session.flush()
 
-    # ── Deliver to founder ────────────────────────────────────────────────────
+    # ── Deliver to founder (+ ops BCC / fallback) ────────────────────────────
     subject = f"Intro: {candidate.name or 'A candidate'} → {job.title} at {job.company}"
     founder_contacted = await _send_intro(
         founder_wa=job.founder_wa,
@@ -303,10 +333,10 @@ async def request_intro(
 
     if not founder_contacted:
         log.warning(
-            "intro id=%d: no delivery channel (founder_wa=%s founder_email=%s)",
+            "intro id=%d: delivery failed (founder_wa=%s founder_email=%s) — "
+            "ops fallback also failed; intro is persisted in DB only",
             intro.id, job.founder_wa, job.founder_email,
         )
-        log.info("INTRO MESSAGE (undelivered):\n%s", intro_note)
 
     await session.commit()
     log.info(
@@ -314,12 +344,40 @@ async def request_intro(
         intro.id, candidate_phone, job_external_id, job.company, founder_contacted,
     )
 
+    # ── Candidate confirmation email ──────────────────────────────────────────
+    # Derive candidate email: web sessions use "web:{email}" as the phone field.
+    candidate_email = candidate_phone.removeprefix("web:").strip()
+    if "@" in candidate_email:
+        try:
+            from mitra_api.tools.email import send_email
+            candidate_name = candidate.name or "there"
+            confirmation_body = (
+                f"Hi {candidate_name},\n\n"
+                f"Your intro to {job.founder_name or 'the founder'} at {job.company} "
+                f"for the {job.title} role has been submitted.\n\n"
+                f"Here's what was sent on your behalf:\n\n"
+                f"{'—' * 40}\n"
+                f"{intro_note}\n"
+                f"{'—' * 40}\n\n"
+                f"You'll hear from us as soon as there's a response. "
+                f"Typical turnaround is 24–48 hours.\n\n"
+                f"— Mitra"
+            )
+            await send_email(
+                to=candidate_email,
+                subject=f"Your intro to {job.company} has been sent · Mitra",
+                text=confirmation_body,
+            )
+        except Exception:
+            log.warning("candidate confirmation email failed for %s (non-critical)", candidate_email)
+
     return {
         "ok": True,
         "intro_id": intro.id,
         "message": (
             f"Done — I've sent your intro to {job.founder_name or 'the founder'} at {job.company}. "
-            f"They typically respond within 24–48 hours. I'll let you know as soon as I hear back."
+            f"They typically respond within 24–48 hours. "
+            f"Check your inbox — I've sent you a copy of what was shared."
         ),
         "founder_contacted": founder_contacted,
     }

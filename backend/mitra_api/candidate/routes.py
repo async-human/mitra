@@ -129,6 +129,7 @@ class IntroResponse(BaseModel):
     intro_id: int | None = None
     founder_contacted: bool = False
     already_sent: bool = False
+    confirmation_sent: bool = False
 
 
 @router.post("/intro", response_model=IntroResponse)

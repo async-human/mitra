@@ -120,6 +120,14 @@ class Settings(BaseSettings):
         validation_alias="MITRA_FROM_EMAIL",
         description="Verified sender address for Resend (e.g. intros@yourdomain.com).",
     )
+    mitra_ops_email: str = Field(
+        default="",
+        validation_alias="MITRA_OPS_EMAIL",
+        description=(
+            "Ops/team inbox that receives intro copies when a job has no founder contact channel. "
+            "Also receives a BCC of every intro sent directly to a founder."
+        ),
+    )
 
 
 @lru_cache
