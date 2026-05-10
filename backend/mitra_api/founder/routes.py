@@ -818,6 +818,84 @@ def _extract_portal_signals(candidate: Any, raw_signals: dict) -> PortalCandidat
     )
 
 
+class PortalLinkResponse(BaseModel):
+    portal_url: str
+    job_id: int | None = None
+
+
+@router.get("/portal-link-by-email", response_model=PortalLinkResponse)
+async def founder_portal_link_by_email(
+    email: str = Query(..., description="Founder email address from auth session"),
+) -> PortalLinkResponse:
+    """
+    Look up a founder's portal URL by their email address.
+    Called from /founder/setup after OAuth sign-in to find an existing job.
+    Matches against founder_email column OR the contact_info signal stored on job.signals.
+    """
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.db.models import Job as JobModel
+    from sqlalchemy import String
+
+    factory = get_session_factory()
+    async with factory() as db:
+        # First try exact founder_email match
+        job = (await db.execute(
+            select(JobModel)
+            .where(JobModel.founder_email == email, JobModel.founder_access_token.isnot(None))
+            .order_by(JobModel.created_at.desc())
+        )).scalars().first()
+
+        # Fallback: scan signals JSONB text for the email (handles contact_info entries)
+        if not job:
+            job = (await db.execute(
+                select(JobModel)
+                .where(
+                    JobModel.founder_access_token.isnot(None),
+                    JobModel.signals.cast(String).contains(email),
+                )
+                .order_by(JobModel.created_at.desc())
+            )).scalars().first()
+
+    if not job or not job.founder_access_token:
+        raise HTTPException(status_code=404, detail="no_job_found")
+
+    settings = get_settings()
+    web_base = settings.mitra_web_base_url.rstrip("/")
+    portal_url = f"{web_base}/founder/portal?token={job.founder_access_token}"
+    return PortalLinkResponse(portal_url=portal_url, job_id=job.id)
+
+
+@router.get("/portal-link", response_model=PortalLinkResponse)
+async def founder_portal_link(
+    session_id: str = Query(..., description="Founder session ID from onboarding"),
+) -> PortalLinkResponse:
+    """
+    Return the portal URL for a founder session.
+    Called by the onboarding frontend after completion so the founder can
+    access their portal without any manual steps.
+    """
+    from mitra_api.config import get_settings
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.db.models import Job as JobModel
+
+    external_id = f"founder:{session_id}"
+    factory = get_session_factory()
+    async with factory() as db:
+        job = (await db.execute(
+            select(JobModel).where(JobModel.external_id == external_id)
+        )).scalar_one_or_none()
+
+    if not job or not job.founder_access_token:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found. The onboarding may still be processing — try again in a moment.",
+        )
+
+    web_base = get_settings().mitra_web_base_url.rstrip("/")
+    portal_url = f"{web_base}/founder/portal?token={job.founder_access_token}"
+    return PortalLinkResponse(portal_url=portal_url, job_id=job.id)
+
+
 @router.get("/portal", response_model=PortalResponse)
 async def founder_portal(
     token: str = Query(..., description="Founder access token from intro email"),

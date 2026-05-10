@@ -60,8 +60,14 @@ async def run_schema_migrations() -> None:
     """
     Idempotent schema migrations — ADD COLUMN IF NOT EXISTS for columns added
     after initial table creation (no Alembic required).
+    Also backfills any NULL tokens so existing rows work immediately.
     """
+    import logging
+    import secrets
     from sqlalchemy import text
+
+    log = logging.getLogger(__name__)
+
     migrations = [
         # Intro.response_token — one-click founder reply token
         "ALTER TABLE intros ADD COLUMN IF NOT EXISTS response_token VARCHAR(64)",
@@ -76,5 +82,22 @@ async def run_schema_migrations() -> None:
             try:
                 await conn.execute(text(stmt))
             except Exception as exc:
-                import logging
-                logging.getLogger(__name__).warning("migration skipped: %s — %s", stmt[:60], exc)
+                log.warning("migration skipped: %s — %s", stmt[:60], exc)
+
+        # Backfill founder_access_token for any existing jobs that don't have one yet.
+        # This runs on every startup but is a no-op when all jobs already have a token.
+        try:
+            result = await conn.execute(
+                text("SELECT id FROM jobs WHERE founder_access_token IS NULL")
+            )
+            rows = result.fetchall()
+            if rows:
+                for (job_id,) in rows:
+                    token = secrets.token_urlsafe(32)
+                    await conn.execute(
+                        text("UPDATE jobs SET founder_access_token = :token WHERE id = :id"),
+                        {"token": token, "id": job_id},
+                    )
+                log.info("backfilled founder_access_token for %d existing jobs", len(rows))
+        except Exception as exc:
+            log.warning("founder_access_token backfill failed (non-critical): %s", exc)

@@ -110,6 +110,8 @@ export default function OnboardingPage() {
   const [isWaiting, setIsWaiting]             = useState(false)
   const [inputValue, setInputValue]           = useState('')
   const [initDone, setInitDone]               = useState(false)
+  const [portalUrl, setPortalUrl]             = useState<string>('')
+  const [portalLoading, setPortalLoading]     = useState(false)
 
   const sessionIdRef  = useRef<string>('')
   const chatBodyRef   = useRef<HTMLDivElement>(null)
@@ -208,6 +210,33 @@ export default function OnboardingPage() {
     setProgress(data.progress)
     setComplete(data.complete)
     setQuickReplies(data.quick_replies ?? [])
+
+    // When onboarding completes, fetch the portal URL (job may take a moment to persist)
+    if (data.complete) {
+      setPortalLoading(true)
+      const sid = sessionIdRef.current
+      const attempt = (tries: number) => {
+        fetch(`${API_URL}/founder/portal-link?session_id=${encodeURIComponent(sid)}`)
+          .then(r => r.json())
+          .then((d: { portal_url?: string }) => {
+            if (d.portal_url) {
+              setPortalUrl(d.portal_url)
+              setPortalLoading(false)
+            } else if (tries > 0) {
+              setTimeout(() => attempt(tries - 1), 1500)
+            } else {
+              setPortalLoading(false)
+            }
+          })
+          .catch(() => {
+            if (tries > 0) setTimeout(() => attempt(tries - 1), 1500)
+            else setPortalLoading(false)
+          })
+      }
+      // Give the background task 1.5s to persist the job, then retry up to 5 times
+      setTimeout(() => attempt(5), 1500)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── JD upload handler ─────────────────────────────────────────────────────
@@ -567,15 +596,26 @@ export default function OnboardingPage() {
             <div className={styles.completeCard}>
               <div className={styles.ccTitle}>Onboarding complete</div>
               <div className={styles.ccSub}>
-                Mitra has everything needed to start sending introductions.
-                First candidate brief will arrive within 48 hours.
+                Mitra has everything needed to start matching candidates.
+                Your portal is ready — bookmark it to review every intro we send.
               </div>
-              <button
-                className={styles.ccBtn}
-                onClick={() => alert('In production: triggers matching pipeline')}
-              >
-                Approve &amp; start matching →
-              </button>
+              {portalLoading && (
+                <div className={styles.ccBtn} style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite', display: 'inline-block' }} />
+                  Setting up your portal…
+                </div>
+              )}
+              {portalUrl && !portalLoading && (
+                <a
+                  href={portalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.ccBtn}
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  Open your candidate portal →
+                </a>
+              )}
             </div>
           )}
         </div>

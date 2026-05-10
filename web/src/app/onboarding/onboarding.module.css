@@ -826,3 +826,5 @@
 }
 
 .ccBtn:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(192,120,40,0.35); }
+
+@keyframes spin { to { transform: rotate(360deg); } }

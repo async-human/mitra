@@ -85,7 +85,10 @@ export function Nav() {
             )}
           </div>
         ) : (
-          <Link href="/sign-in" className="btn-ghost">
+          <Link
+            href={audience === "founder" ? "/sign-in?role=founder" : "/sign-in?role=candidate"}
+            className="btn-ghost"
+          >
             Sign in
           </Link>
         )}

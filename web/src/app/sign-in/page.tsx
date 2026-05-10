@@ -1,5 +1,6 @@
 import { signIn } from "@/auth";
 import { Logo } from "@/components/Logo";
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -21,29 +22,117 @@ function GoogleIcon() {
 function LinkedInIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-      <rect width="18" height="18" rx="3" fill="white" fillOpacity="0.2" />
+      <rect width="18" height="18" rx="3" fill="#0A66C2" />
       <path d="M4.5 7H6.5V13.5H4.5V7ZM5.5 6C4.948 6 4.5 5.552 4.5 5C4.5 4.448 4.948 4 5.5 4C6.052 4 6.5 4.448 6.5 5C6.5 5.552 6.052 6 5.5 6Z" fill="white" />
       <path d="M8 7H9.9V7.9C10.2 7.3 11 6.8 12.1 6.8C14 6.8 14.5 7.9 14.5 9.5V13.5H12.5V10C12.5 9.2 12.5 8.2 11.4 8.2C10.3 8.2 10 9 10 9.9V13.5H8V7Z" fill="white" />
     </svg>
   );
 }
 
-export default function SignInPage() {
+function CandidateIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+      <circle cx="14" cy="10" r="5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M4 24c0-5.523 4.477-10 10-10s10 4.477 10 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function FounderIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+      <rect x="3" y="8" width="22" height="16" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M9 8V6a5 5 0 0 1 10 0v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M3 15h22" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="14" cy="15" r="2.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+type Props = { searchParams: { role?: string; callbackUrl?: string } };
+
+export default function SignInPage({ searchParams }: Props) {
+  const role = searchParams.role as "candidate" | "founder" | undefined;
+  const redirectTo = role === "founder" ? "/founder/setup" : "/dashboard";
+
+  // ── No role selected: show role picker ──────────────────────────────────────
+  if (!role) {
+    return (
+      <main className="signin-page">
+        <div className="signin-glow signin-glow--a" aria-hidden="true" />
+        <div className="signin-glow signin-glow--b" aria-hidden="true" />
+
+        <div className="signin-card signin-card--wide">
+          <div className="signin-logo-row"><Logo /></div>
+
+          <div className="signin-header">
+            <h1 className="signin-title">Welcome to Mitra</h1>
+            <p className="signin-sub">Who are you signing in as?</p>
+          </div>
+
+          <div className="signin-role-grid">
+            <Link href="/sign-in?role=candidate" className="signin-role-card">
+              <div className="signin-role-icon signin-role-icon--candidate">
+                <CandidateIcon />
+              </div>
+              <div className="signin-role-text">
+                <span className="signin-role-title">I&apos;m a candidate</span>
+                <span className="signin-role-desc">Looking for my next engineering role</span>
+              </div>
+              <span className="signin-role-arrow">→</span>
+            </Link>
+
+            <Link href="/sign-in?role=founder" className="signin-role-card">
+              <div className="signin-role-icon signin-role-icon--founder">
+                <FounderIcon />
+              </div>
+              <div className="signin-role-text">
+                <span className="signin-role-title">I&apos;m a founder</span>
+                <span className="signin-role-desc">Looking to hire great engineers</span>
+              </div>
+              <span className="signin-role-arrow">→</span>
+            </Link>
+          </div>
+
+          <p className="signin-fine">
+            By signing in you agree to Mitra&apos;s{" "}
+            <a href="/cookies" className="signin-fine-link">Privacy Policy</a>
+            {" "}and{" "}
+            <a href="#" className="signin-fine-link">Terms of Service</a>.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // ── Role selected: show provider buttons ────────────────────────────────────
+  const isFounder = role === "founder";
+
   return (
     <main className="signin-page">
       <div className="signin-glow signin-glow--a" aria-hidden="true" />
       <div className="signin-glow signin-glow--b" aria-hidden="true" />
 
       <div className="signin-card">
-        <div className="signin-logo-row">
-          <Logo />
+        <div className="signin-logo-row"><Logo /></div>
+
+        {/* Role badge */}
+        <div className="signin-role-badge-row">
+          <span className={`signin-role-badge signin-role-badge--${role}`}>
+            {isFounder ? <FounderIcon /> : <CandidateIcon />}
+            {isFounder ? "Signing in as founder" : "Signing in as candidate"}
+          </span>
+          <Link href="/sign-in" className="signin-role-change">Change</Link>
         </div>
 
         <div className="signin-header">
-          <h1 className="signin-title">Welcome back</h1>
+          <h1 className="signin-title">
+            {isFounder ? "Founder portal" : "Welcome back"}
+          </h1>
           <p className="signin-sub">
-            Sign in to manage your introductions,<br />
-            track your pipeline, and pick up where you left off.
+            {isFounder
+              ? "Sign in to review candidates and manage introductions."
+              : "Sign in to track your pipeline and pick up where you left off."}
           </p>
         </div>
 
@@ -51,7 +140,7 @@ export default function SignInPage() {
           <form
             action={async () => {
               "use server";
-              await signIn("google", { redirectTo: "/dashboard" });
+              await signIn("google", { redirectTo });
             }}
           >
             <button type="submit" className="signin-btn signin-btn--google">
@@ -61,15 +150,13 @@ export default function SignInPage() {
           </form>
 
           <div className="signin-divider">
-            <span />
-            <p>or</p>
-            <span />
+            <span /><p>or</p><span />
           </div>
 
           <form
             action={async () => {
               "use server";
-              await signIn("linkedin", { redirectTo: "/dashboard" });
+              await signIn("linkedin", { redirectTo });
             }}
           >
             <button type="submit" className="signin-btn signin-btn--linkedin">
