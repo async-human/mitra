@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
 import styles from './onboarding.module.css'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -99,6 +100,9 @@ function makeId(): string {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
+  const { data: authSession } = useSession()
+  const authEmail = authSession?.user?.email ?? ''
+
   const [messages, setMessages]               = useState<Message[]>([])
   const [visibleIds, setVisibleIds]           = useState<Set<string>>(new Set())
   const [signals, setSignals]                 = useState<Signals>({})
@@ -140,7 +144,7 @@ export default function OnboardingPage() {
     fetch(`${API_URL}/founder/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sid, message: '' }),
+      body: JSON.stringify({ session_id: sid, message: '', auth_email: authEmail || undefined }),
     })
       .then(r => r.json())
       .then((data: ChatResponse) => {
@@ -255,6 +259,7 @@ export default function OnboardingPage() {
       const form = new FormData()
       form.append('session_id', sessionIdRef.current)
       form.append('file', file)
+      if (authEmail) form.append('auth_email', authEmail)
 
       const res = await fetch(`${API_URL}/founder/upload-jd`, {
         method: 'POST',
@@ -289,7 +294,7 @@ export default function OnboardingPage() {
       const res = await fetch(`${API_URL}/founder/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionIdRef.current, message: msg }),
+        body: JSON.stringify({ session_id: sessionIdRef.current, message: msg, auth_email: authEmail || undefined }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data: ChatResponse = await res.json()

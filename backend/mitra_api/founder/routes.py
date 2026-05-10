@@ -201,11 +201,13 @@ def _route_contact(intro_pref: str, contact: str) -> tuple[str | None, str | Non
     return contact, None
 
 
-async def _auto_submit_job(session_id: str, signals: dict[str, Any]) -> None:
+async def _auto_submit_job(session_id: str, signals: dict[str, Any], auth_email: str | None = None) -> None:
     """
     Background task: persist a completed founder brief as a Job row.
     Uses external_id='founder:<session_id>' for idempotency — safe to call
     multiple times for the same session.
+    auth_email: the founder's OAuth sign-in email, used as fallback founder_email
+    so /founder/setup can always find the job by auth identity.
     """
     # Lazy imports — only needed when DB is configured
     from mitra_api.db.engine import get_session_factory
@@ -266,6 +268,13 @@ async def _auto_submit_job(session_id: str, signals: dict[str, Any]) -> None:
         intro_pref   = signals.get("intro_preference") or ""
         founder_wa, founder_email = _route_contact(intro_pref, contact) if contact else (None, None)
 
+        # Always ensure founder_email is set so /founder/setup can find this job by
+        # the OAuth email. Prefer the derived email from contact_info; fall back to the
+        # auth_email passed from the signed-in session.
+        if not founder_email and auth_email:
+            founder_email = auth_email.strip().lower()
+            log.info("founder submit: using auth_email=%r as founder_email for session %s", founder_email, session_id)
+
         job = Job(
             external_id=external_id,
             status=JobStatus.active,
@@ -301,6 +310,7 @@ async def _auto_submit_job(session_id: str, signals: dict[str, Any]) -> None:
 class FounderChatRequest(BaseModel):
     session_id: str = Field(..., min_length=1, max_length=200)
     message: str    = Field(default="", max_length=4000)
+    auth_email: str | None = Field(default=None, description="Signed-in founder's OAuth email (optional)")
 
 
 class FounderChatResponse(BaseModel):
@@ -420,7 +430,7 @@ async def founder_chat(
 
     # Auto-submit to DB when onboarding completes (only if DB is configured)
     if complete and settings.mitra_database_url:
-        background_tasks.add_task(_auto_submit_job, body.session_id, all_signals)
+        background_tasks.add_task(_auto_submit_job, body.session_id, all_signals, body.auth_email)
 
     return FounderChatResponse(
         reply=final_text,
@@ -448,6 +458,7 @@ async def founder_upload_jd(
     background_tasks: BackgroundTasks,
     session_id: str      = Form(...),
     file: UploadFile     = File(...),
+    auth_email: str      = Form(default=""),
     settings: Settings   = Depends(get_settings),
 ) -> FounderChatResponse:
     """
@@ -564,7 +575,7 @@ async def founder_upload_jd(
         await store.append_messages(sid, [ChatMessage(role="assistant", content=final_text)])
 
     if complete and settings.mitra_database_url:
-        background_tasks.add_task(_auto_submit_job, session_id, all_signals)
+        background_tasks.add_task(_auto_submit_job, session_id, all_signals, auth_email or None)
 
     return FounderChatResponse(
         reply=final_text,
@@ -922,24 +933,40 @@ async def founder_portal_link_by_email(
     """
     from mitra_api.db.engine import get_session_factory
     from mitra_api.db.models import Job as JobModel
-    from sqlalchemy import String
+    from sqlalchemy import String, func
+
+    normalized_email = email.strip().lower()
 
     factory = get_session_factory()
     async with factory() as db:
-        # First try exact founder_email match
+        # Case-insensitive match on founder_email
         job = (await db.execute(
             select(JobModel)
-            .where(JobModel.founder_email == email, JobModel.founder_access_token.isnot(None))
+            .where(
+                func.lower(JobModel.founder_email) == normalized_email,
+                JobModel.founder_access_token.isnot(None),
+            )
             .order_by(JobModel.created_at.desc())
         )).scalars().first()
 
-        # Fallback: scan signals JSONB text for the email (handles contact_info entries)
+        # Fallback: scan founder_wa (in case they used email as WA field by mistake)
+        if not job:
+            job = (await db.execute(
+                select(JobModel)
+                .where(
+                    func.lower(JobModel.founder_wa) == normalized_email,
+                    JobModel.founder_access_token.isnot(None),
+                )
+                .order_by(JobModel.created_at.desc())
+            )).scalars().first()
+
+        # Final fallback: scan signals JSONB text for the email
         if not job:
             job = (await db.execute(
                 select(JobModel)
                 .where(
                     JobModel.founder_access_token.isnot(None),
-                    JobModel.signals.cast(String).contains(email),
+                    JobModel.signals.cast(String).ilike(f"%{normalized_email}%"),
                 )
                 .order_by(JobModel.created_at.desc())
             )).scalars().first()
