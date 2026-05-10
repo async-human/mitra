@@ -103,18 +103,47 @@ def _compute_step_progress(signals: dict[str, Any]) -> tuple[str, int, bool]:
     return "role", 5, False
 
 
+_EMAIL_RE = re.compile(r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b')
+_PHONE_RE = re.compile(r'[\+]?[\d][\d\s\-\(\)]{8,}[\d]')
+
+
+def _auto_extract_contact(user_message: str) -> str | None:
+    """
+    Fallback: if the user typed their email/phone directly but the LLM forgot to
+    save it as a signal, extract it here.
+    """
+    email = _EMAIL_RE.search(user_message)
+    if email:
+        return email.group()
+    phone = _PHONE_RE.search(user_message)
+    if phone:
+        return phone.group().strip()
+    return None
+
+
 def _missing_context_nudge(signals: dict[str, Any]) -> str | None:
     """
-    If the agent collected contact_info but skipped company context, return a
-    follow-up question to recover the missing fields. Returns None if nothing is missing.
+    Return a follow-up question if the agent wrapped up early without collecting
+    all required fields. Returns None when everything is present.
+
+    Catches two failure modes:
+      A) contact_info collected but company context skipped
+      B) intro_preference collected but contact_info not saved
     """
     has = lambda *keys: any(k in signals for k in keys)
 
-    # Only intervene when contact info exists but context is incomplete
+    # ── Mode B: intro channel known but actual address missing ────────────────
+    if has("intro_preference") and not has("contact_info"):
+        pref = signals.get("intro_preference", "").lower()
+        if "whatsapp" in pref or "phone" in pref or "wa" in pref:
+            return "Could you share your WhatsApp number so I can send introductions? (include country code)"
+        return "Could you share your email address so I can send introductions?"
+
+    # ── Mode A: contact collected but company context skipped ─────────────────
     if not has("contact_info"):
         return None
     if has("company_name") and has("why_join", "stage"):
-        return None  # context is fine
+        return None
 
     if not has("company_name"):
         return (
@@ -123,12 +152,12 @@ def _missing_context_nudge(signals: dict[str, Any]) -> str | None:
         )
     if not has("why_join") and not has("stage"):
         return (
-            "Just two quick things: what's your funding stage, and what would genuinely excite "
-            "the right engineer about joining? I use this to pitch the role to candidates."
+            "Just two quick things: what's your funding stage, and what would genuinely "
+            "excite the right engineer about joining? I use this to pitch the role to candidates."
         )
     if not has("why_join"):
         return (
-            "Almost done — what would genuinely excite the right engineer about joining your company? "
+            "Almost done — what would genuinely excite the right engineer about joining? "
             "This is how I pitch the role to candidates."
         )
     if not has("stage"):
@@ -355,6 +384,18 @@ async def founder_chat(
         final_text = (result.content or "").strip() or "Could you tell me a bit more?"
         log.warning("founder_chat: respond tool not called for session %s — text fallback", sid)
 
+    # ── Fallback: auto-extract contact_info if the LLM forgot to save it ─────
+    after_llm_signals = await store.get_signals(sid)
+    if (
+        not is_init
+        and "intro_preference" in after_llm_signals
+        and "contact_info" not in after_llm_signals
+    ):
+        extracted = _auto_extract_contact(user_content)
+        if extracted:
+            await store.merge_signals(sid, {"contact_info": extracted})
+            log.info("founder_chat: auto-extracted contact_info=%r for session %s", extracted, sid)
+
     # Persist transcript
     assistant_msg = ChatMessage(role="assistant", content=final_text)
     msgs.append(assistant_msg)
@@ -369,7 +410,7 @@ async def founder_chat(
     all_signals = await store.get_signals(sid)
     step, progress, complete = _compute_step_progress(all_signals)
 
-    # Guard: if the LLM wrapped up early but company context is missing, override reply
+    # Guard: if the LLM wrapped up early but fields are still missing, override reply
     nudge = _missing_context_nudge(all_signals)
     if nudge and not complete:
         final_text = nudge
