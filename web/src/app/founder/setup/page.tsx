@@ -30,7 +30,14 @@ function companyInitials(company: string): string {
  *  - 1 job   → redirect directly to that portal
  *  - 2+ jobs → show a role picker so the founder chooses which to manage
  */
-export default async function FounderSetupPage() {
+export default async function FounderSetupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ list?: string }>;
+}) {
+  const params = await searchParams;
+  const forceList = params.list === "1";
+
   const session = await auth();
 
   if (!session?.user?.email) {
@@ -81,8 +88,8 @@ export default async function FounderSetupPage() {
     debugInfo = `fetch error: ${e instanceof Error ? e.message : String(e)}`;
   }
 
-  // Single job — redirect immediately, no picker needed
-  if (jobs.length === 1) {
+  // Single job — redirect immediately unless the founder explicitly wants the list
+  if (jobs.length === 1 && !forceList) {
     redirect(jobs[0].portal_url);
   }
 

@@ -471,7 +471,7 @@ export function FounderPortalClient({ token }: { token: string }) {
         const d = await r.json().catch(() => ({}));
         throw new Error(d.detail || `Error ${r.status}`);
       }
-      window.location.href = "/founder/setup";
+      window.location.href = "/founder/setup?list=1";
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to delete role.";
       setError(msg);
@@ -497,7 +497,7 @@ export function FounderPortalClient({ token }: { token: string }) {
       <header className="fp2-topbar">
         <span className="fp2-logo">Mitra<span className="fp2-logo-dot">.</span></span>
         <div className="fp2-topbar-right">
-          <a href="/founder/setup" className="fp2-topbar-link">
+          <a href="/founder/setup?list=1" className="fp2-topbar-link">
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M9 2H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5L9 2Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
               <path d="M9 2v3h3M5 8h4M5 10.5h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
