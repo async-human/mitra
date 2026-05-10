@@ -54,7 +54,6 @@ export default async function FounderSetupPage({
 
   let jobs: FounderJob[] = [];
   let lookupError = false;
-  let debugInfo: string | null = null;
 
   try {
     // Try the multi-role endpoint first (requires latest backend)
@@ -65,9 +64,7 @@ export default async function FounderSetupPage({
     if (res.ok) {
       const data = await res.json();
       jobs = data.jobs ?? [];
-      debugInfo = `all-portals: 200, found ${jobs.length} job(s)`;
     } else {
-      debugInfo = `all-portals: ${res.status}`;
       // Endpoint doesn't exist yet on this backend version — fall back to single-job lookup
       const fallback = await fetch(
         `${apiBase}/founder/portal-link-by-email?email=${encodeURIComponent(email)}`,
@@ -78,14 +75,10 @@ export default async function FounderSetupPage({
         if (d.portal_url) {
           jobs = [{ job_id: d.job_id ?? 0, title: "Your role", company: "", stage: null, portal_url: d.portal_url, total_intros: 0, to_review: 0 }];
         }
-        debugInfo += `, portal-link-by-email: 200, job_id=${d.job_id}`;
-      } else {
-        debugInfo += `, portal-link-by-email: ${fallback.status}`;
       }
     }
-  } catch (e) {
+  } catch {
     lookupError = true;
-    debugInfo = `fetch error: ${e instanceof Error ? e.message : String(e)}`;
   }
 
   // Single job — redirect immediately unless the founder explicitly wants the list
@@ -93,8 +86,8 @@ export default async function FounderSetupPage({
     redirect(jobs[0].portal_url);
   }
 
-  // Multiple jobs — show role picker
-  if (jobs.length > 1) {
+  // Multiple jobs OR forced list view — show role picker
+  if (jobs.length > 1 || (jobs.length === 1 && forceList)) {
     return (
       <main className="fp-setup-page">
         <div className="fp-setup-card fp-setup-card--wide">
@@ -206,13 +199,6 @@ export default async function FounderSetupPage({
           </p>
           <TokenInput />
         </div>
-
-        {/* Debug info — remove after confirming root cause */}
-        {debugInfo && (
-          <p style={{ fontSize: 11, color: "var(--muted)", fontFamily: "monospace", wordBreak: "break-all", margin: 0 }}>
-            debug: {debugInfo}
-          </p>
-        )}
 
         <p className="fp-setup-note">
           Need help?{" "}
