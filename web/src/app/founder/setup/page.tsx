@@ -7,10 +7,25 @@ export const metadata: Metadata = {
   title: "Founder portal · Mitra",
 };
 
+interface FounderJob {
+  job_id: number;
+  title: string;
+  company: string;
+  stage: string | null;
+  portal_url: string;
+}
+
+function companyInitials(company: string): string {
+  const words = company.trim().split(/\s+/);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return company.slice(0, 2).toUpperCase();
+}
+
 /**
  * Smart router for signed-in founders:
- *  - If they already have a job onboarded → redirect to their portal
- *  - Otherwise → show a clear "Set up your portal" page
+ *  - 0 jobs  → show "Post your first role" page
+ *  - 1 job   → redirect directly to that portal
+ *  - 2+ jobs → show a role picker so the founder chooses which to manage
  */
 export default async function FounderSetupPage() {
   const session = await auth();
@@ -21,30 +36,92 @@ export default async function FounderSetupPage() {
 
   const email = session.user.email;
   const name  = session.user.name?.split(" ")[0] ?? "there";
-  const apiBase = (process.env.MITRA_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080").replace(/\/$/, "");
+  const apiBase = (
+    process.env.MITRA_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:8080"
+  ).replace(/\/$/, "");
 
-  let portalUrl: string | null = null;
+  let jobs: FounderJob[] = [];
   let lookupError = false;
 
   try {
     const res = await fetch(
-      `${apiBase}/founder/portal-link-by-email?email=${encodeURIComponent(email)}`,
+      `${apiBase}/founder/all-portals-by-email?email=${encodeURIComponent(email)}`,
       { cache: "no-store" },
     );
     if (res.ok) {
       const data = await res.json();
-      portalUrl = data.portal_url ?? null;
+      jobs = data.jobs ?? [];
     }
-    // 404 means no job — not an error, just a new founder
+    // 404 / non-ok → treat as no jobs found (new founder)
   } catch {
     lookupError = true;
   }
 
-  if (portalUrl) {
-    redirect(portalUrl);
+  // Single job — redirect immediately, no picker needed
+  if (jobs.length === 1) {
+    redirect(jobs[0].portal_url);
   }
 
-  // No existing job — show clear setup page instead of silent redirect
+  // Multiple jobs — show role picker
+  if (jobs.length > 1) {
+    return (
+      <main className="fp-setup-page">
+        <div className="fp-setup-card fp-setup-card--wide">
+          {/* Logo */}
+          <div className="fp-setup-logo">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <rect width="32" height="32" rx="8" fill="#111" />
+              <path d="M8 24V10l8-3 8 3v14l-8 3-8-3Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+              <path d="M16 7v17M8 10l8 3 8-3" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+            </svg>
+            <span className="fp-setup-brand">Mitra</span>
+          </div>
+
+          <div>
+            <h1 className="fp-setup-title">Your open roles</h1>
+            <p className="fp-setup-sub" style={{ marginTop: 6 }}>
+              Select a role to review candidates and manage introductions.
+            </p>
+          </div>
+
+          {/* Role cards */}
+          <div className="fp-setup-roles">
+            {jobs.map((job) => (
+              <a key={job.job_id} href={job.portal_url} className="fp-setup-role-card">
+                <div className="fp-setup-role-avatar">
+                  {companyInitials(job.company)}
+                </div>
+                <div className="fp-setup-role-info">
+                  <p className="fp-setup-role-title">{job.title}</p>
+                  <p className="fp-setup-role-company">{job.company}</p>
+                </div>
+                {job.stage && (
+                  <span className="fp-setup-role-badge">{job.stage}</span>
+                )}
+                <svg className="fp-setup-role-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
+            ))}
+          </div>
+
+          {/* Add another role */}
+          <div className="fp-setup-divider">or</div>
+          <Link href="/onboarding" className="fp-setup-btn fp-setup-btn--ghost">
+            + Post another role
+          </Link>
+
+          <p className="fp-setup-note">
+            Signed in as <strong style={{ fontWeight: 500 }}>{email}</strong>
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  // Zero jobs — show onboarding CTA
   return (
     <main className="fp-setup-page">
       <div className="fp-setup-card">

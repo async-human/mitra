@@ -922,6 +922,84 @@ class PortalLinkResponse(BaseModel):
     job_id: int | None = None
 
 
+class FounderJobSummary(BaseModel):
+    job_id: int
+    title: str
+    company: str
+    stage: str | None = None
+    portal_url: str
+
+
+class AllPortalsResponse(BaseModel):
+    jobs: list[FounderJobSummary]
+
+
+@router.get("/all-portals-by-email", response_model=AllPortalsResponse)
+async def founder_all_portals_by_email(
+    email: str = Query(..., description="Founder email address from auth session"),
+) -> AllPortalsResponse:
+    """
+    Return all jobs (and their portal URLs) for a given founder email.
+    Used by /founder/setup to display a role picker when the founder has multiple roles.
+    """
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.db.models import Job as JobModel
+    from sqlalchemy import String, func
+
+    normalized_email = email.strip().lower()
+    factory = get_session_factory()
+
+    async with factory() as db:
+        # Primary match: founder_email column
+        jobs = (await db.execute(
+            select(JobModel)
+            .where(
+                func.lower(JobModel.founder_email) == normalized_email,
+                JobModel.founder_access_token.isnot(None),
+            )
+            .order_by(JobModel.created_at.desc())
+        )).scalars().all()
+
+        if not jobs:
+            # Fallback: founder_wa field (sometimes email is stored there)
+            jobs = (await db.execute(
+                select(JobModel)
+                .where(
+                    func.lower(JobModel.founder_wa) == normalized_email,
+                    JobModel.founder_access_token.isnot(None),
+                )
+                .order_by(JobModel.created_at.desc())
+            )).scalars().all()
+
+        if not jobs:
+            # Final fallback: scan signals JSONB for the email string
+            jobs = (await db.execute(
+                select(JobModel)
+                .where(
+                    JobModel.founder_access_token.isnot(None),
+                    JobModel.signals.cast(String).ilike(f"%{normalized_email}%"),
+                )
+                .order_by(JobModel.created_at.desc())
+            )).scalars().all()
+
+    settings = get_settings()
+    web_base = settings.mitra_web_base_url.rstrip("/")
+
+    result = [
+        FounderJobSummary(
+            job_id=j.id,
+            title=j.title or "Untitled role",
+            company=j.company or "Your company",
+            stage=j.stage,
+            portal_url=f"{web_base}/founder/portal?token={j.founder_access_token}",
+        )
+        for j in jobs
+        if j.founder_access_token
+    ]
+
+    return AllPortalsResponse(jobs=result)
+
+
 @router.get("/portal-link-by-email", response_model=PortalLinkResponse)
 async def founder_portal_link_by_email(
     email: str = Query(..., description="Founder email address from auth session"),
@@ -1056,7 +1134,7 @@ async def founder_portal(
 
             candidates_out.append(PortalCandidate(
                 intro_id=intro.id,
-                status=intro.status.value,
+                status=intro.status.value if hasattr(intro.status, "value") else str(intro.status),
                 sent_at=intro.sent_at.isoformat() if intro.sent_at else None,
                 why_note=why_note,
                 signals=signals,
@@ -1123,7 +1201,7 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
         # Skip if already in a terminal state
         terminal = {IntroStatus.hired, IntroStatus.declined}
         if intro.status in terminal and body.action == "not_a_fit":
-            return PortalActionResponse(ok=True, new_status=str(intro.status), message="Already actioned.")
+            return PortalActionResponse(ok=True, new_status=intro.status.value if hasattr(intro.status, "value") else str(intro.status), message="Already actioned.")
 
         new_status = action_map[body.action]
         intro.status = new_status
@@ -1163,6 +1241,6 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
     log.info("portal action: job=%d intro=%d action=%s", job.id, intro.id, body.action)
     return PortalActionResponse(
         ok=True,
-        new_status=new_status.value,
+        new_status=new_status.value if hasattr(new_status, "value") else str(new_status),
         message=status_messages[body.action],
     )

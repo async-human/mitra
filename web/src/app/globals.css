@@ -3568,6 +3568,103 @@ body {
 }
 .fp-setup-link:hover { text-decoration: underline; }
 
+/* Role picker — shown when founder has multiple jobs */
+.fp-setup-card--wide {
+  max-width: 600px;
+}
+
+.fp-setup-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fp-setup-role-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--background);
+  text-decoration: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+  cursor: pointer;
+}
+.fp-setup-role-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 16px rgba(94,106,210,0.12);
+  transform: translateY(-1px);
+}
+
+.fp-setup-role-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: -0.5px;
+}
+
+.fp-setup-role-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.fp-setup-role-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fp-setup-role-company {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+}
+
+.fp-setup-role-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: var(--amber-pale);
+  color: var(--amber);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.fp-setup-role-arrow {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.fp-setup-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.fp-setup-divider::before,
+.fp-setup-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 /* Dark mode overrides */
 [data-theme="dark"] .signin-card {
   background: var(--surface-elevated);
@@ -5787,6 +5884,7 @@ img.wchat-av--user { border-radius: 50%; }
   z-index: 100;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   padding: 0 28px;
   height: 54px;
@@ -5795,6 +5893,35 @@ img.wchat-av--user { border-radius: 50%; }
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--fp2-border);
 }
+
+.fp2-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fp2-topbar-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fp2-text-2);
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--fp2-border);
+  background: var(--fp2-surface);
+  transition: border-color 0.15s, color 0.15s;
+}
+.fp2-topbar-link:hover { border-color: var(--fp2-text-2); color: var(--fp2-text-1); }
+
+.fp2-topbar-link--accent {
+  background: var(--fp2-accent);
+  color: #fff;
+  border-color: var(--fp2-accent);
+}
+.fp2-topbar-link--accent:hover { opacity: 0.88; color: #fff; border-color: var(--fp2-accent); }
 
 .fp2-logo {
   font-size: 17px;

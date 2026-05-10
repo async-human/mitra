@@ -416,15 +416,17 @@ export function FounderPortalClient({ token }: { token: string }) {
     if (!token) { setError("No portal token provided."); setLoading(false); return; }
     setLoading(true);
     setError("");
-    fetch(`${API_URL}/founder/portal?token=${encodeURIComponent(token)}`)
+    const url = `${API_URL}/founder/portal?token=${encodeURIComponent(token)}`;
+    fetch(url)
       .then(r => {
         if (!r.ok) throw new Error(r.status === 404 ? "Portal not found or token expired." : `Server error (${r.status})`);
         return r.json();
       })
       .then((d: PortalData) => { setData(d); setLoading(false); })
       .catch((e: Error) => {
-        const msg = e.message === "Failed to fetch"
-          ? "Could not reach the server. Check your connection and try again."
+        const isNetErr = e.message === "Failed to fetch" || e.message.includes("NetworkError");
+        const msg = isNetErr
+          ? `Could not reach the server at ${API_URL || "(no API URL set)"}. ${window.location.protocol === "https:" && API_URL.startsWith("http:") ? "⚠️ Mixed content blocked — your API URL must start with https://" : "Check your connection and try again."}`
           : e.message;
         setError(msg);
         setLoading(false);
@@ -468,7 +470,19 @@ export function FounderPortalClient({ token }: { token: string }) {
       {/* Top bar */}
       <header className="fp2-topbar">
         <span className="fp2-logo">Mitra<span className="fp2-logo-dot">.</span></span>
-        <span className="fp2-topbar-pill">Founder Portal</span>
+        <div className="fp2-topbar-right">
+          <a href="/founder/setup" className="fp2-topbar-link">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M9 2H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5L9 2Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+              <path d="M9 2v3h3M5 8h4M5 10.5h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+            My roles
+          </a>
+          <a href="/onboarding" className="fp2-topbar-link fp2-topbar-link--accent">
+            + Add role
+          </a>
+          <span className="fp2-topbar-pill">Founder Portal</span>
+        </div>
       </header>
 
       <main className="fp2-main">
