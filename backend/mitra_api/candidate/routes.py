@@ -208,6 +208,17 @@ async def list_candidate_intros(
     ]
 
 
+_RESTART_PHRASES = (
+    "start fresh", "start again", "start over", "restart", "from scratch",
+    "new search", "reset", "begin again", "let's start fresh", "start new",
+)
+
+
+def _is_restart_intent(text: str) -> bool:
+    t = text.lower()
+    return any(phrase in t for phrase in _RESTART_PHRASES)
+
+
 @router.post("/chat", response_model=CandidateChatResponse)
 async def candidate_chat(
     body: CandidateChatRequest,
@@ -217,6 +228,7 @@ async def candidate_chat(
     # "web:" prefix keeps web sessions separate from WhatsApp sessions
     sid = f"web:{body.session_id}"
     is_init = not body.message.strip()
+    fresh_start = False
 
     if is_init:
         # On page load: warm session store signals from DB if Redis is cold (new device / TTL expired)
@@ -263,11 +275,19 @@ async def candidate_chat(
     else:
         user_text = body.message.strip()
 
+        # Detect explicit "start from scratch" intent — clear chat history so the
+        # agent starts a clean search conversation without re-firing old intros.
+        if _is_restart_intent(user_text):
+            await store.clear_transcript(sid)
+            fresh_start = True
+            log.info("restart intent detected for %s — transcript cleared", sid)
+
     turn = await run_agent_turn(
         whatsapp_sender_id=sid,
         user_text=user_text,
         sessions=store,
         settings=settings,
+        fresh_start=fresh_start,
     )
 
     job_cards = [

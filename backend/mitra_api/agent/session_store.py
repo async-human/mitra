@@ -32,6 +32,10 @@ class AgentSessionStore(ABC):
         """Persist new messages after a completed turn."""
 
     @abstractmethod
+    async def clear_transcript(self, sid: str) -> None:
+        """Erase all conversation history for this session (keeps signals intact)."""
+
+    @abstractmethod
     async def merge_signals(self, sid: str, updates: dict[str, Any]) -> None:
         """Shallow-merge candidate facts for this sender."""
 
@@ -53,6 +57,9 @@ class InMemoryAgentSessionStore(AgentSessionStore):
 
     async def append_messages(self, sid: str, msgs: list[ChatMessage]) -> None:
         self._history.setdefault(sid, []).extend(msgs)
+
+    async def clear_transcript(self, sid: str) -> None:
+        self._history.pop(sid, None)
 
     async def merge_signals(self, sid: str, updates: dict[str, Any]) -> None:
         merged = self._signals.setdefault(sid, {})
@@ -96,6 +103,9 @@ class RedisAgentSessionStore(AgentSessionStore):
             pipe.rpush(key, m.model_dump_json())
         pipe.expire(key, self._ttl)
         await pipe.execute()
+
+    async def clear_transcript(self, sid: str) -> None:
+        await self._r.delete(self._msg_key(sid))
 
     async def merge_signals(self, sid: str, updates: dict[str, Any]) -> None:
         if not updates:

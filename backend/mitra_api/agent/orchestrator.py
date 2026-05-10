@@ -443,23 +443,24 @@ async def _load_weak_intros_note(candidate_phone: str, db_factory) -> str | None
             if name and stack and role:
                 stack_str = ", ".join(stack) if isinstance(stack, list) else str(stack)
                 return (
-                    f"ACTION REQUIRED: Thin intro(s) exist for {items}. "
-                    f"Profile already confirmed — name='{name}', stack={stack}, role='{role}', "
+                    f"CONTEXT: Thin intro(s) exist for {items}. "
+                    f"Profile confirmed — name='{name}', stack={stack}, role='{role}', "
                     f"company='{company}'. "
-                    f"Call request_intro NOW with these as inline fields. "
-                    f"Do NOT ask for confirmation."
+                    f"If the candidate asks about these intros or wants to strengthen them, "
+                    f"call request_intro with these inline fields. "
+                    f"Wait for explicit intent — do NOT auto-fire intros if the candidate is "
+                    f"asking a new question or starting a fresh search."
                 )
             else:
                 missing = [k for k in ("candidate_name", "primary_stack", "current_role")
                            if not signals.get(k)]
                 return (
-                    f"ACTION REQUIRED: Thin intro(s) for {items}. "
-                    f"Profile signals not yet saved (missing: {', '.join(missing)}). "
-                    f"CRITICAL: If the candidate has shared their name, tech stack, or current role "
-                    f"anywhere in this conversation, extract those values RIGHT NOW and call "
-                    f"request_intro with candidate_name, primary_stack, current_role, current_company "
-                    f"as inline fields — do NOT ask them to repeat information they already gave. "
-                    f"Only ask if the info was genuinely never shared."
+                    f"CONTEXT: Thin intro(s) for {items} were sent with incomplete profile info. "
+                    f"Missing signals: {', '.join(missing)}. "
+                    f"If the candidate's message today is about strengthening these intros or following up, "
+                    f"collect the missing info and call request_intro. "
+                    f"Do NOT interrupt a new job search or fresh conversation to chase these — "
+                    f"only act if the candidate brings up these intros explicitly."
                 )
 
     except Exception:
@@ -514,6 +515,7 @@ async def run_agent_turn(
     settings: Settings | None = None,
     media_url: str | None = None,     # set if WhatsApp message has a PDF attachment
     media_type: str | None = None,    # "application/pdf" etc
+    fresh_start: bool = False,        # True when user explicitly asked to start over
 ) -> AgentTurn:
     """
     Process one inbound WhatsApp message and return the agent's response.
@@ -532,11 +534,17 @@ async def run_agent_turn(
     # Build message history
     msgs: list[ChatMessage] = [ChatMessage(role="system", content=SYSTEM_PROMPT)]
     transcript: list[ChatMessage] = []
-    try:
-        transcript = await sessions.get_transcript(whatsapp_sender_id)
-        msgs.extend(transcript)
-    except Exception:
-        log.warning("Redis get_transcript failed for %s — starting with empty history", whatsapp_sender_id)
+
+    if fresh_start:
+        # User explicitly asked to start over — drop history so the agent starts cleanly.
+        # Profile signals are kept (we remember who they are, don't re-ask basics).
+        log.info("[agent:%s] fresh_start=True — skipping old transcript", whatsapp_sender_id)
+    else:
+        try:
+            transcript = await sessions.get_transcript(whatsapp_sender_id)
+            msgs.extend(transcript)
+        except Exception:
+            log.warning("Redis get_transcript failed for %s — starting with empty history", whatsapp_sender_id)
 
     if known_signals:
         msgs.append(
@@ -549,9 +557,21 @@ async def run_agent_turn(
             )
         )
 
-    # Returning candidate with no transcript — signals survived Redis expiry (loaded from Postgres).
-    # Prevent the agent from restarting the intake and re-asking questions it already has answers to.
-    if known_signals and not transcript:
+    if fresh_start and known_signals:
+        name = known_signals.get("candidate_name", "")
+        greeting = f", {name.split()[0]}" if name else ""
+        msgs.append(ChatMessage(
+            role="system",
+            content=(
+                f"FRESH START — the candidate asked to start over{greeting}. "
+                f"Their profile is already known (signals above) — do NOT re-ask for name, stack, or history. "
+                f"Treat this as a new job search session. Ask ONE open question about what they're looking "
+                f"for this time, acknowledging you remember their background. "
+                f"Do NOT send or mention any previous intros unless the candidate brings them up."
+            ),
+        ))
+    elif known_signals and not transcript:
+        # Returning candidate with no transcript — signals survived Redis expiry (loaded from Postgres).
         name = known_signals.get("candidate_name", "")
         greeting = f" ({name})" if name else ""
         msgs.append(ChatMessage(
@@ -568,10 +588,12 @@ async def run_agent_turn(
         ))
         log.info("[agent:%s] returning candidate — signals present, transcript expired", whatsapp_sender_id)
 
-    # Inject weak-intro nudge — drives proactive strengthening without candidate having to ask
-    weak_note = await _load_weak_intros_note(whatsapp_sender_id, db_factory)
-    if weak_note:
-        msgs.append(ChatMessage(role="system", content=weak_note))
+    # Inject weak-intro nudge — drives proactive strengthening without candidate having to ask.
+    # Suppressed on fresh_start so the agent doesn't immediately re-fire old intros.
+    if not fresh_start:
+        weak_note = await _load_weak_intros_note(whatsapp_sender_id, db_factory)
+        if weak_note:
+            msgs.append(ChatMessage(role="system", content=weak_note))
 
     # Auto-parse PDF resume before the LLM turn so the agent gets structured data,
     # not a raw URL it has to figure out what to do with.
