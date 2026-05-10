@@ -3,7 +3,16 @@
 import { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import Link from "next/link";
 
-interface JobCard { id: string; title: string; }
+interface JobCard { id: string; title: string; description: string; }
+
+function parseJobCard(card: JobCard): { company: string; fit: string; tags: string[] } {
+  const parts = card.description.split(" · ").map(s => s.trim()).filter(Boolean);
+  const fitIdx = parts.findIndex(p => p.includes("% fit") || p.includes("%fit"));
+  const fit = fitIdx >= 0 ? parts[fitIdx] : "";
+  const company = fitIdx > 0 ? parts[0] : (fitIdx === 0 ? "" : parts[0]) ;
+  const tags = parts.filter((_, i) => i !== 0 && i !== fitIdx);
+  return { company, fit, tags };
+}
 interface Message { role: "mitra" | "user"; text: string; jobCards?: JobCard[]; }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -124,17 +133,36 @@ export function MitraChat({
                 <div key={i} className="wc-msg-mitra">
                   <p className="wc-msg-mitra-text">{renderText(msg.text)}</p>
                   {msg.jobCards && msg.jobCards.length > 0 && (
-                    <div className="wc-cards">
-                      {msg.jobCards.map(card => (
-                        <button key={card.id} className="wc-card-chip"
-                          onClick={() => {
-                            const q = `Tell me more about the ${card.title} role`;
-                            setMessages(prev => [...prev, { role: "user", text: q }]);
-                            callApi(q);
-                          }}>
-                          {card.title} →
-                        </button>
-                      ))}
+                    <div className="wc-job-cards">
+                      {msg.jobCards.map(card => {
+                        const { company, fit, tags } = parseJobCard(card);
+                        return (
+                          <div key={card.id} className="wc-job-card">
+                            <div className="wc-job-card-top">
+                              <div className="wc-job-card-titles">
+                                <span className="wc-job-role">{card.title}</span>
+                                {company && <span className="wc-job-company">{company}</span>}
+                              </div>
+                              {fit && <span className="wc-job-fit">{fit}</span>}
+                            </div>
+                            {tags.length > 0 && (
+                              <div className="wc-job-tags">
+                                {tags.map((tag, ti) => (
+                                  <span key={ti} className="wc-job-tag">{tag}</span>
+                                ))}
+                              </div>
+                            )}
+                            <button className="wc-job-cta"
+                              onClick={() => {
+                                const q = `I'm interested in the ${card.title} role at ${company || "this company"} — tell me more`;
+                                setMessages(prev => [...prev, { role: "user", text: q }]);
+                                callApi(q);
+                              }}>
+                              I'm interested →
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

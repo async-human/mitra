@@ -34,6 +34,7 @@ class CandidateChatRequest(BaseModel):
 class JobCard(BaseModel):
     id: str
     title: str
+    description: str  # "Company · 95% fit · Python · Remote"
 
 
 class CandidateChatResponse(BaseModel):
@@ -73,7 +74,10 @@ async def candidate_chat(
         settings=settings,
     )
 
-    job_cards = [JobCard(id=r.row_id, title=r.title) for r in turn.native_list_rows]
+    job_cards = [
+        JobCard(id=r.row_id, title=r.title, description=r.description)
+        for r in turn.native_list_rows
+    ]
 
     return CandidateChatResponse(
         reply=turn.history_assistant_text,
