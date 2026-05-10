@@ -61,7 +61,7 @@ app = FastAPI(title="Mitra API", version="0.2.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,   # cannot be True when allow_origins=["*"] — browsers reject it
     allow_methods=["*"],
     allow_headers=["*"],
 )

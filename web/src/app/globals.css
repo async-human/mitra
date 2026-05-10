@@ -6483,6 +6483,29 @@ img.wchat-av--user { border-radius: 50%; }
   margin: 0;
 }
 
+.fp2-error-retry {
+  margin-top: 4px;
+  padding: 10px 24px;
+  background: var(--fp2-text-1);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
+  width: 100%;
+}
+.fp2-error-retry:hover { opacity: .85; }
+
+.fp2-error-back {
+  font-size: 13px;
+  color: var(--fp2-text-3);
+  text-decoration: none;
+  transition: color .15s;
+}
+.fp2-error-back:hover { color: var(--fp2-text-1); }
+
 /* ── Dark mode ───────────────────────────────────────────────────────────── */
 [data-theme="dark"] {
   --fp2-bg:      #111110;

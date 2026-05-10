@@ -412,13 +412,26 @@ export function FounderPortalClient({ token }: { token: string }) {
   const [error, setError]     = useState<string>("");
   const [filter, setFilter]   = useState("all");
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!token) { setError("No portal token provided."); setLoading(false); return; }
+    setLoading(true);
+    setError("");
     fetch(`${API_URL}/founder/portal?token=${encodeURIComponent(token)}`)
-      .then(r => { if (!r.ok) throw new Error("Portal not found or token expired."); return r.json(); })
+      .then(r => {
+        if (!r.ok) throw new Error(r.status === 404 ? "Portal not found or token expired." : `Server error (${r.status})`);
+        return r.json();
+      })
       .then((d: PortalData) => { setData(d); setLoading(false); })
-      .catch((e: Error) => { setError(e.message); setLoading(false); });
+      .catch((e: Error) => {
+        const msg = e.message === "Failed to fetch"
+          ? "Could not reach the server. Check your connection and try again."
+          : e.message;
+        setError(msg);
+        setLoading(false);
+      });
   }, [token]);
+
+  useEffect(() => { load(); }, [load]);
 
   const handleStatusChange = useCallback((introId: number, newStatus: string) => {
     setData(prev => {
@@ -440,7 +453,7 @@ export function FounderPortalClient({ token }: { token: string }) {
   }, []);
 
   if (loading) return <PortalSkeleton />;
-  if (error || !data) return <PortalError message={error || "Something went wrong."} />;
+  if (error || !data) return <PortalError message={error || "Something went wrong."} onRetry={load} />;
 
   const { job, candidates, stats } = data;
 
@@ -619,7 +632,8 @@ function PortalSkeleton() {
 
 // ── Error ─────────────────────────────────────────────────────────────────────
 
-function PortalError({ message }: { message: string }) {
+function PortalError({ message, onRetry }: { message: string; onRetry?: () => void }) {
+  const isNetworkErr = message.toLowerCase().includes("reach") || message.toLowerCase().includes("fetch");
   return (
     <div className="fp2-error-page">
       <div className="fp2-error-card">
@@ -630,12 +644,24 @@ function PortalError({ message }: { message: string }) {
             <circle cx="14" cy="19.5" r="1" fill="#D97706" />
           </svg>
         </div>
-        <h2 className="fp2-error-title">Portal unavailable</h2>
+        <h2 className="fp2-error-title">
+          {isNetworkErr ? "Connection error" : "Portal unavailable"}
+        </h2>
         <p className="fp2-error-desc">{message}</p>
-        <p className="fp2-error-hint">
-          If you received this link via email, it may have expired.<br />
-          Reply to the original intro email for assistance.
-        </p>
+        {!isNetworkErr && (
+          <p className="fp2-error-hint">
+            If you received this link via email, it may have expired.<br />
+            Reply to the original intro email for assistance.
+          </p>
+        )}
+        {onRetry && (
+          <button className="fp2-error-retry" onClick={onRetry}>
+            Try again
+          </button>
+        )}
+        <a href="/founder/setup" className="fp2-error-back">
+          ← Back to portal home
+        </a>
       </div>
     </div>
   );
