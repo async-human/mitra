@@ -421,7 +421,14 @@ export function FounderPortalClient({ token }: { token: string }) {
     const url = `${API_URL}/founder/portal?token=${encodeURIComponent(token)}`;
     fetch(url)
       .then(r => {
-        if (!r.ok) throw new Error(r.status === 404 ? "Portal not found or token expired." : `Server error (${r.status})`);
+        if (!r.ok) {
+          const detail = await r.json().then(d => d.detail).catch(() => null);
+          throw new Error(
+            r.status === 404 ? "Portal not found or token expired." :
+            r.status === 410 ? (detail || "This role has been removed.") :
+            detail || `Server error (${r.status})`
+          );
+        }
         return r.json();
       })
       .then((d: PortalData) => { setData(d); setLoading(false); })
