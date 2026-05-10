@@ -5957,11 +5957,128 @@ img.wchat-av--user { border-radius: 50%; }
   background: var(--fp2-surface);
   border: 1px solid var(--fp2-border);
   border-radius: var(--fp2-radius-l);
-  padding: 24px 24px 22px;
+  padding: 24px 24px 16px;
   display: flex;
   gap: 18px;
   align-items: flex-start;
   box-shadow: var(--fp2-shadow);
+  position: relative;
+}
+
+.fp2-delete-role-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #9CA3AF;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  align-self: flex-end;
+  flex-shrink: 0;
+}
+.fp2-delete-role-btn:hover {
+  color: #E85B4A;
+  border-color: rgba(232,91,74,0.25);
+  background: rgba(232,91,74,0.05);
+}
+
+/* ── Confirmation Modal ──────────────────────────────────────────────────── */
+.fp2-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(15,15,16,0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fp2-fade-in 0.15s ease;
+}
+
+.fp2-modal {
+  background: var(--fp2-surface);
+  border: 1px solid var(--fp2-border);
+  border-radius: 20px;
+  padding: 32px 28px 28px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 24px 80px rgba(15,15,16,0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fp2-slide-up 0.18s ease;
+}
+
+.fp2-modal-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(232,91,74,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.fp2-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--fp2-text-1);
+  margin: 0;
+}
+
+.fp2-modal-body {
+  font-size: 14px;
+  color: var(--fp2-text-2);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.fp2-modal-body strong {
+  color: var(--fp2-text-1);
+  font-weight: 600;
+}
+
+.fp2-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.fp2-modal-btn {
+  flex: 1;
+  padding: 11px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, transform 0.12s;
+}
+.fp2-modal-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+.fp2-modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.fp2-modal-btn--danger {
+  background: #E85B4A;
+  color: #fff;
+}
+
+.fp2-modal-btn--ghost {
+  background: var(--fp2-bg);
+  border: 1.5px solid var(--fp2-border);
+  color: var(--fp2-text-1);
+}
+
+@keyframes fp2-slide-up {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .fp2-job-av {

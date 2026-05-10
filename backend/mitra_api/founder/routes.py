@@ -956,6 +956,7 @@ async def founder_all_portals_by_email(
             .where(
                 func.lower(JobModel.founder_email) == normalized_email,
                 JobModel.founder_access_token.isnot(None),
+                JobModel.is_active.is_(True),
             )
             .order_by(JobModel.created_at.desc())
         )).scalars().all()
@@ -967,6 +968,7 @@ async def founder_all_portals_by_email(
                 .where(
                     func.lower(JobModel.founder_wa) == normalized_email,
                     JobModel.founder_access_token.isnot(None),
+                    JobModel.is_active.is_(True),
                 )
                 .order_by(JobModel.created_at.desc())
             )).scalars().all()
@@ -977,6 +979,7 @@ async def founder_all_portals_by_email(
                 select(JobModel)
                 .where(
                     JobModel.founder_access_token.isnot(None),
+                    JobModel.is_active.is_(True),
                     JobModel.signals.cast(String).ilike(f"%{normalized_email}%"),
                 )
                 .order_by(JobModel.created_at.desc())
@@ -1105,6 +1108,8 @@ async def founder_portal(
 
         if not job:
             raise HTTPException(status_code=404, detail="Portal not found or token expired.")
+        if not job.is_active:
+            raise HTTPException(status_code=410, detail="This role has been deleted. Visit your portal home to see active roles.")
 
         # Load all intros for this job with candidates
         rows = (await db.execute(
@@ -1244,3 +1249,39 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
         new_status=new_status.value if hasattr(new_status, "value") else str(new_status),
         message=status_messages[body.action],
     )
+
+
+class DeleteJobRequest(BaseModel):
+    token: str
+
+
+class DeleteJobResponse(BaseModel):
+    ok: bool
+    message: str
+
+
+@router.delete("/portal/job", response_model=DeleteJobResponse)
+async def founder_delete_job(body: DeleteJobRequest) -> DeleteJobResponse:
+    """
+    Soft-delete a founder's job by setting is_active=False.
+    The job record and all intro history are preserved in the database;
+    the role simply stops being matched against candidates and is removed
+    from the portal. The founder can contact support to re-activate.
+    """
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.db.models import Job as JobModel
+
+    factory = get_session_factory()
+    async with factory() as db:
+        job = (await db.execute(
+            select(JobModel).where(JobModel.founder_access_token == body.token)
+        )).scalar_one_or_none()
+
+        if not job:
+            raise HTTPException(status_code=404, detail="Portal not found or token expired.")
+
+        job.is_active = False
+        await db.commit()
+
+    log.info("founder deleted job=%d via portal", job.id)
+    return DeleteJobResponse(ok=True, message=f"Role '{job.title}' at {job.company} has been removed.")

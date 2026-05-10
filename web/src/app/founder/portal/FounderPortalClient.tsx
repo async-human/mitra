@@ -407,10 +407,12 @@ function EmptyState() {
 // ── Main portal ───────────────────────────────────────────────────────────────
 
 export function FounderPortalClient({ token }: { token: string }) {
-  const [data, setData]       = useState<PortalData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState<string>("");
-  const [filter, setFilter]   = useState("all");
+  const [data, setData]             = useState<PortalData | null>(null);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string>("");
+  const [filter, setFilter]         = useState("all");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting]     = useState(false);
 
   const load = useCallback(() => {
     if (!token) { setError("No portal token provided."); setLoading(false); return; }
@@ -453,6 +455,27 @@ export function FounderPortalClient({ token }: { token: string }) {
       };
     });
   }, []);
+
+  const handleDelete = useCallback(async () => {
+    setDeleting(true);
+    try {
+      const r = await fetch(`${API_URL}/founder/portal/job`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(d.detail || `Error ${r.status}`);
+      }
+      window.location.href = "/founder/setup";
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to delete role.";
+      setError(msg);
+      setShowDeleteConfirm(false);
+      setDeleting(false);
+    }
+  }, [token]);
 
   if (loading) return <PortalSkeleton />;
   if (error || !data) return <PortalError message={error || "Something went wrong."} onRetry={load} />;
@@ -529,7 +552,52 @@ export function FounderPortalClient({ token }: { token: string }) {
 
             {job.summary && <JobSummary text={job.summary} />}
           </div>
+
+          {/* Delete role button */}
+          <button
+            className="fp2-delete-role-btn"
+            onClick={() => setShowDeleteConfirm(true)}
+            title="Delete this role"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M2 3.5h10M5.5 3.5V2.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v1M5 3.5l.5 7M9 3.5l-.5 7M3.5 3.5l.5 8h6l.5-8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Delete role
+          </button>
         </section>
+
+        {/* Delete confirmation modal */}
+        {showDeleteConfirm && (
+          <div className="fp2-modal-overlay" onClick={() => !deleting && setShowDeleteConfirm(false)}>
+            <div className="fp2-modal" onClick={e => e.stopPropagation()}>
+              <div className="fp2-modal-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" stroke="#E85B4A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3 className="fp2-modal-title">Delete this role?</h3>
+              <p className="fp2-modal-body">
+                <strong>{job.title}</strong> at <strong>{job.company}</strong> will be removed from your portal and Mitra will stop sending new introductions. All existing candidate history will be preserved.
+              </p>
+              <div className="fp2-modal-actions">
+                <button
+                  className="fp2-modal-btn fp2-modal-btn--danger"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? "Deleting…" : "Yes, delete role"}
+                </button>
+                <button
+                  className="fp2-modal-btn fp2-modal-btn--ghost"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <StatsBar stats={stats} />
