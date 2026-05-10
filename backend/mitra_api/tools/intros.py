@@ -11,6 +11,7 @@ Delivery:
 from __future__ import annotations
 
 import logging
+import secrets
 from datetime import datetime, timezone
 from typing import Any
 
@@ -133,10 +134,30 @@ async def _load_candidate_signals(candidate_id: int, session: AsyncSession) -> d
     return {row.key: row.value for row in result.scalars().all()}
 
 
+def _build_response_links(token: str, candidate_name: str, job_title: str, company: str) -> str:
+    """Build the one-click founder reply footer appended to every intro email."""
+    from mitra_api.config import get_settings
+    base = get_settings().mitra_api_base_url.rstrip("/")
+    interested_url = f"{base}/founder/respond?token={token}&action=interested"
+    not_fit_url    = f"{base}/founder/respond?token={token}&action=not_a_fit"
+    return (
+        f"\n\n{'─' * 50}\n"
+        f"Quick reply — no login needed:\n\n"
+        f"  ✅  Interested in {candidate_name}  →  {interested_url}\n\n"
+        f"  ❌  Not the right fit right now  →  {not_fit_url}\n\n"
+        f"Replying to this email also works — we read every response.\n"
+        f"{'─' * 50}"
+    )
+
+
 async def _send_intro(*, founder_wa: str | None, founder_email: str | None,
-                      subject: str, body: str) -> bool:
+                      subject: str, body: str,
+                      response_token: str | None = None,
+                      candidate_name: str = "the candidate",
+                      job_title: str = "", company: str = "") -> bool:
     """
     Deliver intro to founder.  Returns True if at least one channel succeeded.
+    Appends one-click response links if response_token is provided.
     Also BCC's ops email (MITRA_OPS_EMAIL) so every intro is visible to the team.
     """
     from mitra_api.config import get_settings
@@ -146,9 +167,15 @@ async def _send_intro(*, founder_wa: str | None, founder_email: str | None,
     ops_email = s.mitra_ops_email.strip()
     sent = False
 
+    # Append one-click response footer to email body
+    email_body = body
+    if response_token:
+        email_body = body + _build_response_links(response_token, candidate_name, job_title, company)
+
     if founder_wa:
         try:
             from mitra_api.twilio_whatsapp.client import send_whatsapp_reply
+            # WhatsApp gets the plain body without the URL footer (too long for WA)
             await send_whatsapp_reply(to_whatsapp_from_value=_to_twilio_wa(founder_wa), body=body)
             log.info("intro sent via WhatsApp to %s", founder_wa)
             sent = True
@@ -157,14 +184,14 @@ async def _send_intro(*, founder_wa: str | None, founder_email: str | None,
 
     if founder_email and not sent:
         try:
-            sent = await send_email(to=founder_email, subject=subject, text=body)
+            sent = await send_email(to=founder_email, subject=subject, text=email_body)
         except Exception:
             log.exception("email intro send failed for %s", founder_email)
 
     # BCC ops on every successful founder delivery
     if sent and ops_email and ops_email not in (founder_email or ""):
         try:
-            await send_email(to=ops_email, subject=f"[BCC] {subject}", text=body)
+            await send_email(to=ops_email, subject=f"[BCC] {subject}", text=email_body)
         except Exception:
             log.warning("ops BCC email failed (non-critical)")
 
@@ -173,7 +200,7 @@ async def _send_intro(*, founder_wa: str | None, founder_email: str | None,
         no_channel_note = (
             f"[NO FOUNDER CHANNEL — ops fallback]\n"
             f"founder_email={founder_email!r}  founder_wa={founder_wa!r}\n\n"
-            + body
+            + email_body
         )
         try:
             sent = await send_email(to=ops_email, subject=f"[NEEDS RELAY] {subject}", text=no_channel_note)
@@ -315,23 +342,30 @@ async def request_intro(
     )
 
     # ── Persist intro record ──────────────────────────────────────────────────
+    response_token = secrets.token_urlsafe(32)
     intro = Intro(
         candidate_id=candidate.id,
         job_id=job.id,
         status=IntroStatus.sent,
         intro_note=intro_note,
+        response_token=response_token,
         sent_at=datetime.now(timezone.utc),
     )
     session.add(intro)
     await session.flush()
 
     # ── Deliver to founder (+ ops BCC / fallback) ────────────────────────────
-    subject = f"Intro: {candidate.name or 'A candidate'} → {job.title} at {job.company}"
+    cand_name = candidate.name or "the candidate"
+    subject = f"Intro: {cand_name} → {job.title} at {job.company}"
     founder_contacted = await _send_intro(
         founder_wa=job.founder_wa,
         founder_email=job.founder_email,
         subject=subject,
         body=intro_note,
+        response_token=response_token,
+        candidate_name=cand_name,
+        job_title=job.title,
+        company=job.company,
     )
 
     if not founder_contacted:

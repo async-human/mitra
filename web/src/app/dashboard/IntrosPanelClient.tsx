@@ -14,18 +14,18 @@ interface IntroSummary {
   sent_at: string | null;
 }
 
-const STATUS_META: Record<string, { label: string; color: string; dot: string }> = {
-  sent:         { label: "Intro sent",         color: "var(--teal)",    dot: "#34D399" },
-  acknowledged: { label: "Founder replied",     color: "#7C3AED",       dot: "#A78BFA" },
-  interview:    { label: "Interview booked",    color: "#D97706",       dot: "#FCD34D" },
-  offer:        { label: "Offer received",      color: "#059669",       dot: "#6EE7B7" },
-  hired:        { label: "Hired 🎉",            color: "#059669",       dot: "#6EE7B7" },
-  declined:     { label: "Not moving forward",  color: "var(--ink-muted)", dot: "#9CA3AF" },
-  ghosted:      { label: "Awaiting reply",      color: "var(--ink-muted)", dot: "#D1D5DB" },
+const STATUS_META: Record<string, { label: string; color: string; bg: string; dot: string; pulse?: boolean }> = {
+  sent:         { label: "Intro sent",         color: "#059669", bg: "#ECFDF5", dot: "#34D399" },
+  acknowledged: { label: "Interested ✦",       color: "#7C3AED", bg: "#F5F3FF", dot: "#A78BFA", pulse: true },
+  interview:    { label: "Interview booked",   color: "#D97706", bg: "#FFFBEB", dot: "#FCD34D", pulse: true },
+  offer:        { label: "Offer received",     color: "#059669", bg: "#ECFDF5", dot: "#6EE7B7", pulse: true },
+  hired:        { label: "Hired 🎉",           color: "#059669", bg: "#ECFDF5", dot: "#6EE7B7" },
+  declined:     { label: "Not a fit",          color: "#6B7280", bg: "#F3F4F6", dot: "#D1D5DB" },
+  ghosted:      { label: "Awaiting reply",     color: "#9CA3AF", bg: "#F9FAFB", dot: "#E5E7EB" },
 };
 
 function statusMeta(status: string) {
-  return STATUS_META[status] ?? { label: status, color: "var(--ink-muted)", dot: "#D1D5DB" };
+  return STATUS_META[status] ?? { label: status, color: "#6B7280", bg: "#F3F4F6", dot: "#D1D5DB" };
 }
 
 function formatDate(iso: string | null): string {
@@ -109,8 +109,14 @@ export function IntrosPanelClient({ userEmail }: { userEmail: string }) {
 
                 {/* Status + date */}
                 <div className="dash-intro-right">
-                  <span className="dash-intro-status" style={{ color: meta.color }}>
-                    <span className="dash-intro-dot" style={{ background: meta.dot }} />
+                  <span
+                    className={`dash-intro-status-badge${meta.pulse ? " dash-intro-status-badge--pulse" : ""}`}
+                    style={{ color: meta.color, background: meta.bg }}
+                  >
+                    <span
+                      className={`dash-intro-dot${meta.pulse ? " dash-intro-dot--pulse" : ""}`}
+                      style={{ background: meta.dot }}
+                    />
                     {meta.label}
                   </span>
                   {intro.sent_at && (

@@ -7,7 +7,8 @@ import logging
 import re
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -481,3 +482,231 @@ async def founder_upload_jd(
         complete=complete,
         quick_replies=quick_replies,
     )
+
+
+# ── Founder one-click response ────────────────────────────────────────────────
+
+_RESPOND_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mitra — {title}</title>
+  <style>
+    *, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #F9F8F5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }}
+    .card {{
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      max-width: 480px;
+      width: 100%;
+      padding: 48px 40px;
+      text-align: center;
+    }}
+    .logo {{
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: #0D0D0C;
+      margin-bottom: 32px;
+    }}
+    .logo span {{ color: #1A7A4A; }}
+    .icon {{
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 28px;
+    }}
+    .icon--green {{ background: #D1FAE5; }}
+    .icon--grey  {{ background: #F3F4F6; }}
+    .icon--red   {{ background: #FEE2E2; }}
+    h1 {{
+      font-size: 22px;
+      font-weight: 700;
+      color: #0D0D0C;
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
+    }}
+    p {{
+      font-size: 15px;
+      color: #6B7280;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }}
+    .highlight {{
+      font-weight: 600;
+      color: #0D0D0C;
+    }}
+    .note {{
+      margin-top: 24px;
+      padding: 16px;
+      background: #F9F8F5;
+      border-radius: 12px;
+      font-size: 13px;
+      color: #9CA3AF;
+    }}
+    .footer {{
+      margin-top: 32px;
+      font-size: 12px;
+      color: #D1D5DB;
+    }}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">Mitra<span>.</span></div>
+    <div class="icon {icon_class}">{icon}</div>
+    <h1>{heading}</h1>
+    <p>{body_line1}</p>
+    <p>{body_line2}</p>
+    <div class="note">{note}</div>
+    <div class="footer">Mitra — AI talent agent for funded startups</div>
+  </div>
+</body>
+</html>"""
+
+
+async def _notify_candidate_of_response(
+    *,
+    candidate_email: str,
+    candidate_name: str,
+    founder_name: str,
+    company: str,
+    job_title: str,
+    action: str,
+) -> None:
+    """Send the candidate an email when a founder responds to their intro."""
+    from mitra_api.tools.email import send_email
+
+    if action == "interested":
+        subject = f"Good news — {company} wants to connect · Mitra"
+        body = (
+            f"Hi {candidate_name},\n\n"
+            f"Great news — {founder_name or 'the founder'} at {company} responded to your intro "
+            f"for the {job_title} role and they're interested in connecting!\n\n"
+            f"We'll coordinate next steps and reach out to you shortly.\n\n"
+            f"— Mitra"
+        )
+    else:
+        subject = f"Update on your intro to {company} · Mitra"
+        body = (
+            f"Hi {candidate_name},\n\n"
+            f"{company} has reviewed your intro for the {job_title} role. "
+            f"They mentioned it's not the right fit at this moment — but your profile is strong "
+            f"and we're continuing to look for the best opportunities for you.\n\n"
+            f"— Mitra"
+        )
+
+    try:
+        await send_email(to=candidate_email, subject=subject, text=body)
+    except Exception:
+        log.warning("candidate response notification failed for %s (non-critical)", candidate_email)
+
+
+@router.get("/respond", response_class=HTMLResponse)
+async def founder_respond(
+    token: str = Query(..., description="One-click response token from intro email"),
+    action: str = Query(..., description="'interested' or 'not_a_fit'"),
+) -> HTMLResponse:
+    """
+    One-click founder response endpoint linked from intro emails.
+    Updates intro status and notifies the candidate — no login required.
+    """
+    from datetime import datetime, timezone
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.db.models import Intro, Job, Candidate, IntroStatus
+
+    valid_actions = ("interested", "not_a_fit")
+    if action not in valid_actions:
+        return HTMLResponse(_RESPOND_HTML.format(
+            title="Invalid link",
+            icon_class="icon--red", icon="✕",
+            heading="Invalid link",
+            body_line1="This response link is not valid.",
+            body_line2="Please reply directly to the intro email if you have a question.",
+            note="If you believe this is an error, reply to this email.",
+        ), status_code=400)
+
+    factory = get_session_factory()
+    async with factory() as db:
+        intro = (await db.execute(
+            select(Intro).where(Intro.response_token == token)
+        )).scalar_one_or_none()
+
+        if not intro:
+            return HTMLResponse(_RESPOND_HTML.format(
+                title="Link expired",
+                icon_class="icon--grey", icon="⏱",
+                heading="Link already used or expired",
+                body_line1="This response link has already been actioned.",
+                body_line2="No further action is needed — we have your response on file.",
+                note="Questions? Reply directly to the original intro email.",
+            ), status_code=200)
+
+        # Load related job and candidate
+        job = (await db.execute(select(Job).where(Job.id == intro.job_id))).scalar_one_or_none()
+        candidate = (await db.execute(
+            select(Candidate).where(Candidate.id == intro.candidate_id)
+        )).scalar_one_or_none()
+
+        # Update status and invalidate token (one-use only)
+        new_status = IntroStatus.acknowledged if action == "interested" else IntroStatus.declined
+        intro.status = new_status
+        intro.updated_at = datetime.now(timezone.utc)
+        intro.response_token = None
+        await db.commit()
+
+        log.info("founder respond: intro_id=%d action=%s new_status=%s", intro.id, action, new_status)
+
+    # Derive candidate contact info
+    cand_name  = (candidate.name or "there") if candidate else "there"
+    cand_email = ""
+    if candidate and candidate.phone.startswith("web:"):
+        cand_email = candidate.phone.removeprefix("web:").strip()
+
+    company   = job.company   if job else "the company"
+    job_title = job.title     if job else "the role"
+
+    # Fire-and-forget candidate notification
+    if cand_email and "@" in cand_email:
+        import asyncio
+        asyncio.create_task(_notify_candidate_of_response(
+            candidate_email=cand_email,
+            candidate_name=cand_name,
+            founder_name=(job.founder_name or "") if job else "",
+            company=company,
+            job_title=job_title,
+            action=action,
+        ))
+
+    if action == "interested":
+        return HTMLResponse(_RESPOND_HTML.format(
+            title="Response recorded",
+            icon_class="icon--green", icon="✓",
+            heading="Great — we'll make it happen.",
+            body_line1=f"You marked <span class='highlight'>{cand_name}</span> as interested for the <span class='highlight'>{job_title}</span> role.",
+            body_line2="We'll coordinate a time with them and follow up with you shortly.",
+            note=f"The candidate has been notified. Expect a follow-up from Mitra within 24 hours.",
+        ))
+    else:
+        return HTMLResponse(_RESPOND_HTML.format(
+            title="Response recorded",
+            icon_class="icon--grey", icon="✓",
+            heading="Response noted — thank you.",
+            body_line1=f"You let us know <span class='highlight'>{cand_name}</span> isn't the right fit right now.",
+            body_line2="We'll keep looking and only reach out when we have a genuinely better match.",
+            note="The candidate has been notified respectfully. No further action needed.",
+        ))

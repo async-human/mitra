@@ -128,6 +128,11 @@ class Settings(BaseSettings):
             "Also receives a BCC of every intro sent directly to a founder."
         ),
     )
+    mitra_api_base_url: str = Field(
+        default="http://localhost:8080",
+        validation_alias="MITRA_API_BASE_URL",
+        description="Public base URL of this API server — used to build founder response links in emails.",
+    )
 
 
 @lru_cache

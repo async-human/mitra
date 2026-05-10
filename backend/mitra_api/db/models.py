@@ -173,14 +173,15 @@ class Intro(Base):
     """Every introduction Mitra makes — the core metric of the whole business."""
     __tablename__ = "intros"
 
-    id:           Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
-    candidate_id: Mapped[int]      = mapped_column(ForeignKey("candidates.id"), nullable=False, index=True)
-    job_id:       Mapped[int]      = mapped_column(ForeignKey("jobs.id"),       nullable=False, index=True)
-    status:       Mapped[str]      = mapped_column(String(30), default=IntroStatus.sent, index=True)
-    intro_note:   Mapped[str|None] = mapped_column(Text)   # the actual intro message sent
-    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    sent_at:      Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
-    updated_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    id:             Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
+    candidate_id:   Mapped[int]      = mapped_column(ForeignKey("candidates.id"), nullable=False, index=True)
+    job_id:         Mapped[int]      = mapped_column(ForeignKey("jobs.id"),       nullable=False, index=True)
+    status:         Mapped[str]      = mapped_column(String(30), default=IntroStatus.sent, index=True)
+    intro_note:     Mapped[str|None] = mapped_column(Text)          # the actual intro message sent
+    response_token: Mapped[str|None] = mapped_column(String(64), unique=True, index=True)  # one-click reply
+    requested_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    sent_at:        Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    updated_at:     Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     candidate: Mapped[Candidate] = relationship(back_populates="intros")
     job:       Mapped[Job]       = relationship(back_populates="intros")

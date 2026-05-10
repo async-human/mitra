@@ -219,7 +219,23 @@ async def candidate_chat(
     is_init = not body.message.strip()
 
     if is_init:
-        # On page load: return last assistant message if session exists, else trigger greeting
+        # On page load: warm session store signals from DB if Redis is cold (new device / TTL expired)
+        if settings.mitra_database_url:
+            try:
+                from mitra_api.db.engine import get_session_factory as _sf
+                from mitra_api.tools.candidates import get_signals as get_db_signals
+                redis_signals = await store.get_signals(sid)
+                if not redis_signals:
+                    factory = _sf()
+                    async with factory() as _db:
+                        db_signals = await get_db_signals(sid, session=_db)
+                    if db_signals:
+                        await store.merge_signals(sid, db_signals)
+                        log.info("warmed session %s with %d DB signals", sid, len(db_signals))
+            except Exception:
+                log.warning("could not warm signals from DB for %s (non-critical)", sid, exc_info=True)
+
+        # Return last assistant message if session exists, else trigger greeting
         transcript = await store.get_transcript(sid)
         if transcript:
             for msg in reversed(transcript):

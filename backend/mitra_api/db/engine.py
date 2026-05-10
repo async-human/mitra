@@ -54,3 +54,24 @@ async def get_db() -> AsyncSession:
     factory = get_session_factory()
     async with factory() as session:
         yield session
+
+
+async def run_schema_migrations() -> None:
+    """
+    Idempotent schema migrations — ADD COLUMN IF NOT EXISTS for columns added
+    after initial table creation (no Alembic required).
+    """
+    from sqlalchemy import text
+    migrations = [
+        # Intro.response_token — one-click founder reply token
+        "ALTER TABLE intros ADD COLUMN IF NOT EXISTS response_token VARCHAR(64)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_intros_response_token ON intros(response_token) WHERE response_token IS NOT NULL",
+    ]
+    engine = _engine()
+    async with engine.begin() as conn:
+        for stmt in migrations:
+            try:
+                await conn.execute(text(stmt))
+            except Exception as exc:
+                import logging
+                logging.getLogger(__name__).warning("migration skipped: %s — %s", stmt[:60], exc)

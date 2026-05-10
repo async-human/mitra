@@ -37,10 +37,17 @@ def get_sessions() -> AgentSessionStore:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Run schema migrations on startup (idempotent ADD COLUMN IF NOT EXISTS)
+    try:
+        from mitra_api.db.engine import run_schema_migrations
+        await run_schema_migrations()
+    except Exception:
+        pass  # DB may not be configured in all envs
+
     yield
+
     # Graceful shutdown
     await session_store.aclose()
-    # Dispose DB engine connection pool
     try:
         from mitra_api.db.engine import _engine
         engine = _engine()
