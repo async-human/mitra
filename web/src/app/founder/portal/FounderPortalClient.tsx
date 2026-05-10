@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -326,13 +326,13 @@ function StatsBar({ stats }: { stats: PortalStats }) {
   return (
     <div className="fp-statsbar">
       {items.map((item, i) => (
-        <>
-          {i > 0 && <div key={`div-${i}`} className="fp-statsbar-sep" />}
-          <div key={item.label} className="fp-statsbar-item">
+        <React.Fragment key={item.label}>
+          {i > 0 && <div className="fp-statsbar-sep" />}
+          <div className="fp-statsbar-item">
             <span className="fp-statsbar-num" style={{ color: item.accent }}>{item.value}</span>
             <span className="fp-statsbar-label">{item.label}</span>
           </div>
-        </>
+        </React.Fragment>
       ))}
     </div>
   );
