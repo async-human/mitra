@@ -99,51 +99,53 @@ function WhyFits({ job }: { job: MergedJob }) {
   );
 }
 
-function IntroButton({
-  job, userEmail, status, errorMsg, onRequest,
-}: {
-  job: MergedJob;
-  userEmail?: string;
-  status: IntroStatus;
-  errorMsg: string;
-  onRequest: (job: MergedJob) => void;
-}) {
-    if (status === "sent") {
-    return (
-      <div className="match-intro-sent">
-        <span className="match-intro-sent-icon">✓</span>
-        <span>Intro sent · check your inbox for a copy</span>
-      </div>
-    );
-  }
-
-  if (status === "already_sent") {
-    return (
-      <div className="match-intro-sent match-intro-sent--already">
-        <span className="match-intro-sent-icon">✓</span>
-        <span>Intro already sent</span>
-      </div>
-    );
-  }
-
+function CheckCircleIcon() {
   return (
-    <div className="match-intro-col">
-      <button
-        className={`match-btn match-btn--primary${status === "loading" ? " match-btn--loading" : ""}`}
-        disabled={status === "loading" || !userEmail}
-        onClick={() => onRequest(job)}
-      >
-        {status === "loading" ? (
-          <span className="match-btn-spinner" />
-        ) : status === "error" ? (
-          "Try again"
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <circle cx="16" cy="16" r="15" fill="#D1FAE5" stroke="#34D399" strokeWidth="1.5" />
+      <path d="M10 16.5l4.5 4.5 7.5-9" stroke="#059669" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+      <rect x="1" y="3" width="11" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M1 4.5l5.5 3.5 5.5-3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IntroSuccessFooter({ company, already }: { company: string; already?: boolean }) {
+  return (
+    <div className={`match-intro-footer${already ? " match-intro-footer--already" : ""}`}>
+      <div className="match-intro-footer-icon">
+        {already ? (
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <circle cx="16" cy="16" r="15" fill="#F3F4F6" stroke="#D1D5DB" strokeWidth="1.5" />
+            <path d="M10 16.5l4.5 4.5 7.5-9" stroke="#9CA3AF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         ) : (
-          "Request intro"
+          <CheckCircleIcon />
         )}
-      </button>
-      {status === "error" && errorMsg && (
-        <p className="match-intro-error">{errorMsg}</p>
-      )}
+      </div>
+      <div className="match-intro-footer-body">
+        <p className="match-intro-footer-title">
+          {already ? `Intro already submitted to ${company}` : `Intro submitted to ${company}`}
+        </p>
+        <p className="match-intro-footer-sub">
+          {already
+            ? "Chat with Mitra to share more for a stronger follow-up"
+            : (
+              <>
+                <MailIcon />
+                {" "}We sent a copy to your inbox · expect a reply in 24–48 hrs
+              </>
+            )
+          }
+        </p>
+      </div>
     </div>
   );
 }
@@ -163,10 +165,13 @@ function JobCard({
   const empType = employmentLabel(job.employment);
   const pills = [empType, remote, job.location, job.sector, salary].filter(Boolean) as string[];
   const rankLabel = RANK_LABELS[idx] ?? null;
+  const isSent = introStatus === "sent" || introStatus === "already_sent";
 
   return (
-    <div className="match-card" style={{ animationDelay: `${idx * 0.09}s` }}>
-
+    <div
+      className={`match-card${isSent ? " match-card--sent" : ""}${introStatus === "already_sent" ? " match-card--already" : ""}`}
+      style={{ animationDelay: `${idx * 0.09}s` }}
+    >
       {/* Rank strip */}
       {rankLabel && (
         <div className="match-rank-strip">
@@ -216,19 +221,40 @@ function JobCard({
       {/* Why this fits */}
       <WhyFits job={job} />
 
-      {/* Actions */}
-      <div className="match-actions">
-        <Link href={`/chat?about=${encodeURIComponent(job.title)}`} className="match-btn match-btn--ghost">
-          Ask Mitra →
-        </Link>
-        <IntroButton
-          job={job}
-          userEmail={userEmail}
-          status={introStatus}
-          errorMsg={introError}
-          onRequest={onRequestIntro}
+      {/* Actions — hidden when intro is sent, Ask Mitra still accessible */}
+      {!isSent && (
+        <div className="match-actions">
+          <Link href={`/chat?about=${encodeURIComponent(job.title)}`} className="match-btn match-btn--ghost">
+            Ask Mitra →
+          </Link>
+          <div className="match-intro-col">
+            <button
+              className={`match-btn match-btn--primary${introStatus === "loading" ? " match-btn--loading" : ""}`}
+              disabled={introStatus === "loading" || !userEmail}
+              onClick={() => onRequestIntro(job)}
+            >
+              {introStatus === "loading" ? (
+                <span className="match-btn-spinner" />
+              ) : introStatus === "error" ? (
+                "Try again"
+              ) : (
+                "Request intro"
+              )}
+            </button>
+            {introStatus === "error" && introError && (
+              <p className="match-intro-error">{introError}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Success footer — replaces the actions row entirely */}
+      {isSent && (
+        <IntroSuccessFooter
+          company={job.company}
+          already={introStatus === "already_sent"}
         />
-      </div>
+      )}
     </div>
   );
 }
