@@ -128,6 +128,9 @@ class Job(Base):
     founder_email:  Mapped[str|None] = mapped_column(String(200))
     founder_wa:     Mapped[str|None] = mapped_column(String(50))  # WA number for intro
 
+    # Founder portal — persistent token that gives no-login access to /founder/portal
+    founder_access_token: Mapped[str|None] = mapped_column(String(64), unique=True, index=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

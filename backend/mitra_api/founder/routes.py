@@ -7,6 +7,8 @@ import logging
 import re
 from typing import Any
 
+import secrets as _secrets
+
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
@@ -217,6 +219,8 @@ async def _auto_submit_job(session_id: str, signals: dict[str, Any]) -> None:
             summary=" | ".join(summary_parts) or None,
             founder_wa=founder_wa,
             founder_email=founder_email,
+            founder_name=signals.get("contact_info", "").split()[0] if signals.get("contact_info") else None,
+            founder_access_token=_secrets.token_urlsafe(32),
         )
         db.add(job)
         await db.flush()
@@ -710,3 +714,262 @@ async def founder_respond(
             body_line2="We'll keep looking and only reach out when we have a genuinely better match.",
             note="The candidate has been notified respectfully. No further action needed.",
         ))
+
+
+# ── Founder Portal API ────────────────────────────────────────────────────────
+
+class PortalCandidateSignals(BaseModel):
+    name: str | None = None
+    current_role: str | None = None
+    current_company: str | None = None
+    years_exp: int | None = None
+    stack: list[str] = []
+    salary_target_lpa: int | None = None
+    notice_period_days: int | None = None
+    motivation: str | None = None
+    notable_projects: str | None = None
+    linkedin_url: str | None = None
+
+
+class PortalCandidate(BaseModel):
+    intro_id: int
+    status: str
+    sent_at: str | None
+    why_note: str | None
+    signals: PortalCandidateSignals
+
+
+class PortalJob(BaseModel):
+    id: int
+    title: str
+    company: str
+    stage: str | None
+    sector: str | None
+    location: str | None
+    remote_policy: str | None
+    salary_min_lpa: int | None
+    salary_max_lpa: int | None
+    stack: list[str]
+    summary: str | None
+
+
+class PortalStats(BaseModel):
+    total: int
+    interested: int
+    interview: int
+    offer: int
+    hired: int
+    declined: int
+
+
+class PortalResponse(BaseModel):
+    job: PortalJob
+    candidates: list[PortalCandidate]
+    stats: PortalStats
+
+
+class PortalActionRequest(BaseModel):
+    token: str
+    intro_id: int
+    action: str  # "interested" | "not_a_fit" | "schedule"
+
+
+class PortalActionResponse(BaseModel):
+    ok: bool
+    new_status: str
+    message: str
+
+
+def _extract_portal_signals(candidate: Any, raw_signals: dict) -> PortalCandidateSignals:
+    """Merge DB candidate fields + raw CandidateSignal rows into a clean struct."""
+    def _int(v: Any) -> int | None:
+        try: return int(v)
+        except (TypeError, ValueError): return None
+
+    def _str_list(v: Any) -> list[str]:
+        if isinstance(v, list): return [str(x) for x in v]
+        if isinstance(v, str) and v: return [x.strip() for x in v.split(",") if x.strip()]
+        return []
+
+    stack = (
+        _str_list(raw_signals.get("primary_stack"))
+        or _str_list(raw_signals.get("tech_stack"))
+        or _str_list(raw_signals.get("stack"))
+    )
+    motivation = (
+        raw_signals.get("motivation")
+        or raw_signals.get("what_they_want")
+        or raw_signals.get("goals")
+    )
+    if isinstance(motivation, list):
+        motivation = "; ".join(str(m) for m in motivation)
+
+    return PortalCandidateSignals(
+        name=candidate.name or raw_signals.get("candidate_name"),
+        current_role=candidate.current_role or raw_signals.get("current_role"),
+        current_company=candidate.current_company or raw_signals.get("current_company"),
+        years_exp=candidate.years_exp or _int(raw_signals.get("years_experience")),
+        stack=stack,
+        salary_target_lpa=_int(raw_signals.get("salary_target_lpa") or raw_signals.get("salary_floor_lpa")),
+        notice_period_days=_int(raw_signals.get("notice_period_days") or raw_signals.get("notice_period")),
+        motivation=str(motivation).strip() if motivation else None,
+        notable_projects=raw_signals.get("notable_projects") or raw_signals.get("proud_of"),
+        linkedin_url=raw_signals.get("linkedin_url") or raw_signals.get("linkedin"),
+    )
+
+
+@router.get("/portal", response_model=PortalResponse)
+async def founder_portal(
+    token: str = Query(..., description="Founder access token from intro email"),
+) -> PortalResponse:
+    """Return job details + all introduced candidates for this founder's role."""
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.db.models import Job as JobModel, Intro, Candidate, CandidateSignal
+
+    factory = get_session_factory()
+    async with factory() as db:
+        job = (await db.execute(
+            select(JobModel).where(JobModel.founder_access_token == token)
+        )).scalar_one_or_none()
+
+        if not job:
+            raise HTTPException(status_code=404, detail="Portal not found or token expired.")
+
+        # Load all intros for this job with candidates
+        rows = (await db.execute(
+            select(Intro, Candidate)
+            .join(Candidate, Intro.candidate_id == Candidate.id)
+            .where(Intro.job_id == job.id)
+            .order_by(Intro.sent_at.desc())
+        )).all()
+
+        candidates_out: list[PortalCandidate] = []
+        for intro, candidate in rows:
+            # Load candidate signals
+            sig_rows = (await db.execute(
+                select(CandidateSignal).where(CandidateSignal.candidate_id == candidate.id)
+            )).scalars().all()
+            raw_signals = {r.key: r.value for r in sig_rows}
+            signals = _extract_portal_signals(candidate, raw_signals)
+
+            # Extract "why" from intro_note — first paragraph after "Why I'm making this intro:"
+            why_note = None
+            if intro.intro_note:
+                for line in intro.intro_note.split("\n"):
+                    stripped = line.strip()
+                    if stripped and not stripped.startswith("Hi ") and not stripped.startswith("I'm Mitra") and not stripped.startswith("*") and not stripped.startswith("—"):
+                        why_note = stripped
+                        break
+
+            candidates_out.append(PortalCandidate(
+                intro_id=intro.id,
+                status=str(intro.status),
+                sent_at=intro.sent_at.isoformat() if intro.sent_at else None,
+                why_note=why_note,
+                signals=signals,
+            ))
+
+    stats = PortalStats(
+        total=len(candidates_out),
+        interested=sum(1 for c in candidates_out if c.status == "acknowledged"),
+        interview=sum(1 for c in candidates_out if c.status == "interview"),
+        offer=sum(1 for c in candidates_out if c.status == "offer"),
+        hired=sum(1 for c in candidates_out if c.status == "hired"),
+        declined=sum(1 for c in candidates_out if c.status == "declined"),
+    )
+
+    job_out = PortalJob(
+        id=job.id,
+        title=job.title,
+        company=job.company,
+        stage=job.stage,
+        sector=job.sector,
+        location=job.location,
+        remote_policy=job.remote_policy,
+        salary_min_lpa=job.salary_min_lpa,
+        salary_max_lpa=job.salary_max_lpa,
+        stack=[str(s) for s in job.stack] if isinstance(job.stack, list) else [],
+        summary=job.summary,
+    )
+
+    return PortalResponse(job=job_out, candidates=candidates_out, stats=stats)
+
+
+@router.post("/portal/action", response_model=PortalActionResponse)
+async def founder_portal_action(body: PortalActionRequest) -> PortalActionResponse:
+    """Update intro status from the founder portal."""
+    from datetime import datetime, timezone
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.db.models import Job as JobModel, Intro, Candidate, IntroStatus
+
+    action_map = {
+        "interested": IntroStatus.acknowledged,
+        "not_a_fit":  IntroStatus.declined,
+        "schedule":   IntroStatus.interview,
+    }
+    if body.action not in action_map:
+        raise HTTPException(400, f"Invalid action '{body.action}'. Use: interested, not_a_fit, schedule.")
+
+    factory = get_session_factory()
+    async with factory() as db:
+        # Verify the token owns this intro
+        job = (await db.execute(
+            select(JobModel).where(JobModel.founder_access_token == body.token)
+        )).scalar_one_or_none()
+
+        if not job:
+            raise HTTPException(404, "Portal not found or token expired.")
+
+        intro = (await db.execute(
+            select(Intro).where(Intro.id == body.intro_id, Intro.job_id == job.id)
+        )).scalar_one_or_none()
+
+        if not intro:
+            raise HTTPException(404, "Candidate not found in this portal.")
+
+        # Skip if already in a terminal state
+        terminal = {IntroStatus.hired, IntroStatus.declined}
+        if intro.status in terminal and body.action == "not_a_fit":
+            return PortalActionResponse(ok=True, new_status=str(intro.status), message="Already actioned.")
+
+        new_status = action_map[body.action]
+        intro.status = new_status
+        intro.updated_at = datetime.now(timezone.utc)
+        # Consume response_token if present (same link should not double-trigger)
+        if intro.response_token:
+            intro.response_token = None
+        await db.commit()
+
+        # Notify candidate asynchronously
+        candidate = (await db.execute(
+            select(Candidate).where(Candidate.id == intro.candidate_id)
+        )).scalar_one_or_none()
+
+    cand_name  = (candidate.name or "there") if candidate else "there"
+    cand_email = ""
+    if candidate and candidate.phone.startswith("web:"):
+        cand_email = candidate.phone.removeprefix("web:").strip()
+
+    if cand_email and "@" in cand_email:
+        import asyncio
+        asyncio.create_task(_notify_candidate_of_response(
+            candidate_email=cand_email,
+            candidate_name=cand_name,
+            founder_name=job.founder_name or "",
+            company=job.company,
+            job_title=job.title,
+            action=body.action,
+        ))
+
+    status_messages = {
+        "interested": f"Marked as interested — {cand_name} will be notified.",
+        "not_a_fit":  f"Noted. {cand_name} has been informed respectfully.",
+        "schedule":   f"Interview stage set — we'll coordinate with {cand_name}.",
+    }
+
+    log.info("portal action: job=%d intro=%d action=%s", job.id, intro.id, body.action)
+    return PortalActionResponse(
+        ok=True,
+        new_status=str(new_status),
+        message=status_messages[body.action],
+    )

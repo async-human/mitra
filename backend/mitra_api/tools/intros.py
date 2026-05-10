@@ -134,17 +134,33 @@ async def _load_candidate_signals(candidate_id: int, session: AsyncSession) -> d
     return {row.key: row.value for row in result.scalars().all()}
 
 
-def _build_response_links(token: str, candidate_name: str, job_title: str, company: str) -> str:
+def _build_response_links(
+    token: str,
+    candidate_name: str,
+    job_title: str,
+    company: str,
+    founder_access_token: str | None = None,
+) -> str:
     """Build the one-click founder reply footer appended to every intro email."""
     from mitra_api.config import get_settings
-    base = get_settings().mitra_api_base_url.rstrip("/")
-    interested_url = f"{base}/founder/respond?token={token}&action=interested"
-    not_fit_url    = f"{base}/founder/respond?token={token}&action=not_a_fit"
+    s = get_settings()
+    api_base  = s.mitra_api_base_url.rstrip("/")
+    web_base  = getattr(s, "mitra_web_base_url", "").rstrip("/") or api_base
+
+    interested_url = f"{api_base}/founder/respond?token={token}&action=interested"
+    not_fit_url    = f"{api_base}/founder/respond?token={token}&action=not_a_fit"
+
+    portal_line = ""
+    if founder_access_token:
+        portal_url = f"{web_base}/founder/portal?token={founder_access_token}"
+        portal_line = f"\n  🗂  View all candidates for this role  →  {portal_url}\n"
+
     return (
         f"\n\n{'─' * 50}\n"
         f"Quick reply — no login needed:\n\n"
         f"  ✅  Interested in {candidate_name}  →  {interested_url}\n\n"
-        f"  ❌  Not the right fit right now  →  {not_fit_url}\n\n"
+        f"  ❌  Not the right fit right now  →  {not_fit_url}\n"
+        f"{portal_line}\n"
         f"Replying to this email also works — we read every response.\n"
         f"{'─' * 50}"
     )
@@ -153,6 +169,7 @@ def _build_response_links(token: str, candidate_name: str, job_title: str, compa
 async def _send_intro(*, founder_wa: str | None, founder_email: str | None,
                       subject: str, body: str,
                       response_token: str | None = None,
+                      founder_access_token: str | None = None,
                       candidate_name: str = "the candidate",
                       job_title: str = "", company: str = "") -> bool:
     """
@@ -170,7 +187,10 @@ async def _send_intro(*, founder_wa: str | None, founder_email: str | None,
     # Append one-click response footer to email body
     email_body = body
     if response_token:
-        email_body = body + _build_response_links(response_token, candidate_name, job_title, company)
+        email_body = body + _build_response_links(
+            response_token, candidate_name, job_title, company,
+            founder_access_token=founder_access_token,
+        )
 
     if founder_wa:
         try:
@@ -363,6 +383,7 @@ async def request_intro(
         subject=subject,
         body=intro_note,
         response_token=response_token,
+        founder_access_token=getattr(job, "founder_access_token", None),
         candidate_name=cand_name,
         job_title=job.title,
         company=job.company,

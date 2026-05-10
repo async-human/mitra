@@ -133,6 +133,11 @@ class Settings(BaseSettings):
         validation_alias="MITRA_API_BASE_URL",
         description="Public base URL of this API server — used to build founder response links in emails.",
     )
+    mitra_web_base_url: str = Field(
+        default="http://localhost:3000",
+        validation_alias="MITRA_WEB_BASE_URL",
+        description="Public base URL of the Next.js web app — used to build founder portal links in emails.",
+    )
 
 
 @lru_cache

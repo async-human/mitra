@@ -66,6 +66,9 @@ async def run_schema_migrations() -> None:
         # Intro.response_token — one-click founder reply token
         "ALTER TABLE intros ADD COLUMN IF NOT EXISTS response_token VARCHAR(64)",
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_intros_response_token ON intros(response_token) WHERE response_token IS NOT NULL",
+        # Job.founder_access_token — persistent no-login founder portal token
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS founder_access_token VARCHAR(64)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_jobs_founder_access_token ON jobs(founder_access_token) WHERE founder_access_token IS NOT NULL",
     ]
     engine = _engine()
     async with engine.begin() as conn:
