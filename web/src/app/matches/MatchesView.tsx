@@ -8,7 +8,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 interface BasicCard { id: string; title: string; description: string; why?: string; }
 interface FullJob {
-  id: number; title: string; company: string;
+  id: number; external_id: string | null;
+  title: string; company: string;
   stage: string | null; sector: string | null;
   location: string | null; remote_policy: string | null;
   employment: string | null;
@@ -344,10 +345,19 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
         const full: FullJob[] = await res.json();
         if (full.length > 0) {
           const merged = full.map(f => {
-            const b = basic?.find(c => Number(c.id.replace(/^job_/, "")) === f.id);
+            // Match BasicCard by numeric id OR by external_id (for UUID-style row_ids)
+            const b = basic?.find(c => {
+              const stripped = c.id.replace(/^job_/, "");
+              return Number(stripped) === f.id
+                || (f.external_id && stripped === f.external_id);
+            });
             const { fit, fit_pct } = parseFit(b?.description ?? "");
-            // external_id is the real DB external_id — used for intro API calls
-            return { ...f, external_id: String(f.id), fit, fit_pct, why: b?.why ?? "" };
+            return {
+              ...f,
+              external_id: f.external_id ?? String(f.id),
+              fit, fit_pct,
+              why: b?.why ?? "",
+            };
           });
           setJobs(merged);
         } else if (basic && basic.length > 0) {

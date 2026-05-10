@@ -49,6 +49,7 @@ class CandidateChatResponse(BaseModel):
 
 class FullJobCard(BaseModel):
     id: int
+    external_id: str | None = None
     title: str
     company: str
     stage: str | None
@@ -103,7 +104,8 @@ async def get_jobs_by_ids(
         stack = [str(s) for s in job.stack] if isinstance(job.stack, list) else []
         sigs  = job.signals if isinstance(job.signals, dict) else {}
         return FullJobCard(
-            id=job.id, title=job.title, company=job.company,
+            id=job.id, external_id=job.external_id,
+            title=job.title, company=job.company,
             stage=job.stage, sector=job.sector, location=job.location,
             remote_policy=job.remote_policy, employment=job.employment,
             salary_min_lpa=job.salary_min_lpa, salary_max_lpa=job.salary_max_lpa,
