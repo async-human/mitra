@@ -420,9 +420,9 @@ export function FounderPortalClient({ token }: { token: string }) {
     setError("");
     const url = `${API_URL}/founder/portal?token=${encodeURIComponent(token)}`;
     fetch(url)
-      .then(r => {
+      .then(async r => {
         if (!r.ok) {
-          const detail = await r.json().then(d => d.detail).catch(() => null);
+          const detail = await r.json().then((d: { detail?: string }) => d.detail).catch(() => null);
           throw new Error(detail || (r.status === 404 ? "Portal not found or token expired." : `Server error (${r.status})`));
         }
         return r.json();
