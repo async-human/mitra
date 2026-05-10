@@ -159,21 +159,18 @@ export function MitraChat({
         <div className="wc-step-track">
           <div className={`wc-step-fill ${hasMatches ? "wc-step-fill--done" : ""}`} />
         </div>
-        <div className={`wc-step ${hasMatches ? "wc-step--active" : ""}`}>
-          <div className="wc-step-dot">2</div>
-          <span>Review roles</span>
-        </div>
-      </div>
-
-      {/* Existing matches banner — shown on re-login when localStorage has prior results */}
-      {storedMatchIds && !exiting && (
-        <div className="wc-matches-banner">
-          <span className="wc-matches-banner-text">Your matches are ready</span>
-          <Link href={`/matches?ids=${storedMatchIds}`} className="wc-matches-banner-link">
-            View shortlist →
+        {hasMatches && storedMatchIds ? (
+          <Link href={`/matches?ids=${storedMatchIds}`} className="wc-step wc-step--active wc-step--done-link">
+            <div className="wc-step-dot wc-step-dot--done">✓</div>
+            <span>Review roles</span>
           </Link>
-        </div>
-      )}
+        ) : (
+          <div className={`wc-step ${hasMatches ? "wc-step--active" : ""}`}>
+            <div className="wc-step-dot">2</div>
+            <span>Review roles</span>
+          </div>
+        )}
+      </div>
 
       {/* Chat card */}
       <div className="wc-card-wrap">
@@ -186,6 +183,18 @@ export function MitraChat({
 
           {/* Messages */}
           <div className="wc-messages">
+
+            {/* Matches-ready pinned card — lives inside the message stream when shortlist exists */}
+            {storedMatchIds && !exiting && (
+              <Link href={`/matches?ids=${storedMatchIds}`} className="wc-shortlist-card">
+                <div className="wc-shortlist-card-icon">✦</div>
+                <div className="wc-shortlist-card-body">
+                  <p className="wc-shortlist-card-title">Your shortlist is ready</p>
+                  <p className="wc-shortlist-card-sub">View your curated roles →</p>
+                </div>
+              </Link>
+            )}
+
             {messages.map((msg, i) =>
               msg.role === "mitra" ? (
                 <div key={i} className="wc-msg-mitra">

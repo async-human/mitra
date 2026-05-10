@@ -3552,33 +3552,74 @@ img.wchat-av--user { border-radius: 50%; }
 .wc-step-fill { height: 100%; width: 0; background: var(--ink); transition: width 0.4s ease; }
 .wc-step-fill--done { width: 100%; }
 
-/* ── existing matches banner (shown on re-login) ── */
-.wc-matches-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 0 20px 4px;
-  padding: 11px 16px;
-  background: #E8F9EE;
-  border: 1px solid rgba(26, 122, 74, 0.2);
-  border-radius: 12px;
-  flex-shrink: 0;
-}
-.wc-matches-banner-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: #1A7A4A;
-}
-.wc-matches-banner-link {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1A7A4A;
+/* ── step 2 done — clickable link ── */
+.wc-step--done-link {
   text-decoration: none;
-  white-space: nowrap;
+  color: inherit;
+  cursor: pointer;
   transition: opacity 0.15s;
 }
-.wc-matches-banner-link:hover { opacity: 0.75; }
+.wc-step--done-link:hover { opacity: 0.72; }
+.wc-step-dot--done {
+  background: var(--ink) !important;
+  color: #fff !important;
+  border-color: var(--ink) !important;
+  font-size: 11px !important;
+}
+
+/* ── shortlist ready card (pinned inside message stream) ── */
+@keyframes shortlistCardIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.wc-shortlist-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #FDFAF4 0%, #FFF8ED 100%);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 14px;
+  text-decoration: none;
+  margin-bottom: 4px;
+  transition: box-shadow 0.18s, transform 0.18s;
+  animation: shortlistCardIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  flex-shrink: 0;
+}
+.wc-shortlist-card:hover {
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.15);
+  transform: translateY(-1px);
+}
+.wc-shortlist-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--amber-pale);
+  color: var(--amber);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.wc-shortlist-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.wc-shortlist-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 2px;
+  line-height: 1.3;
+}
+.wc-shortlist-card-sub {
+  font-size: 12px;
+  color: var(--amber);
+  font-weight: 500;
+  margin: 0;
+}
 
 /* Card container */
 .wc-card-wrap {

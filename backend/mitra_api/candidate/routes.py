@@ -174,7 +174,21 @@ async def candidate_chat(
         if transcript:
             for msg in reversed(transcript):
                 if msg.role == "assistant":
-                    return CandidateChatResponse(reply=msg.content, job_cards=[])
+                    content = msg.content or ""
+                    # If the last message is a raw WhatsApp-formatted shortlist, replace it with
+                    # a clean web-friendly welcome-back line. The web UI shows a dedicated
+                    # "matches ready" banner, so the raw card text isn't needed here.
+                    from mitra_api.whatsapp.job_cards import WHATSAPP_SHORTLIST_MARKER
+                    _WA_NOISE = (WHATSAPP_SHORTLIST_MARKER, "―――――――――――", "1 of ", "2 of ", "3 of ")
+                    if any(marker in content for marker in _WA_NOISE):
+                        first = body.user_name.split()[0] if body.user_name else None
+                        greeting = (
+                            f"Welcome back{', ' + first if first else ''}! "
+                            "Your shortlist is ready — I've curated the best-fit roles for you. "
+                            "Tap \"View shortlist\" to review them, or keep chatting if you'd like to adjust anything."
+                        )
+                        return CandidateChatResponse(reply=greeting, job_cards=[])
+                    return CandidateChatResponse(reply=content, job_cards=[])
         name_part = f" The candidate's name is {body.user_name}." if body.user_name else ""
         user_text = (
             f"[CONVERSATION START on the Mitra web app.{name_part} "
