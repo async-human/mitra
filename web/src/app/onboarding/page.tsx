@@ -64,18 +64,19 @@ const SIGNAL_LABELS: Record<string, string> = {
   contact_info:     'Contact info',
 }
 
+// Signal icon characters — using clean unicode symbols instead of OS-dependent emoji
 const SIGNAL_ICONS: Record<string, string> = {
-  role_title:       '💼',
-  first_90_days:    '🎯',
-  dealbreaker:      '⚡',
-  culture_signal:   '🏢',
+  role_title:       '✦',
+  first_90_days:    '◎',
+  dealbreaker:      '◈',
+  culture_signal:   '⬡',
   salary_range:     '₹',
-  location:         '📍',
-  company_name:     '🏷️',
-  why_join:         '✨',
-  stage:            '📈',
-  intro_preference: '💬',
-  contact_info:     '📧',
+  location:         '◉',
+  company_name:     '▣',
+  why_join:         '◆',
+  stage:            '▲',
+  intro_preference: '◐',
+  contact_info:     '@',
 }
 
 const ICON_COLORS = ['green', 'amber', 'teal', 'sand'] as const
@@ -535,10 +536,18 @@ export default function OnboardingPage() {
         <div className={styles.signalsScroll}>
           {visibleGroups.length === 0 ? (
             <div className={styles.emptyState}>
-              <div className={styles.esIcon}>📋</div>
-              <div className={styles.esTitle}>Profile building…</div>
+              <div className={styles.esIcon}>
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                  <rect x="3" y="3" width="16" height="16" rx="4" stroke="#C07828" strokeWidth="1.5"/>
+                  <path d="M7 8h8M7 11h5M7 14h6" stroke="#C07828" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
+              <div className={styles.esTitle}>Brief building…</div>
               <div className={styles.esSub}>
-                Signals appear here as the founder shares information in the conversation.
+                Your company profile fills in automatically as you chat with Mitra.
+              </div>
+              <div className={styles.esActivity}>
+                <span /><span /><span />
               </div>
             </div>
           ) : (
