@@ -13,6 +13,7 @@ from mitra_api.agent.session_store import AgentSessionStore, build_session_store
 from mitra_api.config import Settings, get_settings
 from mitra_api.db.engine import get_session_factory
 from mitra_api.tools.intros import request_intro
+from mitra_api.db.models import Candidate, Intro, Job
 
 log = logging.getLogger(__name__)
 
@@ -156,6 +157,52 @@ async def request_candidate_intro(body: IntroRequest) -> IntroResponse:
         founder_contacted=bool(result.get("founder_contacted", False)),
         already_sent=not result.get("ok", True) and "already sent" in str(result.get("message", "")),
     )
+
+
+class IntroSummary(BaseModel):
+    intro_id: int
+    job_id: int
+    job_title: str
+    company: str
+    status: str
+    sent_at: str | None = None   # ISO-8601
+
+
+@router.get("/intros", response_model=list[IntroSummary])
+async def list_candidate_intros(
+    session_id: str = Query(..., description="Candidate email (used as session_id)"),
+) -> list[IntroSummary]:
+    """Return all intros that have been sent for this web candidate, newest first."""
+    from sqlalchemy import select
+
+    sid = f"web:{session_id}"
+    factory = get_session_factory()
+    async with factory() as db:
+        candidate = (await db.execute(
+            select(Candidate).where(Candidate.phone == sid)
+        )).scalar_one_or_none()
+
+        if not candidate:
+            return []
+
+        rows = (await db.execute(
+            select(Intro, Job)
+            .join(Job, Intro.job_id == Job.id)
+            .where(Intro.candidate_id == candidate.id)
+            .order_by(Intro.requested_at.desc())
+        )).all()
+
+    return [
+        IntroSummary(
+            intro_id=intro.id,
+            job_id=job.id,
+            job_title=job.title,
+            company=job.company,
+            status=str(intro.status),
+            sent_at=intro.sent_at.isoformat() if intro.sent_at else None,
+        )
+        for intro, job in rows
+    ]
 
 
 @router.post("/chat", response_model=CandidateChatResponse)

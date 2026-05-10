@@ -6,6 +6,7 @@ import { Logo } from "@/components/Logo";
 import { WhatsAppIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { MatchesPanelClient } from "./MatchesPanelClient";
+import { IntrosPanelClient } from "./IntrosPanelClient";
 
 function ChatIcon() {
   return (
@@ -44,14 +45,6 @@ function LockIcon() {
 }
 
 
-function IntrosEmptyIcon() {
-  return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-      <path d="M6 10h28a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V12a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M4 12l16 11 16-11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -167,18 +160,7 @@ export default async function DashboardPage() {
           </div>
 
           <div className="dash-panel">
-            <div className="dash-panel-head">
-              <h3 className="dash-panel-title">Introductions</h3>
-              <span className="dash-panel-badge">0 sent</span>
-            </div>
-            <div className="dash-empty">
-              <div className="dash-empty-icon"><IntrosEmptyIcon /></div>
-              <p className="dash-empty-title">No intros yet</p>
-              <p className="dash-empty-desc">
-                Once your matches are confirmed, we send a warm introduction to the founder on your behalf.
-              </p>
-              <p className="dash-empty-cta dash-empty-cta--muted">Available after matching</p>
-            </div>
+            <IntrosPanelClient userEmail={user.email ?? ""} />
           </div>
         </section>
 
