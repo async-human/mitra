@@ -530,10 +530,13 @@ async def run_agent_turn(
 
     # Build message history
     msgs: list[ChatMessage] = [ChatMessage(role="system", content=SYSTEM_PROMPT)]
+    transcript: list[ChatMessage] = []
     try:
-        msgs.extend(await sessions.get_transcript(whatsapp_sender_id))
+        transcript = await sessions.get_transcript(whatsapp_sender_id)
+        msgs.extend(transcript)
     except Exception:
         log.warning("Redis get_transcript failed for %s — starting with empty history", whatsapp_sender_id)
+
     if known_signals:
         msgs.append(
             ChatMessage(
@@ -544,6 +547,25 @@ async def run_agent_turn(
                 ),
             )
         )
+
+    # Returning candidate with no transcript — signals survived Redis expiry (loaded from Postgres).
+    # Prevent the agent from restarting the intake and re-asking questions it already has answers to.
+    if known_signals and not transcript:
+        name = known_signals.get("candidate_name", "")
+        greeting = f" ({name})" if name else ""
+        msgs.append(ChatMessage(
+            role="system",
+            content=(
+                f"RETURNING CANDIDATE{greeting} — their profile was loaded from durable storage "
+                f"but the conversation history has expired. "
+                f"Do NOT restart the intake or re-ask for information already in their profile. "
+                f"Greet them warmly as someone you already know, briefly acknowledge what you remember "
+                f"(role, stack, motivation), and ask what they'd like to do: "
+                f"see fresh recommendations, check on a previous intro, or update their preferences. "
+                f"One question only."
+            ),
+        ))
+        log.info("[agent:%s] returning candidate — signals present, transcript expired", whatsapp_sender_id)
 
     # Inject weak-intro nudge — drives proactive strengthening without candidate having to ask
     weak_note = await _load_weak_intros_note(whatsapp_sender_id, db_factory)
@@ -612,25 +634,16 @@ async def run_agent_turn(
     final_text: str | None = None
     rounds = 0
 
-    # On the first round, force search_jobs when the message looks like a job request —
-    # prevents the model from answering from training knowledge instead of the live DB.
-    _job_keywords = ("job", "role", "opening", "recommend", "match", "search", "find", "available",
-                     "opportunit", "position", "listing", "what's out", "show me", "suggest",
-                     "give me", "what do you have", "any roles", "any jobs")
-    _user_lower = user_content.lower()
-    _force_first = "search_jobs" if any(k in _user_lower for k in _job_keywords) else None
-
     log.info(
-        "[agent:%s] turn start — model=%s signals=%s force_first=%s msg=%.80r",
+        "[agent:%s] turn start — model=%s signals=%s msg=%.80r",
         whatsapp_sender_id, s.mitra_llm_model,
         list(known_signals.keys()) if known_signals else [],
-        _force_first, user_content,
+        user_content,
     )
 
     while rounds < s.mitra_agent_max_tool_rounds:
         rounds += 1
-        _ft = _force_first if rounds == 1 else None
-        log.info("[agent:%s] llm round %d — force_tool=%s", whatsapp_sender_id, rounds, _ft)
+        log.info("[agent:%s] llm round %d", whatsapp_sender_id, rounds)
 
         result = await adapter.complete(
             model=s.mitra_llm_model,
@@ -638,7 +651,6 @@ async def run_agent_turn(
             tools=tools,
             max_tokens=s.mitra_llm_max_tokens,
             temperature=s.mitra_llm_temperature,
-            force_tool=_ft,
         )
         assistant_tool_calls = list(result.tool_calls or [])
 
