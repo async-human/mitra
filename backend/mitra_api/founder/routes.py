@@ -956,7 +956,6 @@ async def founder_all_portals_by_email(
             .where(
                 func.lower(JobModel.founder_email) == normalized_email,
                 JobModel.founder_access_token.isnot(None),
-                JobModel.status != "paused",
             )
             .order_by(JobModel.created_at.desc())
         )).scalars().all()
@@ -968,7 +967,6 @@ async def founder_all_portals_by_email(
                 .where(
                     func.lower(JobModel.founder_wa) == normalized_email,
                     JobModel.founder_access_token.isnot(None),
-                    JobModel.status != "paused",
                 )
                 .order_by(JobModel.created_at.desc())
             )).scalars().all()
@@ -979,7 +977,6 @@ async def founder_all_portals_by_email(
                 select(JobModel)
                 .where(
                     JobModel.founder_access_token.isnot(None),
-                    JobModel.status != "paused",
                     JobModel.signals.cast(String).ilike(f"%{normalized_email}%"),
                 )
                 .order_by(JobModel.created_at.desc())
@@ -1108,8 +1105,6 @@ async def founder_portal(
 
         if not job:
             raise HTTPException(status_code=404, detail="Portal not found or token expired.")
-        if job.status == "paused":
-            raise HTTPException(status_code=410, detail="This role has been removed. Visit your portal home to see active roles.")
 
         # Load all intros for this job with candidates
         rows = (await db.execute(
@@ -1263,10 +1258,9 @@ class DeleteJobResponse(BaseModel):
 @router.delete("/portal/job", response_model=DeleteJobResponse)
 async def founder_delete_job(body: DeleteJobRequest) -> DeleteJobResponse:
     """
-    Soft-delete a founder's job by setting is_active=False.
-    The job record and all intro history are preserved in the database;
-    the role simply stops being matched against candidates and is removed
-    from the portal. The founder can contact support to re-activate.
+    Hard-delete a founder's job and all related records (intros, embedding).
+    The Job model has cascade="all, delete-orphan" on both relationships,
+    so a single db.delete(job) removes everything cleanly.
     """
     from mitra_api.db.engine import get_session_factory
     from mitra_api.db.models import Job as JobModel
@@ -1280,8 +1274,12 @@ async def founder_delete_job(body: DeleteJobRequest) -> DeleteJobResponse:
         if not job:
             raise HTTPException(status_code=404, detail="Portal not found or token expired.")
 
-        job.status = "paused"
+        job_title   = job.title or "Untitled role"
+        job_company = job.company or "your company"
+        job_id      = job.id
+
+        await db.delete(job)
         await db.commit()
 
-    log.info("founder deleted job=%d via portal", job.id)
-    return DeleteJobResponse(ok=True, message=f"Role '{job.title}' at {job.company} has been removed.")
+    log.info("founder hard-deleted job=%d ('%s' @ %s) via portal", job_id, job_title, job_company)
+    return DeleteJobResponse(ok=True, message=f"'{job_title}' at {job_company} has been permanently deleted.")
