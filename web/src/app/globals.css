@@ -3568,6 +3568,39 @@ body {
 }
 .fp-setup-link:hover { text-decoration: underline; }
 
+/* Token paste input on setup page */
+.fp-token-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fp-token-input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  font-family: monospace;
+  background: var(--background);
+  color: var(--foreground);
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.fp-token-input:focus { border-color: var(--accent); }
+.fp-token-input::placeholder { color: var(--muted); }
+
+.fp-token-go-btn {
+  padding: 11px 20px;
+}
+
+.fp-token-err {
+  font-size: 12px;
+  color: #E85B4A;
+  margin: 0;
+}
+
 /* Role picker — shown when founder has multiple jobs */
 .fp-setup-card--wide {
   max-width: 600px;

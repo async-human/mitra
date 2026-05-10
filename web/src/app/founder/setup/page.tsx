@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { TokenInput } from "./TokenInput";
 
 export const metadata: Metadata = {
   title: "Founder portal · Mitra",
@@ -44,6 +45,7 @@ export default async function FounderSetupPage() {
 
   let jobs: FounderJob[] = [];
   let lookupError = false;
+  let debugInfo: string | null = null;
 
   try {
     // Try the multi-role endpoint first (requires latest backend)
@@ -54,7 +56,9 @@ export default async function FounderSetupPage() {
     if (res.ok) {
       const data = await res.json();
       jobs = data.jobs ?? [];
-    } else if (res.status === 404 || res.status === 405 || res.status === 422) {
+      debugInfo = `all-portals: 200, found ${jobs.length} job(s)`;
+    } else {
+      debugInfo = `all-portals: ${res.status}`;
       // Endpoint doesn't exist yet on this backend version — fall back to single-job lookup
       const fallback = await fetch(
         `${apiBase}/founder/portal-link-by-email?email=${encodeURIComponent(email)}`,
@@ -65,11 +69,14 @@ export default async function FounderSetupPage() {
         if (d.portal_url) {
           jobs = [{ job_id: d.job_id ?? 0, title: "Your role", company: "", stage: null, portal_url: d.portal_url }];
         }
+        debugInfo += `, portal-link-by-email: 200, job_id=${d.job_id}`;
+      } else {
+        debugInfo += `, portal-link-by-email: ${fallback.status}`;
       }
-      // 404 on fallback too → genuinely no jobs
     }
-  } catch {
+  } catch (e) {
     lookupError = true;
+    debugInfo = `fetch error: ${e instanceof Error ? e.message : String(e)}`;
   }
 
   // Single job — redirect immediately, no picker needed
@@ -171,12 +178,26 @@ export default async function FounderSetupPage() {
           )}
         </div>
 
+        {/* Token paste fallback for founders whose email lookup doesn't match */}
+        <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+          <p className="fp-setup-sub" style={{ marginBottom: 10 }}>
+            Already completed onboarding? Paste your portal token below:
+          </p>
+          <TokenInput />
+        </div>
+
+        {/* Debug info — remove after confirming root cause */}
+        {debugInfo && (
+          <p style={{ fontSize: 11, color: "var(--muted)", fontFamily: "monospace", wordBreak: "break-all", margin: 0 }}>
+            debug: {debugInfo}
+          </p>
+        )}
+
         <p className="fp-setup-note">
-          Already completed onboarding?{" "}
+          Need help?{" "}
           <a href="mailto:hello@mitra.work" className="fp-setup-link">
             Contact support
-          </a>{" "}
-          and we&apos;ll reconnect your portal.
+          </a>
         </p>
       </div>
     </main>
