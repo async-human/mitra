@@ -21,7 +21,7 @@ export default async function FounderSetupPage() {
 
   const email = session.user.email;
   const name  = session.user.name?.split(" ")[0] ?? "there";
-  const apiBase = process.env.MITRA_API_BASE_URL ?? "http://localhost:8080";
+  const apiBase = (process.env.MITRA_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080").replace(/\/$/, "");
 
   let portalUrl: string | null = null;
   let lookupError = false;
