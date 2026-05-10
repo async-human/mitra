@@ -3384,11 +3384,21 @@ img.wchat-av--user { border-radius: 50%; }
 }
 
 /* ── WEB CHAT v2 (wc-) ── */
+@keyframes wcRootExit {
+  0%   { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-28px) scale(0.98); }
+}
+
 .wc-root {
   min-height: 100dvh;
   background: #F5F0EA;
   display: flex;
   flex-direction: column;
+}
+
+.wc-root--exiting {
+  animation: wcRootExit 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
 }
 
 /* Top bar */
@@ -4043,11 +4053,17 @@ img.wchat-av--user { border-radius: 50%; }
 }
 
 /* ── MATCHES PAGE (match-) ── */
+@keyframes matchPageIn {
+  0%   { opacity: 0; transform: translateY(24px) scale(0.99); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .match-root {
   min-height: 100vh;
   background: #F5F0EA;
   display: flex;
   flex-direction: column;
+  animation: matchPageIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .match-topbar {

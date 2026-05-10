@@ -52,6 +52,7 @@ export function MitraChat({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initialized = useRef(false);
@@ -73,8 +74,9 @@ export function MitraChat({
       }]);
       if (cards.length > 0) {
         sessionStorage.setItem("mitra-matches", JSON.stringify(cards));
-        // brief delay so the user sees the message before navigating
-        setTimeout(() => router.push("/matches"), 1200);
+        const ids = cards.map(c => c.id.replace(/^job_/, "")).join(",");
+        setExiting(true);
+        setTimeout(() => router.push(`/matches?ids=${ids}`), 550);
       }
     } catch {
       setMessages(prev => [...prev, { role: "mitra", text: "Something went wrong — please try again." }]);
@@ -115,7 +117,7 @@ export function MitraChat({
   const hasMatches = messages.some(m => m.jobCards && m.jobCards.length > 0);
 
   return (
-    <div className="wc-root">
+    <div className={`wc-root${exiting ? " wc-root--exiting" : ""}`}>
       {/* Top bar */}
       <header className="wc-topbar">
         <div className="wc-logo">

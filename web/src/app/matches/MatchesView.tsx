@@ -129,47 +129,60 @@ function JobCard({ job, idx }: { job: MergedJob; idx: number }) {
   );
 }
 
-export function MatchesView({ userName }: { userName?: string }) {
+export function MatchesView({ userName, urlIds }: { userName?: string; urlIds?: string }) {
   const [jobs, setJobs] = useState<MergedJob[]>([]);
   const [loading, setLoading] = useState(true);
   const firstName = userName?.split(" ")[0];
 
   useEffect(() => {
     async function load() {
+      // sessionStorage has rich data (fit%, description). URL params are the fallback.
       const raw = sessionStorage.getItem("mitra-matches");
-      if (!raw) { setLoading(false); return; }
-      let basic: BasicCard[] = [];
-      try { basic = JSON.parse(raw); } catch { setLoading(false); return; }
+      let basic: BasicCard[] | null = null;
+      if (raw) {
+        try { basic = JSON.parse(raw); } catch { basic = null; }
+      }
 
-      const ids = basic.map(c => c.id.replace(/^job_/, "")).join(",");
+      // Determine which IDs to fetch
+      let ids: string;
+      if (basic && basic.length > 0) {
+        ids = basic.map(c => c.id.replace(/^job_/, "")).join(",");
+      } else if (urlIds) {
+        ids = urlIds.split(",").map(s => s.trim().replace(/^job_/, "")).join(",");
+      } else {
+        setLoading(false);
+        return;
+      }
+
       try {
         const res = await fetch(`${API_URL}/candidate/jobs?ids=${ids}`);
-        if (res.ok) {
-          const full: FullJob[] = await res.json();
-          const merged = full.map(f => {
-            const b = basic.find(c => Number(c.id.replace(/^job_/, "")) === f.id);
-            const { fit, fit_pct } = parseFit(b?.description ?? "");
-            return { ...f, fit, fit_pct };
-          });
-          setJobs(merged);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const full: FullJob[] = await res.json();
+        const merged = full.map(f => {
+          const b = basic?.find(c => Number(c.id.replace(/^job_/, "")) === f.id);
+          const { fit, fit_pct } = parseFit(b?.description ?? "");
+          return { ...f, fit, fit_pct };
+        });
+        setJobs(merged);
       } catch {
-        // show basic cards if DB fetch fails
-        setJobs(basic.map(b => {
-          const { fit, fit_pct } = parseFit(b.description);
-          return {
-            id: parseInt(b.id.replace(/^job_/, "")) || 0,
-            title: b.title, company: b.description.split(" · ")[0] ?? "",
-            stage: null, sector: null, location: null, remote_policy: null,
-            employment: null, salary_min_lpa: null, salary_max_lpa: null,
-            stack: [], summary: null, signals: {}, fit, fit_pct,
-          };
-        }));
+        // fallback: render basic cards if sessionStorage has data
+        if (basic && basic.length > 0) {
+          setJobs(basic.map(b => {
+            const { fit, fit_pct } = parseFit(b.description);
+            return {
+              id: parseInt(b.id.replace(/^job_/, "")) || 0,
+              title: b.title, company: b.description.split(" · ")[0] ?? "",
+              stage: null, sector: null, location: null, remote_policy: null,
+              employment: null, salary_min_lpa: null, salary_max_lpa: null,
+              stack: [], summary: null, signals: {}, fit, fit_pct,
+            };
+          }));
+        }
       }
       setLoading(false);
     }
     load();
-  }, []);
+  }, [urlIds]);
 
   return (
     <div className="match-root">
