@@ -6,6 +6,14 @@ import { Logo } from "@/components/Logo";
 import { WhatsAppIcon } from "@/components/icons";
 import type { Metadata } from "next";
 
+function ChatIcon() {
+  return (
+    <svg width="17" height="17" viewBox="0 0 17 17" fill="none" aria-hidden="true">
+      <path d="M14.5 9.5a6 6 0 0 1-8.5 5.4L2 16l1.1-4A6 6 0 1 1 14.5 9.5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export const metadata: Metadata = {
   title: "Dashboard · Mitra",
 };
@@ -118,7 +126,7 @@ export default async function DashboardPage() {
                 <div className="dash-step-label">Step 2 — Now</div>
                 <div className="dash-step-title">Chat with Mitra</div>
                 <div className="dash-step-desc">
-                  A 2-minute WhatsApp conversation — your experience, what you want, what you won&apos;t compromise on.
+                  A 2-minute conversation — your experience, what you want, what you won&apos;t compromise on.
                 </div>
               </div>
             </div>
@@ -145,13 +153,19 @@ export default async function DashboardPage() {
             <div className="dash-cta-text">
               <h2 className="dash-cta-title">Ready to start?</h2>
               <p className="dash-cta-sub">
-                Open WhatsApp and tell Mitra what you&apos;re looking for. Takes 2 minutes. No CV needed.
+                Chat with Mitra right here — tell us what you&apos;re looking for. Takes 2 minutes. No CV needed.
               </p>
             </div>
-            <a href={waHref} target="_blank" rel="noopener noreferrer" className="dash-wa-btn">
-              <WhatsAppIcon size={17} />
-              Start on WhatsApp
-            </a>
+            <div className="dash-cta-btns">
+              <Link href="/chat" className="dash-wa-btn">
+                <ChatIcon />
+                Chat with Mitra
+              </Link>
+              <a href={waHref} target="_blank" rel="noopener noreferrer" className="dash-wa-btn dash-wa-btn--secondary">
+                <WhatsAppIcon size={17} />
+                Open in WhatsApp
+              </a>
+            </div>
           </div>
           <p className="dash-cta-note">Free for candidates · Always</p>
         </section>
@@ -167,11 +181,11 @@ export default async function DashboardPage() {
               <div className="dash-empty-icon"><MatchesEmptyIcon /></div>
               <p className="dash-empty-title">No matches yet</p>
               <p className="dash-empty-desc">
-                Complete your WhatsApp conversation and we&apos;ll surface the roles built for someone like you.
+                Complete your chat with Mitra and we&apos;ll surface the roles built for someone like you.
               </p>
-              <a href={waHref} target="_blank" rel="noopener noreferrer" className="dash-empty-cta">
+              <Link href="/chat" className="dash-empty-cta">
                 Start the conversation →
-              </a>
+              </Link>
             </div>
           </div>
 

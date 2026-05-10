@@ -18,6 +18,7 @@ from fastapi.responses import PlainTextResponse
 from mitra_api.agent.orchestrator import run_agent_turn
 from mitra_api.agent.session_store import AgentSessionStore, build_session_store
 from mitra_api.config import Settings, get_settings
+from mitra_api.candidate.routes import router as candidate_router
 from mitra_api.founder.routes import router as founder_router
 from mitra_api.jobs.admin import admin_router
 from mitra_api.llm.factory import get_llm_adapter
@@ -62,6 +63,7 @@ app.include_router(whatsapp_router)
 app.include_router(twilio_whatsapp_router)
 app.include_router(admin_router)
 app.include_router(founder_router)
+app.include_router(candidate_router)
 
 
 @app.get("/healthz", response_class=PlainTextResponse)
