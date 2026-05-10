@@ -3666,16 +3666,52 @@ body {
   margin: 0;
 }
 
+.fp-setup-role-meta {
+  flex-shrink: 0;
+}
+
 .fp-setup-role-badge {
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 20px;
   background: var(--amber-pale);
   color: var(--amber);
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  display: inline-block;
+}
+
+/* "N to review" — pulsing green dot to draw attention */
+.fp-setup-role-badge--action {
+  background: #DCFCE7;
+  color: #166534;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.fp-setup-role-badge--action::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22C55E;
+  animation: fp-pulse 1.8s ease-in-out infinite;
   flex-shrink: 0;
+}
+@keyframes fp-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.75); }
+}
+
+/* "N introduced" — subtle grey */
+.fp-setup-role-badge--neutral {
+  background: var(--sand-2, #F1F1F5);
+  color: var(--ink-muted, #8A8A8E);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .fp-setup-role-arrow {

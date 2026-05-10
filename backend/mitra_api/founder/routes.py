@@ -928,6 +928,8 @@ class FounderJobSummary(BaseModel):
     company: str
     stage: str | None = None
     portal_url: str
+    total_intros: int = 0
+    to_review: int = 0   # sent + acknowledged — awaiting founder action
 
 
 class AllPortalsResponse(BaseModel):
@@ -940,6 +942,7 @@ async def founder_all_portals_by_email(
 ) -> AllPortalsResponse:
     """
     Return all jobs (and their portal URLs) for a given founder email.
+    Includes intro counts so the role picker can show "N to review" badges.
     Used by /founder/setup to display a role picker when the founder has multiple roles.
     """
     from mitra_api.db.engine import get_session_factory
@@ -982,6 +985,22 @@ async def founder_all_portals_by_email(
                 .order_by(JobModel.created_at.desc())
             )).scalars().all()
 
+        # Count intros per job in the same session
+        total_map: dict[int, int] = {}
+        review_map: dict[int, int] = {}
+        if jobs:
+            from mitra_api.db.models import Intro
+            job_ids = [j.id for j in jobs if j.founder_access_token]
+            intro_rows = (await db.execute(
+                select(Intro.job_id, Intro.status).where(Intro.job_id.in_(job_ids))
+            )).all()
+            review_statuses = {"sent", "acknowledged"}
+            for row in intro_rows:
+                total_map[row.job_id] = total_map.get(row.job_id, 0) + 1
+                status_val = row.status.value if hasattr(row.status, "value") else str(row.status)
+                if status_val in review_statuses:
+                    review_map[row.job_id] = review_map.get(row.job_id, 0) + 1
+
     settings = get_settings()
     web_base = settings.mitra_web_base_url.rstrip("/")
 
@@ -992,6 +1011,8 @@ async def founder_all_portals_by_email(
             company=j.company or "Your company",
             stage=j.stage,
             portal_url=f"{web_base}/founder/portal?token={j.founder_access_token}",
+            total_intros=total_map.get(j.id, 0),
+            to_review=review_map.get(j.id, 0),
         )
         for j in jobs
         if j.founder_access_token

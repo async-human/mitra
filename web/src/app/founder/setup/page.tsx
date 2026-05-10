@@ -14,6 +14,8 @@ interface FounderJob {
   company: string;
   stage: string | null;
   portal_url: string;
+  total_intros: number;
+  to_review: number;
 }
 
 function companyInitials(company: string): string {
@@ -67,7 +69,7 @@ export default async function FounderSetupPage() {
       if (fallback.ok) {
         const d = await fallback.json();
         if (d.portal_url) {
-          jobs = [{ job_id: d.job_id ?? 0, title: "Your role", company: "", stage: null, portal_url: d.portal_url }];
+          jobs = [{ job_id: d.job_id ?? 0, title: "Your role", company: "", stage: null, portal_url: d.portal_url, total_intros: 0, to_review: 0 }];
         }
         debugInfo += `, portal-link-by-email: 200, job_id=${d.job_id}`;
       } else {
@@ -117,9 +119,21 @@ export default async function FounderSetupPage() {
                   <p className="fp-setup-role-title">{job.title}</p>
                   <p className="fp-setup-role-company">{job.company}</p>
                 </div>
-                {job.stage && (
-                  <span className="fp-setup-role-badge">{job.stage}</span>
-                )}
+
+                <div className="fp-setup-role-meta">
+                  {job.to_review > 0 ? (
+                    <span className="fp-setup-role-badge fp-setup-role-badge--action">
+                      {job.to_review} to review
+                    </span>
+                  ) : job.total_intros > 0 ? (
+                    <span className="fp-setup-role-badge fp-setup-role-badge--neutral">
+                      {job.total_intros} introduced
+                    </span>
+                  ) : job.stage ? (
+                    <span className="fp-setup-role-badge">{job.stage}</span>
+                  ) : null}
+                </div>
+
                 <svg className="fp-setup-role-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                   <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
