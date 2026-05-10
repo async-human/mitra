@@ -36,6 +36,7 @@ class JobCard(BaseModel):
     id: str
     title: str
     description: str  # "Company · 95% fit · Python · Remote"
+    why: str = ""    # personalised 1-2 sentence fit explanation from LLM reranker
 
 
 class CandidateChatResponse(BaseModel):
@@ -147,7 +148,12 @@ async def candidate_chat(
     )
 
     job_cards = [
-        JobCard(id=r.row_id, title=r.title, description=r.description)
+        JobCard(
+            id=r.row_id,
+            title=r.title,
+            description=r.description,
+            why=turn.job_whys.get(r.row_id) or turn.job_whys.get(r.row_id.replace("job_", "")) or "",
+        )
         for r in turn.native_list_rows
     ]
 

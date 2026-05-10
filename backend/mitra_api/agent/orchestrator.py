@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
 from mitra_api.agent.prompts import SYSTEM_PROMPT
@@ -53,6 +53,7 @@ class AgentTurn:
     whatsapp_intro: str | None
     whatsapp_outro: tuple[str, ...]
     whatsapp_fallback_plain_parts: tuple[str, ...]
+    job_whys: dict[str, str] = field(default_factory=dict)
 
 
 # ── TOOL DEFINITIONS ─────────────────────────────────────────────────────────
@@ -739,8 +740,15 @@ async def run_agent_turn(
             segs_for_plain = [str(x) for x in ws]
 
     native_rows: tuple[InteractiveListRow, ...] = ()
+    job_whys: dict[str, str] = {}
     if last_search_jobs_payload:
         native_rows = job_pick_rows_native_list(last_search_jobs_payload.get("jobs") or [])
+        for j in (last_search_jobs_payload.get("jobs") or []):
+            jid = str(j.get("external_id") or j.get("id") or "")
+            why = str(j.get("why") or j.get("summary") or "").strip()
+            if jid and why:
+                job_whys[f"job_{jid}"] = why
+                job_whys[jid] = why
 
     whats_intro, whats_outro = prelude_and_outro_for_native_list(final_text, footer_txt)
     fallback_parts = whatsapp_outbound_chain(
@@ -755,6 +763,7 @@ async def run_agent_turn(
         whatsapp_intro=whats_intro,
         whatsapp_outro=whats_outro,
         whatsapp_fallback_plain_parts=tuple(fallback_parts),
+        job_whys=job_whys,
     )
 
 

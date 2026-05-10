@@ -6,7 +6,7 @@ import { Logo } from "@/components/Logo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-interface BasicCard { id: string; title: string; description: string; }
+interface BasicCard { id: string; title: string; description: string; why?: string; }
 interface FullJob {
   id: number; title: string; company: string;
   stage: string | null; sector: string | null;
@@ -17,7 +17,7 @@ interface FullJob {
   signals: Record<string, string>;
 }
 interface MergedJob extends FullJob {
-  fit: string; fit_pct: number;
+  fit: string; fit_pct: number; why: string;
 }
 
 function parseFit(description: string): { fit: string; fit_pct: number } {
@@ -33,14 +33,15 @@ function basicToMerged(cards: BasicCard[]): MergedJob[] {
     const parts = b.description.split(" · ").map(s => s.trim()).filter(Boolean);
     const fitIdx = parts.findIndex(p => p.includes("% fit") || p.includes("%fit"));
     const company = fitIdx > 0 ? parts[0] : fitIdx === 0 ? "" : (parts[0] ?? "");
-    // Remaining parts (not company, not fit%) become the stack/tag display
     const extra = parts.filter((_, j) => j !== 0 && j !== fitIdx);
     return {
       id: i + 1,
       title: b.title, company,
       stage: null, sector: null, location: null, remote_policy: null,
       employment: null, salary_min_lpa: null, salary_max_lpa: null,
-      stack: extra, summary: null, signals: {}, fit, fit_pct,
+      stack: extra, summary: null, signals: {},
+      fit, fit_pct,
+      why: b.why ?? "",
     };
   });
 }
@@ -80,14 +81,41 @@ function StarRating({ pct }: { pct: number }) {
   );
 }
 
+const RANK_LABELS = ["Top pick", "Strong match", "Worth exploring"];
+
+function WhyFits({ job }: { job: MergedJob }) {
+  const whyText = job.why || job.summary;
+  if (!whyText) return null;
+
+  return (
+    <div className="match-why">
+      <div className="match-why-header">
+        <span className="match-why-icon">✦</span>
+        <span className="match-why-label">Why Mitra thinks this fits you</span>
+      </div>
+      <p className="match-why-text">{whyText}</p>
+    </div>
+  );
+}
+
 function JobCard({ job, idx }: { job: MergedJob; idx: number }) {
   const salary = salaryLabel(job.salary_min_lpa, job.salary_max_lpa);
   const remote = remoteLabel(job.remote_policy);
   const empType = employmentLabel(job.employment);
-  const pills = [job.stage, job.sector, remote, empType, salary].filter(Boolean) as string[];
+  const pills = [empType, remote, job.location, job.sector, salary].filter(Boolean) as string[];
+  const rankLabel = RANK_LABELS[idx] ?? null;
 
   return (
-    <div className="match-card" style={{ animationDelay: `${idx * 0.07}s` }}>
+    <div className="match-card" style={{ animationDelay: `${idx * 0.09}s` }}>
+
+      {/* Rank strip */}
+      {rankLabel && (
+        <div className="match-rank-strip">
+          <span className="match-rank-num">#{idx + 1}</span>
+          <span className="match-rank-label">{rankLabel}</span>
+        </div>
+      )}
+
       {/* Card header */}
       <div className="match-card-header">
         <div className="match-company-av">
@@ -112,27 +140,22 @@ function JobCard({ job, idx }: { job: MergedJob; idx: number }) {
         </div>
       )}
 
-      {/* Pills row */}
+      {/* Pills */}
       {pills.length > 0 && (
         <div className="match-pills">
           {pills.map((p, i) => <span key={i} className="match-pill">{p}</span>)}
         </div>
       )}
 
-      {/* Divider */}
-      <div className="match-divider" />
-
-      {/* Summary */}
-      {job.summary && (
-        <p className="match-summary">{job.summary}</p>
-      )}
-
-      {/* Stack */}
+      {/* Stack tags */}
       {job.stack.length > 0 && (
         <div className="match-stack">
           {job.stack.map((s, i) => <span key={i} className="match-stack-tag">{s}</span>)}
         </div>
       )}
+
+      {/* Why this fits */}
+      <WhyFits job={job} />
 
       {/* Actions */}
       <div className="match-actions">
@@ -154,14 +177,12 @@ export function MatchesView({ userName, urlIds }: { userName?: string; urlIds?: 
 
   useEffect(() => {
     async function load() {
-      // sessionStorage has rich data (fit%, description). URL params are the fallback.
       const raw = sessionStorage.getItem("mitra-matches");
       let basic: BasicCard[] | null = null;
       if (raw) {
         try { basic = JSON.parse(raw); } catch { basic = null; }
       }
 
-      // Determine which IDs to fetch
       let ids: string;
       if (basic && basic.length > 0) {
         ids = basic.map(c => c.id.replace(/^job_/, "")).join(",");
@@ -177,15 +198,13 @@ export function MatchesView({ userName, urlIds }: { userName?: string; urlIds?: 
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const full: FullJob[] = await res.json();
         if (full.length > 0) {
-          // Full DB enrichment succeeded — merge fit% from basic card descriptions
           const merged = full.map(f => {
             const b = basic?.find(c => Number(c.id.replace(/^job_/, "")) === f.id);
             const { fit, fit_pct } = parseFit(b?.description ?? "");
-            return { ...f, fit, fit_pct };
+            return { ...f, fit, fit_pct, why: b?.why ?? "" };
           });
           setJobs(merged);
         } else if (basic && basic.length > 0) {
-          // Backend returned empty (IDs are non-integer vector store IDs) — show basic cards
           setJobs(basicToMerged(basic));
         }
       } catch {

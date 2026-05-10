@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, Fragment } from "react
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-interface JobCard { id: string; title: string; description: string; }
+interface JobCard { id: string; title: string; description: string; why?: string; }
 
 function parseJobCard(card: JobCard): { company: string; fit: string; tags: string[] } {
   const parts = card.description.split(" · ").map(s => s.trim()).filter(Boolean);
