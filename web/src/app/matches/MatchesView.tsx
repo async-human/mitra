@@ -17,6 +17,7 @@ interface FullJob {
   signals: Record<string, string>;
 }
 interface MergedJob extends FullJob {
+  external_id: string;  // real DB external_id — used for intro API calls
   fit: string; fit_pct: number; why: string;
 }
 
@@ -38,6 +39,7 @@ function basicToMerged(cards: BasicCard[]): MergedJob[] {
     const extra = parts.filter((_, j) => j !== 0 && j !== fitIdx);
     return {
       id: i + 1,
+      external_id: b.id,  // real DB external_id — preserved for intro API calls
       title: b.title, company,
       stage: null, sector: null, location: null, remote_policy: null,
       employment: null, salary_min_lpa: null, salary_max_lpa: null,
@@ -344,7 +346,8 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
           const merged = full.map(f => {
             const b = basic?.find(c => Number(c.id.replace(/^job_/, "")) === f.id);
             const { fit, fit_pct } = parseFit(b?.description ?? "");
-            return { ...f, fit, fit_pct, why: b?.why ?? "" };
+            // external_id is the real DB external_id — used for intro API calls
+            return { ...f, external_id: String(f.id), fit, fit_pct, why: b?.why ?? "" };
           });
           setJobs(merged);
         } else if (basic && basic.length > 0) {
@@ -372,7 +375,7 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           session_id: userEmail,
-          job_id: String(job.id),
+          job_id: job.external_id ?? String(job.id),
           why_note: job.why || job.summary || "",
         }),
       });
