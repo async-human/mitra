@@ -27,6 +27,24 @@ function parseFit(description: string): { fit: string; fit_pct: number } {
   return { fit: fitPart, fit_pct: num };
 }
 
+function basicToMerged(cards: BasicCard[]): MergedJob[] {
+  return cards.map((b, i) => {
+    const { fit, fit_pct } = parseFit(b.description);
+    const parts = b.description.split(" · ").map(s => s.trim()).filter(Boolean);
+    const fitIdx = parts.findIndex(p => p.includes("% fit") || p.includes("%fit"));
+    const company = fitIdx > 0 ? parts[0] : fitIdx === 0 ? "" : (parts[0] ?? "");
+    // Remaining parts (not company, not fit%) become the stack/tag display
+    const extra = parts.filter((_, j) => j !== 0 && j !== fitIdx);
+    return {
+      id: i + 1,
+      title: b.title, company,
+      stage: null, sector: null, location: null, remote_policy: null,
+      employment: null, salary_min_lpa: null, salary_max_lpa: null,
+      stack: extra, summary: null, signals: {}, fit, fit_pct,
+    };
+  });
+}
+
 function fitColor(pct: number) {
   if (pct >= 90) return "match-fit--high";
   if (pct >= 80) return "match-fit--mid";
@@ -158,25 +176,21 @@ export function MatchesView({ userName, urlIds }: { userName?: string; urlIds?: 
         const res = await fetch(`${API_URL}/candidate/jobs?ids=${ids}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const full: FullJob[] = await res.json();
-        const merged = full.map(f => {
-          const b = basic?.find(c => Number(c.id.replace(/^job_/, "")) === f.id);
-          const { fit, fit_pct } = parseFit(b?.description ?? "");
-          return { ...f, fit, fit_pct };
-        });
-        setJobs(merged);
+        if (full.length > 0) {
+          // Full DB enrichment succeeded — merge fit% from basic card descriptions
+          const merged = full.map(f => {
+            const b = basic?.find(c => Number(c.id.replace(/^job_/, "")) === f.id);
+            const { fit, fit_pct } = parseFit(b?.description ?? "");
+            return { ...f, fit, fit_pct };
+          });
+          setJobs(merged);
+        } else if (basic && basic.length > 0) {
+          // Backend returned empty (IDs are non-integer vector store IDs) — show basic cards
+          setJobs(basicToMerged(basic));
+        }
       } catch {
-        // fallback: render basic cards if sessionStorage has data
         if (basic && basic.length > 0) {
-          setJobs(basic.map(b => {
-            const { fit, fit_pct } = parseFit(b.description);
-            return {
-              id: parseInt(b.id.replace(/^job_/, "")) || 0,
-              title: b.title, company: b.description.split(" · ")[0] ?? "",
-              stage: null, sector: null, location: null, remote_policy: null,
-              employment: null, salary_min_lpa: null, salary_max_lpa: null,
-              stack: [], summary: null, signals: {}, fit, fit_pct,
-            };
-          }));
+          setJobs(basicToMerged(basic));
         }
       }
       setLoading(false);
@@ -222,7 +236,7 @@ export function MatchesView({ userName, urlIds }: { userName?: string; urlIds?: 
           </div>
         ) : (
           <div className="match-grid">
-            {jobs.map((job, i) => <JobCard key={job.id} job={job} idx={i} />)}
+            {jobs.map((job, i) => <JobCard key={`${job.id}-${i}`} job={job} idx={i} />)}
           </div>
         )}
       </main>
