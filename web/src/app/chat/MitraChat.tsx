@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import React, { useState, useEffect, useRef, useCallback, Fragment } from "react";
 import Link from "next/link";
 
 interface JobCard { id: string; title: string; description: string; }
@@ -17,13 +17,31 @@ interface Message { role: "mitra" | "user"; text: string; jobCards?: JobCard[]; 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
+function renderInline(line: string): React.ReactNode[] {
+  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/g;
+  const nodes: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(line)) !== null) {
+    if (m.index > last) nodes.push(line.slice(last, m.index));
+    const s = m[0];
+    if (s.startsWith("**")) nodes.push(<strong key={m.index}>{s.slice(2, -2)}</strong>);
+    else if (s.startsWith("*"))  nodes.push(<strong key={m.index}>{s.slice(1, -1)}</strong>);
+    else if (s.startsWith("_"))  nodes.push(<em key={m.index}>{s.slice(1, -1)}</em>);
+    last = m.index + s.length;
+  }
+  if (last < line.length) nodes.push(line.slice(last));
+  return nodes;
+}
+
 function renderText(text: string) {
-  return text.split(/(\*[^*\n]+\*|_[^_\n]+_|\n)/g).map((seg, i) => {
-    if (seg.startsWith("*") && seg.endsWith("*")) return <strong key={i}>{seg.slice(1, -1)}</strong>;
-    if (seg.startsWith("_") && seg.endsWith("_")) return <em key={i}>{seg.slice(1, -1)}</em>;
-    if (seg === "\n") return <br key={i} />;
-    return <Fragment key={i}>{seg}</Fragment>;
-  });
+  const lines = text.split("\n");
+  return lines.map((line, i) => (
+    <Fragment key={i}>
+      {i > 0 && <br />}
+      {renderInline(line)}
+    </Fragment>
+  ));
 }
 
 export function MitraChat({
