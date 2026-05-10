@@ -1056,7 +1056,7 @@ async def founder_portal(
 
             candidates_out.append(PortalCandidate(
                 intro_id=intro.id,
-                status=str(intro.status),
+                status=intro.status.value,
                 sent_at=intro.sent_at.isoformat() if intro.sent_at else None,
                 why_note=why_note,
                 signals=signals,
@@ -1163,6 +1163,6 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
     log.info("portal action: job=%d intro=%d action=%s", job.id, intro.id, body.action)
     return PortalActionResponse(
         ok=True,
-        new_status=str(new_status),
+        new_status=new_status.value,
         message=status_messages[body.action],
     )

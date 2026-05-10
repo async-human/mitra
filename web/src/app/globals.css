@@ -5922,6 +5922,44 @@ img.wchat-av--user { border-radius: 50%; }
   margin: 0;
 }
 
+.fp2-job-summary-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fp2-job-summary-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.fp2-job-summary-item::before {
+  content: "·";
+  color: var(--fp2-text-3);
+  flex-shrink: 0;
+}
+
+.fp2-job-summary-item--plain {
+  color: var(--fp2-text-2);
+}
+
+.fp2-job-summary-key {
+  font-weight: 700;
+  color: var(--fp2-text-2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.fp2-job-summary-val {
+  color: var(--fp2-text-1);
+}
+
 /* ── Stats bar ───────────────────────────────────────────────────────────── */
 .fp-statsbar {
   background: var(--fp2-surface);

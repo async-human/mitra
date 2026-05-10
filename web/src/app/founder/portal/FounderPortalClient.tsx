@@ -86,6 +86,44 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
+/** Convert *bold* / **bold** markdown to <strong> for inline rendering. */
+function renderMarkdown(text: string): React.ReactNode[] {
+  return text.split(/(\*{1,2}[^*]+\*{1,2})/g).map((chunk, i) => {
+    if (/^\*{1,2}.+\*{1,2}$/.test(chunk)) {
+      const inner = chunk.replace(/^\*{1,2}/, "").replace(/\*{1,2}$/, "");
+      return <strong key={i} style={{ fontWeight: 700, color: "inherit" }}>{inner}</strong>;
+    }
+    return chunk;
+  });
+}
+
+/**
+ * Split a raw summary string on ` | ` separators and render as a clean
+ * two-column fact grid (label: value pairs separated by ": ").
+ */
+function JobSummary({ text }: { text: string }) {
+  const parts = text.split(/\s*\|\s*/).map(s => s.trim()).filter(Boolean);
+  if (parts.length <= 1) {
+    return <p className="fp2-job-summary">{text}</p>;
+  }
+  return (
+    <ul className="fp2-job-summary-list">
+      {parts.map((part, i) => {
+        const colon = part.indexOf(": ");
+        if (colon > 0) {
+          return (
+            <li key={i} className="fp2-job-summary-item">
+              <span className="fp2-job-summary-key">{part.slice(0, colon)}</span>
+              <span className="fp2-job-summary-val">{part.slice(colon + 2)}</span>
+            </li>
+          );
+        }
+        return <li key={i} className="fp2-job-summary-item fp2-job-summary-item--plain">{part}</li>;
+      })}
+    </ul>
+  );
+}
+
 function salaryLabel(min: number | null, max: number | null) {
   if (!min && !max) return null;
   if (min && max && min !== max) return `₹${min}–${max}L`;
@@ -240,7 +278,7 @@ function CandidateCard({
             <IconStar />
             Why Mitra matched them
           </div>
-          <p className="fpc-why-text">{candidate.why_note}</p>
+          <p className="fpc-why-text">{renderMarkdown(candidate.why_note)}</p>
         </div>
       )}
 
@@ -436,7 +474,8 @@ export function FounderPortalClient({ token }: { token: string }) {
             </div>
 
             <div className="fp2-job-badges">
-              {job.location && (
+              {/* Show location only when it's not just a repeat of remote_policy */}
+              {job.location && job.location.toLowerCase() !== (job.remote_policy ?? "") && (
                 <span className="fp2-job-badge">
                   <svg width="11" height="13" viewBox="0 0 11 13" fill="none" aria-hidden="true">
                     <path d="M5.5 1C3.015 1 1 3.015 1 5.5c0 3.375 4.5 7 4.5 7s4.5-3.625 4.5-7C10 3.015 7.985 1 5.5 1Z" stroke="currentColor" strokeWidth="1.3" />
@@ -445,25 +484,23 @@ export function FounderPortalClient({ token }: { token: string }) {
                   {job.location}
                 </span>
               )}
-              {job.remote_policy && job.remote_policy !== "onsite" && (
+              {job.remote_policy && (
                 <span className="fp2-job-badge">
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                    <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.2" />
-                    <ellipse cx="6" cy="6" rx="2" ry="4.5" stroke="currentColor" strokeWidth="1.2" />
-                    <path d="M1.5 6h9" stroke="currentColor" strokeWidth="1.2" />
-                  </svg>
+                  {job.remote_policy === "remote" && (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                      <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.2" />
+                      <ellipse cx="6" cy="6" rx="2" ry="4.5" stroke="currentColor" strokeWidth="1.2" />
+                      <path d="M1.5 6h9" stroke="currentColor" strokeWidth="1.2" />
+                    </svg>
+                  )}
                   {job.remote_policy.charAt(0).toUpperCase() + job.remote_policy.slice(1)}
                 </span>
               )}
-              {salaryStr && (
-                <span className="fp2-job-badge">
-                  {salaryStr} / yr
-                </span>
-              )}
-              {job.sector && <span className="fp2-job-badge">{job.sector}</span>}
+              {salaryStr && <span className="fp2-job-badge">{salaryStr} / yr</span>}
+              {job.sector  && <span className="fp2-job-badge">{job.sector}</span>}
             </div>
 
-            {job.summary && <p className="fp2-job-summary">{job.summary}</p>}
+            {job.summary && <JobSummary text={job.summary} />}
           </div>
         </section>
 
