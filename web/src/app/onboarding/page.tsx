@@ -347,6 +347,12 @@ export default function OnboardingPage() {
         <div className={styles.topbarSep} />
         <span className={styles.topbarLabel}>Founder Onboarding</span>
         <div className={styles.topbarRight}>
+          <a href="/founder/setup?list=1" className={styles.portalLink}>
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M10 3H13a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h3M8 1v8M5.5 6.5 8 9l2.5-2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            My portal
+          </a>
           <div className={styles.statusPill}>
             <div className={styles.statusDot} />
             Agent live
