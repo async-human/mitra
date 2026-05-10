@@ -85,6 +85,53 @@ function StarRating({ pct }: { pct: number }) {
 
 const RANK_LABELS = ["Top pick", "Strong match", "Worth exploring"];
 
+function SkeletonCard({ delay = 0 }: { delay?: number }) {
+  return (
+    <div className="match-card match-skeleton-card" style={{ animationDelay: `${delay}s` }}>
+      {/* Rank strip */}
+      <div className="match-rank-strip">
+        <span className="sk-block" style={{ width: 24, height: 12, borderRadius: 4 }} />
+        <span className="sk-block" style={{ width: 80, height: 12, borderRadius: 4 }} />
+      </div>
+
+      {/* Header */}
+      <div className="match-card-header">
+        <div className="sk-avatar" />
+        <div className="match-card-meta" style={{ gap: 6, display: "flex", flexDirection: "column" }}>
+          <span className="sk-block" style={{ width: "60%", height: 14 }} />
+          <span className="sk-block" style={{ width: "40%", height: 11 }} />
+        </div>
+        <div className="sk-fit-badge" />
+      </div>
+
+      {/* Stars */}
+      <div className="match-stars-row">
+        <span className="sk-block" style={{ width: 84, height: 12 }} />
+      </div>
+
+      {/* Pills */}
+      <div className="match-pills">
+        {[52, 64, 44].map((w, i) => (
+          <span key={i} className="sk-block" style={{ width: w, height: 22, borderRadius: 100 }} />
+        ))}
+      </div>
+
+      {/* Why box */}
+      <div className="sk-why-box">
+        <span className="sk-block" style={{ width: "50%", height: 11, marginBottom: 8 }} />
+        <span className="sk-block" style={{ width: "100%", height: 11, marginBottom: 5 }} />
+        <span className="sk-block" style={{ width: "85%", height: 11 }} />
+      </div>
+
+      {/* Buttons */}
+      <div className="match-actions">
+        <span className="sk-block" style={{ flex: 1, height: 38, borderRadius: 10 }} />
+        <span className="sk-block" style={{ flex: 1, height: 38, borderRadius: 10 }} />
+      </div>
+    </div>
+  );
+}
+
 function WhyFits({ job }: { job: MergedJob }) {
   const whyText = job.why || job.summary;
   if (!whyText) return null;
@@ -374,9 +421,10 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
         </div>
 
         {loading ? (
-          <div className="match-loading">
-            <div className="match-spinner" />
-            <p>Loading your matches…</p>
+          <div className="match-grid">
+            <SkeletonCard delay={0} />
+            <SkeletonCard delay={0.08} />
+            <SkeletonCard delay={0.16} />
           </div>
         ) : jobs.length === 0 ? (
           <div className="match-empty">
