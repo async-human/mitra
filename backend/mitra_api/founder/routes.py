@@ -103,6 +103,39 @@ def _compute_step_progress(signals: dict[str, Any]) -> tuple[str, int, bool]:
     return "role", 5, False
 
 
+def _missing_context_nudge(signals: dict[str, Any]) -> str | None:
+    """
+    If the agent collected contact_info but skipped company context, return a
+    follow-up question to recover the missing fields. Returns None if nothing is missing.
+    """
+    has = lambda *keys: any(k in signals for k in keys)
+
+    # Only intervene when contact info exists but context is incomplete
+    if not has("contact_info"):
+        return None
+    if has("company_name") and has("why_join", "stage"):
+        return None  # context is fine
+
+    if not has("company_name"):
+        return (
+            "One more thing before we're fully set — what's the company name? "
+            "I want to make sure candidates know who they're being introduced to."
+        )
+    if not has("why_join") and not has("stage"):
+        return (
+            "Just two quick things: what's your funding stage, and what would genuinely excite "
+            "the right engineer about joining? I use this to pitch the role to candidates."
+        )
+    if not has("why_join"):
+        return (
+            "Almost done — what would genuinely excite the right engineer about joining your company? "
+            "This is how I pitch the role to candidates."
+        )
+    if not has("stage"):
+        return "What's your current funding stage? (e.g. Seed, Series A, Series B)"
+    return None
+
+
 # ── Signal → Job mapping helpers ─────────────────────────────────────────────
 
 def _parse_salary(raw: str) -> tuple[int | None, int | None]:
@@ -336,6 +369,14 @@ async def founder_chat(
     all_signals = await store.get_signals(sid)
     step, progress, complete = _compute_step_progress(all_signals)
 
+    # Guard: if the LLM wrapped up early but company context is missing, override reply
+    nudge = _missing_context_nudge(all_signals)
+    if nudge and not complete:
+        final_text = nudge
+        quick_replies = []
+        # Persist the corrected assistant message
+        await store.append_messages(sid, [ChatMessage(role="assistant", content=final_text)])
+
     # Auto-submit to DB when onboarding completes (only if DB is configured)
     if complete and settings.mitra_database_url:
         background_tasks.add_task(_auto_submit_job, body.session_id, all_signals)
@@ -474,6 +515,12 @@ async def founder_upload_jd(
     # ── Compute UI state ──────────────────────────────────────────────────────
     all_signals = await store.get_signals(sid)
     step, progress, complete = _compute_step_progress(all_signals)
+
+    nudge = _missing_context_nudge(all_signals)
+    if nudge and not complete:
+        final_text = nudge
+        quick_replies = []
+        await store.append_messages(sid, [ChatMessage(role="assistant", content=final_text)])
 
     if complete and settings.mitra_database_url:
         background_tasks.add_task(_auto_submit_job, session_id, all_signals)
