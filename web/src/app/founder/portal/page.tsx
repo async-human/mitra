@@ -6,11 +6,12 @@ export const metadata: Metadata = {
   description: "Review candidates introduced by Mitra for your open role.",
 };
 
-export default function FounderPortalPage({
+export default async function FounderPortalPage({
   searchParams,
 }: {
-  searchParams: { token?: string };
+  searchParams: Promise<{ token?: string }>;
 }) {
-  const token = searchParams.token ?? "";
+  const params = await searchParams;
+  const token = params.token ?? "";
   return <FounderPortalClient token={token} />;
 }
