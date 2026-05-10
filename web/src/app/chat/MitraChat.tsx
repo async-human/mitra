@@ -45,6 +45,10 @@ function renderText(text: string) {
   ));
 }
 
+function matchesKey(email: string) {
+  return `mitra-matches-${email}`;
+}
+
 export function MitraChat({
   userName, userEmail, userImage,
 }: { userName?: string; userEmail: string; userImage?: string }) {
@@ -53,9 +57,24 @@ export function MitraChat({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [storedMatchIds, setStoredMatchIds] = useState<string>("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initialized = useRef(false);
+
+  // On mount: check localStorage for existing matches from a previous session
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(matchesKey(userEmail));
+      if (raw) {
+        const cards: JobCard[] = JSON.parse(raw);
+        if (cards.length > 0) {
+          const ids = cards.map(c => c.id.replace(/^job_/, "")).join(",");
+          setStoredMatchIds(ids);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [userEmail]);
 
   const callApi = useCallback(async (message: string) => {
     setLoading(true);
@@ -73,8 +92,9 @@ export function MitraChat({
         jobCards: cards.length ? cards : undefined,
       }]);
       if (cards.length > 0) {
-        sessionStorage.setItem("mitra-matches", JSON.stringify(cards));
+        localStorage.setItem(matchesKey(userEmail), JSON.stringify(cards));
         const ids = cards.map(c => c.id.replace(/^job_/, "")).join(",");
+        setStoredMatchIds(ids);
         setExiting(true);
         setTimeout(() => router.push(`/matches?ids=${ids}`), 550);
       }
@@ -114,7 +134,7 @@ export function MitraChat({
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  const hasMatches = messages.some(m => m.jobCards && m.jobCards.length > 0);
+  const hasMatches = messages.some(m => m.jobCards && m.jobCards.length > 0) || !!storedMatchIds;
 
   return (
     <div className={`wc-root${exiting ? " wc-root--exiting" : ""}`}>
@@ -144,6 +164,16 @@ export function MitraChat({
           <span>Review roles</span>
         </div>
       </div>
+
+      {/* Existing matches banner — shown on re-login when localStorage has prior results */}
+      {storedMatchIds && !exiting && (
+        <div className="wc-matches-banner">
+          <span className="wc-matches-banner-text">Your matches are ready</span>
+          <Link href={`/matches?ids=${storedMatchIds}`} className="wc-matches-banner-link">
+            View shortlist →
+          </Link>
+        </div>
+      )}
 
       {/* Chat card */}
       <div className="wc-card-wrap">

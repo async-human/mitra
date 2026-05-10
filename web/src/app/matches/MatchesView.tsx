@@ -170,14 +170,20 @@ function JobCard({ job, idx }: { job: MergedJob; idx: number }) {
   );
 }
 
-export function MatchesView({ userName, urlIds }: { userName?: string; urlIds?: string }) {
+function matchesKey(email?: string) {
+  return email ? `mitra-matches-${email}` : "mitra-matches";
+}
+
+export function MatchesView({ userName, userEmail, urlIds }: { userName?: string; userEmail?: string; urlIds?: string }) {
   const [jobs, setJobs] = useState<MergedJob[]>([]);
   const [loading, setLoading] = useState(true);
   const firstName = userName?.split(" ")[0];
 
   useEffect(() => {
     async function load() {
-      const raw = sessionStorage.getItem("mitra-matches");
+      // Try the user-scoped key first, then fall back to the legacy un-scoped key
+      const raw = localStorage.getItem(matchesKey(userEmail))
+        ?? localStorage.getItem("mitra-matches");
       let basic: BasicCard[] | null = null;
       if (raw) {
         try { basic = JSON.parse(raw); } catch { basic = null; }
@@ -215,7 +221,7 @@ export function MatchesView({ userName, urlIds }: { userName?: string; urlIds?: 
       setLoading(false);
     }
     load();
-  }, [urlIds]);
+  }, [urlIds, userEmail]);
 
   return (
     <div className="match-root">

@@ -13,5 +13,5 @@ export default async function MatchesPage({
   const session = await auth();
   if (!session?.user) redirect("/sign-in");
   const params = await searchParams;
-  return <MatchesView userName={session.user.name ?? undefined} urlIds={params.ids} />;
+  return <MatchesView userName={session.user.name ?? undefined} userEmail={session.user.email ?? undefined} urlIds={params.ids} />;
 }

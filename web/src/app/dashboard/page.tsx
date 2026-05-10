@@ -5,6 +5,7 @@ import { whatsAppHrefFor } from "@/lib/whatsapp";
 import { Logo } from "@/components/Logo";
 import { WhatsAppIcon } from "@/components/icons";
 import type { Metadata } from "next";
+import { MatchesPanelClient } from "./MatchesPanelClient";
 
 function ChatIcon() {
   return (
@@ -42,17 +43,6 @@ function LockIcon() {
   );
 }
 
-function MatchesEmptyIcon() {
-  return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
-      <rect x="4" y="10" width="32" height="22" rx="5" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M4 16h32" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="11" cy="13" r="1.5" fill="currentColor" />
-      <circle cx="16" cy="13" r="1.5" fill="currentColor" />
-      <path d="M12 24h8M12 28h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function IntrosEmptyIcon() {
   return (
@@ -170,23 +160,10 @@ export default async function DashboardPage() {
           <p className="dash-cta-note">Free for candidates · Always</p>
         </section>
 
-        {/* Empty state cards */}
+        {/* Panels */}
         <section className="dash-panels">
           <div className="dash-panel">
-            <div className="dash-panel-head">
-              <h3 className="dash-panel-title">Your matches</h3>
-              <span className="dash-panel-badge">0 active</span>
-            </div>
-            <div className="dash-empty">
-              <div className="dash-empty-icon"><MatchesEmptyIcon /></div>
-              <p className="dash-empty-title">No matches yet</p>
-              <p className="dash-empty-desc">
-                Complete your chat with Mitra and we&apos;ll surface the roles built for someone like you.
-              </p>
-              <Link href="/chat" className="dash-empty-cta">
-                Start the conversation →
-              </Link>
-            </div>
+            <MatchesPanelClient userEmail={user.email ?? ""} />
           </div>
 
           <div className="dash-panel">
