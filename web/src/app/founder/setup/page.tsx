@@ -46,6 +46,7 @@ export default async function FounderSetupPage() {
   let lookupError = false;
 
   try {
+    // Try the multi-role endpoint first (requires latest backend)
     const res = await fetch(
       `${apiBase}/founder/all-portals-by-email?email=${encodeURIComponent(email)}`,
       { cache: "no-store" },
@@ -53,8 +54,20 @@ export default async function FounderSetupPage() {
     if (res.ok) {
       const data = await res.json();
       jobs = data.jobs ?? [];
+    } else if (res.status === 404 || res.status === 405 || res.status === 422) {
+      // Endpoint doesn't exist yet on this backend version — fall back to single-job lookup
+      const fallback = await fetch(
+        `${apiBase}/founder/portal-link-by-email?email=${encodeURIComponent(email)}`,
+        { cache: "no-store" },
+      );
+      if (fallback.ok) {
+        const d = await fallback.json();
+        if (d.portal_url) {
+          jobs = [{ job_id: d.job_id ?? 0, title: "Your role", company: "", stage: null, portal_url: d.portal_url }];
+        }
+      }
+      // 404 on fallback too → genuinely no jobs
     }
-    // 404 / non-ok → treat as no jobs found (new founder)
   } catch {
     lookupError = true;
   }
