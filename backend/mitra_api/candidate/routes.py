@@ -65,56 +65,57 @@ class FullJobCard(BaseModel):
 
 @router.get("/jobs", response_model=list[FullJobCard])
 async def get_jobs_by_ids(
-    ids: str = Query(..., description="Comma-separated job IDs e.g. 1,2,3"),
+    ids: str = Query(..., description="Comma-separated job IDs e.g. 1,2,3 or external_ids"),
     settings: Settings = Depends(get_settings),
 ) -> list[FullJobCard]:
-    """Fetch full job details for given numeric IDs (from native_list_rows row_id)."""
-    raw_ids = [i.strip().lstrip("job_") for i in ids.split(",") if i.strip()]
-    numeric_ids = []
+    """Fetch full job details by numeric DB id or string external_id (row_id from native list)."""
+    from sqlalchemy import select, or_
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.db.models import Job as JobModel
+
+    # Strip the "job_" prefix that interactive_native.py prepends to row_ids
+    raw_ids = [i.strip().removeprefix("job_") for i in ids.split(",") if i.strip()]
+
+    numeric_ids: list[int] = []
+    string_ids: list[str] = []
     for r in raw_ids:
         try:
             numeric_ids.append(int(r))
         except ValueError:
-            pass
-    if not numeric_ids:
-        return []
+            if r:
+                string_ids.append(r)
 
-    from sqlalchemy import select
-    from mitra_api.db.engine import get_session_factory
-    from mitra_api.db.models import Job
+    if not numeric_ids and not string_ids:
+        return []
 
     factory = get_session_factory()
     async with factory() as db:
+        clauses = []
+        if numeric_ids:
+            clauses.append(JobModel.id.in_(numeric_ids))
+        if string_ids:
+            clauses.append(JobModel.external_id.in_(string_ids))
         rows = (await db.execute(
-            select(Job).where(Job.id.in_(numeric_ids))
+            select(JobModel).where(or_(*clauses))
         )).scalars().all()
 
-    result = []
-    for job in rows:
-        stack: list[str] = []
-        if isinstance(job.stack, list):
-            stack = [str(s) for s in job.stack]
-        sigs: dict = {}
-        if isinstance(job.signals, dict):
-            sigs = job.signals
-        result.append(FullJobCard(
-            id=job.id,
-            title=job.title,
-            company=job.company,
-            stage=job.stage,
-            sector=job.sector,
-            location=job.location,
-            remote_policy=job.remote_policy,
-            employment=job.employment,
-            salary_min_lpa=job.salary_min_lpa,
-            salary_max_lpa=job.salary_max_lpa,
-            stack=stack,
-            summary=job.summary,
-            signals=sigs,
-        ))
-    # preserve the order of the requested IDs
-    order = {nid: i for i, nid in enumerate(numeric_ids)}
-    result.sort(key=lambda j: order.get(j.id, 99))
+    def _make_card(job: JobModel) -> FullJobCard:
+        stack = [str(s) for s in job.stack] if isinstance(job.stack, list) else []
+        sigs  = job.signals if isinstance(job.signals, dict) else {}
+        return FullJobCard(
+            id=job.id, title=job.title, company=job.company,
+            stage=job.stage, sector=job.sector, location=job.location,
+            remote_policy=job.remote_policy, employment=job.employment,
+            salary_min_lpa=job.salary_min_lpa, salary_max_lpa=job.salary_max_lpa,
+            stack=stack, summary=job.summary, signals=sigs,
+        )
+
+    result = [_make_card(j) for j in rows]
+
+    # Preserve requested order: numeric IDs first, then string external_ids
+    num_order = {nid: i for i, nid in enumerate(numeric_ids)}
+    str_order = {sid: i + len(numeric_ids) for i, sid in enumerate(string_ids)}
+    result.sort(key=lambda j: num_order.get(j.id, str_order.get(j.id, 999)))
     return result
 
 

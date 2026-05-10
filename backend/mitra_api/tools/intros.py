@@ -225,13 +225,16 @@ async def request_intro(
         )
 
     # ── Look up job ───────────────────────────────────────────────────────────
+    # Strip the "job_" prefix that interactive_native.py prepends to row_ids
+    clean_id = job_external_id.removeprefix("job_").strip()
+
     job = (await session.execute(
-        select(Job).where(Job.external_id == job_external_id, Job.status == "active")
+        select(Job).where(Job.external_id == clean_id, Job.status == "active")
     )).scalar_one_or_none()
 
     if not job:
         try:
-            numeric_id = int(job_external_id)
+            numeric_id = int(clean_id)
             job = (await session.execute(
                 select(Job).where(Job.id == numeric_id, Job.status == "active")
             )).scalar_one_or_none()
@@ -395,10 +398,11 @@ async def get_intro_status(
     if not candidate:
         return {"found": False}
 
+    clean_id = job_external_id.removeprefix("job_").strip()
     row = (await session.execute(
         select(Intro, Job)
         .join(Job, Intro.job_id == Job.id)
-        .where(Intro.candidate_id == candidate.id, Job.external_id == job_external_id)
+        .where(Intro.candidate_id == candidate.id, Job.external_id == clean_id)
     )).first()
     if not row:
         return {"found": False}
