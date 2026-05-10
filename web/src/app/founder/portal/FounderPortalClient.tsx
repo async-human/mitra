@@ -56,22 +56,22 @@ interface PortalData {
   stats: PortalStats;
 }
 
-// ── Status config ──────────────────────────────────────────────────────────────
+// ── Status config ─────────────────────────────────────────────────────────────
 
 const STATUS: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  sent:         { label: "Intro sent",       color: "#059669", bg: "#ECFDF5", dot: "#34D399" },
-  acknowledged: { label: "Interested",       color: "#7C3AED", bg: "#F5F3FF", dot: "#A78BFA" },
-  interview:    { label: "Interview set",    color: "#D97706", bg: "#FFFBEB", dot: "#FCD34D" },
-  offer:        { label: "Offer extended",   color: "#2563EB", bg: "#EFF6FF", dot: "#93C5FD" },
-  hired:        { label: "Hired 🎉",         color: "#059669", bg: "#D1FAE5", dot: "#6EE7B7" },
-  declined:     { label: "Not a fit",        color: "#6B7280", bg: "#F3F4F6", dot: "#D1D5DB" },
+  sent:         { label: "New introduction", color: "#0F766E", bg: "#F0FDFA", dot: "#2DD4BF" },
+  acknowledged: { label: "Interested",       color: "#6D28D9", bg: "#F5F3FF", dot: "#8B5CF6" },
+  interview:    { label: "Interview set",    color: "#B45309", bg: "#FFFBEB", dot: "#F59E0B" },
+  offer:        { label: "Offer extended",   color: "#1D4ED8", bg: "#EFF6FF", dot: "#60A5FA" },
+  hired:        { label: "Hired",            color: "#065F46", bg: "#ECFDF5", dot: "#34D399" },
+  declined:     { label: "Not a fit",        color: "#6B7280", bg: "#F9FAFB", dot: "#D1D5DB" },
   ghosted:      { label: "Awaiting reply",   color: "#9CA3AF", bg: "#F9FAFB", dot: "#E5E7EB" },
 };
 function statusMeta(s: string) {
-  return STATUS[s] ?? { label: s, color: "#6B7280", bg: "#F3F4F6", dot: "#D1D5DB" };
+  return STATUS[s] ?? { label: s, color: "#6B7280", bg: "#F9FAFB", dot: "#D1D5DB" };
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function initials(name: string | null, role: string | null): string {
   const n = (name || role || "??").trim();
@@ -81,31 +81,56 @@ function initials(name: string | null, role: string | null): string {
     : n.slice(0, 2).toUpperCase();
 }
 
+function formatDate(iso: string | null) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
 function salaryLabel(min: number | null, max: number | null) {
   if (!min && !max) return null;
   if (min && max && min !== max) return `₹${min}–${max}L`;
   return `₹${min || max}L`;
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-}
-
-const AVATAR_COLORS = [
-  ["#DBEAFE", "#3B82F6"], ["#FEF3C7", "#D97706"], ["#D1FAE5", "#059669"],
-  ["#EDE9FE", "#7C3AED"], ["#FFE4E6", "#E11D48"], ["#E0F2FE", "#0284C7"],
+const AVATAR_PALETTES = [
+  { bg: "#EDE9FE", fg: "#5B21B6" },
+  { bg: "#DBEAFE", fg: "#1E40AF" },
+  { bg: "#D1FAE5", fg: "#065F46" },
+  { bg: "#FEF3C7", fg: "#92400E" },
+  { bg: "#FCE7F3", fg: "#9D174D" },
+  { bg: "#E0F2FE", fg: "#075985" },
 ];
-function avatarColor(idx: number) { return AVATAR_COLORS[idx % AVATAR_COLORS.length]; }
+function avatarPalette(idx: number) { return AVATAR_PALETTES[idx % AVATAR_PALETTES.length]; }
 
-// ── Stat chip ─────────────────────────────────────────────────────────────────
+// ── Icons ─────────────────────────────────────────────────────────────────────
 
-function StatChip({ value, label, accent }: { value: number; label: string; accent?: string }) {
+function IconCheck() {
   return (
-    <div className="fp-stat-chip">
-      <span className="fp-stat-num" style={accent ? { color: accent } : undefined}>{value}</span>
-      <span className="fp-stat-label">{label}</span>
-    </div>
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+      <path d="M3 7.5L6.5 11L12 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconCalendar() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <rect x="1.5" y="2.5" width="11" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M1.5 6h11M5 1v3M9 1v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+function IconX() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+      <path d="M2 2L11 11M11 2L2 11" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+function IconStar() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <path d="M7 1l1.545 3.13 3.455.502-2.5 2.436.59 3.44L7 8.885l-3.09 1.623.59-3.44L2 4.632l3.455-.502L7 1z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -121,9 +146,9 @@ function CandidateCard({
 }) {
   const s = candidate.signals;
   const meta = statusMeta(candidate.status);
-  const [bg, fg] = avatarColor(idx);
+  const palette = avatarPalette(idx);
   const [actionState, setActionState] = useState<"idle" | "loading" | "done">("idle");
-  const [toast, setToast] = useState<string>("");
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const isActioned = ["acknowledged", "interview", "declined", "hired", "offer"].includes(candidate.status);
 
   const doAction = useCallback(async (action: string) => {
@@ -136,166 +161,212 @@ function CandidateCard({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.detail || "Failed");
-      setToast(data.message);
+      setToast({ msg: data.message, ok: true });
       setActionState("done");
       onStatusChange(candidate.intro_id, data.new_status);
     } catch (e: unknown) {
       setActionState("idle");
-      setToast(e instanceof Error ? e.message : "Something went wrong");
+      setToast({ msg: e instanceof Error ? e.message : "Something went wrong", ok: false });
     }
-    setTimeout(() => setToast(""), 4000);
+    setTimeout(() => setToast(null), 4000);
   }, [token, candidate.intro_id, onStatusChange]);
 
   return (
-    <div className={`fp-card fp-card--${candidate.status}`} style={{ animationDelay: `${idx * 0.06}s` }}>
-      {/* Header row */}
-      <div className="fp-card-header">
-        <div className="fp-avatar" style={{ background: bg, color: fg }}>
+    <article className="fpc" style={{ "--fpc-delay": `${idx * 0.07}s` } as React.CSSProperties}>
+
+      {/* Header */}
+      <div className="fpc-header">
+        <div className="fpc-av" style={{ background: palette.bg, color: palette.fg }}>
           {initials(s.name, s.current_role)}
         </div>
-        <div className="fp-card-identity">
-          <h3 className="fp-candidate-name">{s.name || "Anonymous Candidate"}</h3>
-          <p className="fp-candidate-role">
-            {s.current_role || "Engineer"}
-            {s.current_company ? ` · ${s.current_company}` : ""}
+
+        <div className="fpc-identity">
+          <h3 className="fpc-name">{s.name || "Anonymous Candidate"}</h3>
+          <p className="fpc-role">
+            {[s.current_role, s.current_company].filter(Boolean).join(" · ") || "Engineer"}
           </p>
+          {candidate.sent_at && (
+            <p className="fpc-date">Introduced {formatDate(candidate.sent_at)}</p>
+          )}
         </div>
-        <span className="fp-status-badge" style={{ color: meta.color, background: meta.bg }}>
-          <span className="fp-status-dot" style={{ background: meta.dot }} />
+
+        <span className="fpc-status" style={{ color: meta.color, background: meta.bg }}>
+          <span className="fpc-status-dot" style={{ background: meta.dot }} />
           {meta.label}
         </span>
       </div>
 
-      {/* Signals grid */}
-      <div className="fp-signals">
+      {/* Quick stats row */}
+      <div className="fpc-meta-row">
         {s.years_exp != null && (
-          <div className="fp-signal-chip">
-            <span className="fp-signal-icon">⏱</span>
-            <span>{s.years_exp}y exp</span>
-          </div>
+          <span className="fpc-meta-chip">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M6 4v2.5l1.5 1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+            {s.years_exp}y exp
+          </span>
         )}
         {s.salary_target_lpa != null && (
-          <div className="fp-signal-chip">
-            <span className="fp-signal-icon">₹</span>
-            <span>{s.salary_target_lpa}L target</span>
-          </div>
+          <span className="fpc-meta-chip">
+            <span style={{ fontSize: 11 }}>₹</span>
+            {s.salary_target_lpa}L target
+          </span>
         )}
         {s.notice_period_days != null && (
-          <div className="fp-signal-chip">
-            <span className="fp-signal-icon">📅</span>
-            <span>{s.notice_period_days}d notice</span>
-          </div>
-        )}
-        {candidate.sent_at && (
-          <div className="fp-signal-chip fp-signal-chip--muted">
-            <span className="fp-signal-icon">✉</span>
-            <span>Introduced {formatDate(candidate.sent_at)}</span>
-          </div>
+          <span className="fpc-meta-chip">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <rect x="1" y="2" width="10" height="9" rx="2" stroke="currentColor" strokeWidth="1.2" />
+              <path d="M1 5h10M4 1v2M8 1v2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+            </svg>
+            {s.notice_period_days}d notice
+          </span>
         )}
       </div>
 
       {/* Stack tags */}
       {s.stack.length > 0 && (
-        <div className="fp-stack">
-          {s.stack.slice(0, 6).map((t, i) => (
-            <span key={i} className="fp-stack-tag">{t}</span>
+        <div className="fpc-stack">
+          {s.stack.slice(0, 7).map((t, i) => (
+            <span key={i} className="fpc-tag">{t}</span>
           ))}
         </div>
       )}
 
-      {/* Why Mitra made this intro */}
+      {/* Why Mitra matched */}
       {candidate.why_note && (
-        <div className="fp-why-box">
-          <span className="fp-why-label">✦ Why Mitra introduced them</span>
-          <p className="fp-why-text">{candidate.why_note}</p>
+        <div className="fpc-why">
+          <div className="fpc-why-label">
+            <IconStar />
+            Why Mitra matched them
+          </div>
+          <p className="fpc-why-text">{candidate.why_note}</p>
         </div>
       )}
 
-      {/* Motivation */}
-      {s.motivation && (
-        <p className="fp-motivation">
-          <span className="fp-motivation-label">Looking for:</span> {s.motivation}
-        </p>
+      {/* Motivation & projects */}
+      {(s.motivation || s.notable_projects) && (
+        <div className="fpc-extras">
+          {s.motivation && (
+            <div className="fpc-extra-item">
+              <span className="fpc-extra-label">Looking for</span>
+              <span className="fpc-extra-value">{s.motivation}</span>
+            </div>
+          )}
+          {s.notable_projects && (
+            <div className="fpc-extra-item">
+              <span className="fpc-extra-label">Built</span>
+              <span className="fpc-extra-value">{s.notable_projects}</span>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* Notable projects */}
-      {s.notable_projects && (
-        <p className="fp-motivation">
-          <span className="fp-motivation-label">Built:</span> {s.notable_projects}
-        </p>
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fpc-toast ${toast.ok ? "fpc-toast--ok" : "fpc-toast--err"}`}>
+          {toast.msg}
+        </div>
       )}
-
-      {/* Toast */}
-      {toast && <div className="fp-toast">{toast}</div>}
 
       {/* Actions */}
-      {!isActioned && (
-        <div className="fp-actions">
+      {!isActioned ? (
+        <div className="fpc-actions">
           <button
-            className="fp-btn fp-btn--interested"
+            className="fpc-btn fpc-btn--primary"
             disabled={actionState === "loading"}
             onClick={() => doAction("interested")}
           >
-            {actionState === "loading" ? <span className="fp-btn-spinner" /> : "✓"}
+            {actionState === "loading"
+              ? <span className="fpc-spinner" />
+              : <IconCheck />
+            }
             Interested
           </button>
           <button
-            className="fp-btn fp-btn--schedule"
+            className="fpc-btn fpc-btn--schedule"
             disabled={actionState === "loading"}
             onClick={() => doAction("schedule")}
           >
-            📅 Schedule interview
+            <IconCalendar />
+            Schedule interview
           </button>
           <button
-            className="fp-btn fp-btn--decline"
+            className="fpc-btn fpc-btn--pass"
             disabled={actionState === "loading"}
             onClick={() => doAction("not_a_fit")}
           >
-            Not a fit
+            <IconX />
+            Pass
           </button>
         </div>
-      )}
-
-      {/* Already-actioned state */}
-      {isActioned && candidate.status !== "declined" && (
-        <div className="fp-actioned-strip" style={{ background: meta.bg, color: meta.color }}>
-          <span className="fp-status-dot" style={{ background: meta.dot }} />
-          {meta.label} — candidate has been notified
+      ) : (
+        <div className="fpc-actioned" style={{ borderColor: meta.dot, color: meta.color }}>
+          <span className="fpc-actioned-dot" style={{ background: meta.dot }} />
+          <span>{meta.label}</span>
+          {candidate.status !== "declined" && (
+            <span className="fpc-actioned-note">· candidate notified</span>
+          )}
         </div>
       )}
+    </article>
+  );
+}
+
+// ── Stats bar ─────────────────────────────────────────────────────────────────
+
+function StatsBar({ stats }: { stats: PortalStats }) {
+  const items = [
+    { value: stats.total,      label: "Introduced",   accent: "var(--fp-text-1)" },
+    { value: stats.interested, label: "Interested",   accent: "#7C3AED" },
+    { value: stats.interview,  label: "Interviewing", accent: "#D97706" },
+    { value: stats.offer,      label: "Offer",        accent: "#2563EB" },
+    { value: stats.hired,      label: "Hired",        accent: "#059669" },
+  ];
+  return (
+    <div className="fp-statsbar">
+      {items.map((item, i) => (
+        <>
+          {i > 0 && <div key={`div-${i}`} className="fp-statsbar-sep" />}
+          <div key={item.label} className="fp-statsbar-item">
+            <span className="fp-statsbar-num" style={{ color: item.accent }}>{item.value}</span>
+            <span className="fp-statsbar-label">{item.label}</span>
+          </div>
+        </>
+      ))}
     </div>
   );
 }
+
+// ── Filter tabs ───────────────────────────────────────────────────────────────
+
+const FILTERS = [
+  { key: "all",          label: "All" },
+  { key: "sent",         label: "New" },
+  { key: "acknowledged", label: "Interested" },
+  { key: "interview",    label: "Interview" },
+  { key: "offer",        label: "Offer" },
+  { key: "declined",     label: "Declined" },
+];
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 
 function EmptyState() {
   return (
     <div className="fp-empty">
-      <div className="fp-empty-icon">
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true">
-          <circle cx="24" cy="24" r="22" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M16 24h16M24 16v16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <div className="fp-empty-ring">
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+          <circle cx="20" cy="20" r="14" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 3" />
+          <path d="M20 14v6.5l4 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
-      <h3 className="fp-empty-title">No candidates yet</h3>
-      <p className="fp-empty-sub">Mitra is actively searching for the best fit. You'll get an email as soon as we have a strong introduction to make.</p>
+      <p className="fp-empty-title">No candidates yet</p>
+      <p className="fp-empty-sub">Mitra is actively searching. You&apos;ll be notified as soon as there&apos;s a strong match.</p>
     </div>
   );
 }
 
-// ── Pipeline filter bar ───────────────────────────────────────────────────────
-
-const FILTERS = [
-  { key: "all",         label: "All" },
-  { key: "sent",        label: "New" },
-  { key: "acknowledged",label: "Interested" },
-  { key: "interview",   label: "Interview" },
-  { key: "offer",       label: "Offer" },
-  { key: "declined",    label: "Declined" },
-];
-
-// ── Main portal component ──────────────────────────────────────────────────────
+// ── Main portal ───────────────────────────────────────────────────────────────
 
 export function FounderPortalClient({ token }: { token: string }) {
   const [data, setData]       = useState<PortalData | null>(null);
@@ -314,19 +385,17 @@ export function FounderPortalClient({ token }: { token: string }) {
   const handleStatusChange = useCallback((introId: number, newStatus: string) => {
     setData(prev => {
       if (!prev) return prev;
+      const updated = prev.candidates.map(c =>
+        c.intro_id === introId ? { ...c, status: newStatus } : c
+      );
       return {
         ...prev,
-        candidates: prev.candidates.map(c =>
-          c.intro_id === introId ? { ...c, status: newStatus } : c
-        ),
+        candidates: updated,
         stats: {
           ...prev.stats,
-          interested: prev.candidates.filter(c =>
-            (c.intro_id === introId ? newStatus : c.status) === "acknowledged"
-          ).length,
-          interview: prev.candidates.filter(c =>
-            (c.intro_id === introId ? newStatus : c.status) === "interview"
-          ).length,
+          interested: updated.filter(c => c.status === "acknowledged").length,
+          interview:  updated.filter(c => c.status === "interview").length,
+          offer:      updated.filter(c => c.status === "offer").length,
         },
       };
     });
@@ -337,73 +406,94 @@ export function FounderPortalClient({ token }: { token: string }) {
 
   const { job, candidates, stats } = data;
 
+  const counts: Record<string, number> = {};
+  for (const c of candidates) counts[c.status] = (counts[c.status] ?? 0) + 1;
   const filtered = filter === "all" ? candidates : candidates.filter(c => c.status === filter);
-  const activeCounts: Record<string, number> = {};
-  for (const c of candidates) {
-    activeCounts[c.status] = (activeCounts[c.status] ?? 0) + 1;
-  }
+
+  const salaryStr = salaryLabel(job.salary_min_lpa, job.salary_max_lpa);
 
   return (
-    <div className="fp-root">
+    <div className="fp2-root">
       {/* Top bar */}
-      <header className="fp-topbar">
-        <div className="fp-topbar-inner">
-          <span className="fp-logo">Mitra<span className="fp-logo-dot">.</span></span>
-          <span className="fp-topbar-tag">Founder Portal</span>
-        </div>
+      <header className="fp2-topbar">
+        <span className="fp2-logo">Mitra<span className="fp2-logo-dot">.</span></span>
+        <span className="fp2-topbar-pill">Founder Portal</span>
       </header>
 
-      <main className="fp-main">
-        {/* Job hero */}
-        <section className="fp-hero">
-          <div className="fp-hero-av">{job.company.slice(0, 2).toUpperCase()}</div>
-          <div className="fp-hero-info">
-            <h1 className="fp-hero-title">{job.title}</h1>
-            <p className="fp-hero-company">{job.company}</p>
-            <div className="fp-hero-badges">
-              {job.stage   && <span className="fp-badge">{job.stage}</span>}
-              {job.sector  && <span className="fp-badge">{job.sector}</span>}
-              {job.location && <span className="fp-badge">📍 {job.location}</span>}
-              {job.remote_policy === "remote" && <span className="fp-badge">🌐 Remote</span>}
-              {job.remote_policy === "hybrid" && <span className="fp-badge">🏢 Hybrid</span>}
-              {salaryLabel(job.salary_min_lpa, job.salary_max_lpa) && (
-                <span className="fp-badge">
-                  {salaryLabel(job.salary_min_lpa, job.salary_max_lpa)} / year
+      <main className="fp2-main">
+        {/* Job card */}
+        <section className="fp2-job-card">
+          <div className="fp2-job-av">
+            {job.company.slice(0, 2).toUpperCase()}
+          </div>
+          <div className="fp2-job-body">
+            <div className="fp2-job-top">
+              <div>
+                <h1 className="fp2-job-title">{job.title}</h1>
+                <p className="fp2-job-company">{job.company}</p>
+              </div>
+              {job.stage && <span className="fp2-job-stage">{job.stage}</span>}
+            </div>
+
+            <div className="fp2-job-badges">
+              {job.location && (
+                <span className="fp2-job-badge">
+                  <svg width="11" height="13" viewBox="0 0 11 13" fill="none" aria-hidden="true">
+                    <path d="M5.5 1C3.015 1 1 3.015 1 5.5c0 3.375 4.5 7 4.5 7s4.5-3.625 4.5-7C10 3.015 7.985 1 5.5 1Z" stroke="currentColor" strokeWidth="1.3" />
+                    <circle cx="5.5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+                  </svg>
+                  {job.location}
                 </span>
               )}
+              {job.remote_policy && job.remote_policy !== "onsite" && (
+                <span className="fp2-job-badge">
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.2" />
+                    <ellipse cx="6" cy="6" rx="2" ry="4.5" stroke="currentColor" strokeWidth="1.2" />
+                    <path d="M1.5 6h9" stroke="currentColor" strokeWidth="1.2" />
+                  </svg>
+                  {job.remote_policy.charAt(0).toUpperCase() + job.remote_policy.slice(1)}
+                </span>
+              )}
+              {salaryStr && (
+                <span className="fp2-job-badge">
+                  {salaryStr} / yr
+                </span>
+              )}
+              {job.sector && <span className="fp2-job-badge">{job.sector}</span>}
             </div>
-            {job.stack.length > 0 && (
-              <div className="fp-hero-stack">
-                {job.stack.map((t, i) => <span key={i} className="fp-stack-tag fp-stack-tag--hero">{t}</span>)}
-              </div>
-            )}
+
+            {job.summary && <p className="fp2-job-summary">{job.summary}</p>}
           </div>
         </section>
 
-        {/* Stats bar */}
-        <section className="fp-stats-bar">
-          <StatChip value={stats.total}      label="introduced"  />
-          <div className="fp-stats-divider" />
-          <StatChip value={stats.interested} label="interested"  accent="#7C3AED" />
-          <StatChip value={stats.interview}  label="interviewing" accent="#D97706" />
-          <StatChip value={stats.offer}      label="offer"       accent="#2563EB" />
-          <StatChip value={stats.hired}      label="hired"       accent="#059669" />
-        </section>
+        {/* Stats */}
+        <StatsBar stats={stats} />
+
+        {/* Divider */}
+        <div className="fp2-section-label">
+          <span>Introductions</span>
+          <span className="fp2-section-count">{candidates.length}</span>
+        </div>
 
         {/* Filter tabs */}
         {candidates.length > 0 && (
-          <div className="fp-filter-bar">
+          <div className="fp2-filters">
             {FILTERS.map(f => {
-              const count = f.key === "all" ? candidates.length : (activeCounts[f.key] ?? 0);
+              const count = f.key === "all" ? candidates.length : (counts[f.key] ?? 0);
               if (f.key !== "all" && count === 0) return null;
               return (
                 <button
                   key={f.key}
-                  className={`fp-filter-tab${filter === f.key ? " fp-filter-tab--active" : ""}`}
                   onClick={() => setFilter(f.key)}
+                  className={`fp2-filter${filter === f.key ? " fp2-filter--on" : ""}`}
                 >
                   {f.label}
-                  {count > 0 && <span className="fp-filter-count">{count}</span>}
+                  {count > 0 && (
+                    <span className={`fp2-filter-badge${filter === f.key ? " fp2-filter-badge--on" : ""}`}>
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -411,11 +501,10 @@ export function FounderPortalClient({ token }: { token: string }) {
         )}
 
         {/* Candidate list */}
-        <section className="fp-candidates">
-          {filtered.length === 0 ? (
-            <EmptyState />
-          ) : (
-            filtered.map((c, i) => (
+        <div className="fp2-list">
+          {filtered.length === 0
+            ? <EmptyState />
+            : filtered.map((c, i) => (
               <CandidateCard
                 key={c.intro_id}
                 candidate={c}
@@ -424,13 +513,11 @@ export function FounderPortalClient({ token }: { token: string }) {
                 onStatusChange={handleStatusChange}
               />
             ))
-          )}
-        </section>
+          }
+        </div>
 
-        {/* Footer note */}
-        <p className="fp-footer-note">
-          All introductions are curated by Mitra — AI talent agent for funded startups.
-          Questions? Reply to the intro email.
+        <p className="fp2-footer">
+          Introductions curated by Mitra — AI talent agent for India&apos;s funded startups.
         </p>
       </main>
     </div>
@@ -441,69 +528,74 @@ export function FounderPortalClient({ token }: { token: string }) {
 
 function PortalSkeleton() {
   return (
-    <div className="fp-root">
-      <header className="fp-topbar">
-        <div className="fp-topbar-inner">
-          <span className="fp-logo">Mitra<span className="fp-logo-dot">.</span></span>
-          <span className="fp-topbar-tag">Founder Portal</span>
-        </div>
+    <div className="fp2-root">
+      <header className="fp2-topbar">
+        <span className="fp2-logo">Mitra<span className="fp2-logo-dot">.</span></span>
+        <span className="fp2-topbar-pill">Founder Portal</span>
       </header>
-      <main className="fp-main">
-        <section className="fp-hero fp-hero--sk">
-          <div className="fp-hero-av fp-sk" />
-          <div className="fp-hero-info" style={{ flex: 1 }}>
-            <div className="fp-sk" style={{ height: 28, width: "55%", borderRadius: 6, marginBottom: 10 }} />
-            <div className="fp-sk" style={{ height: 16, width: "35%", borderRadius: 4, marginBottom: 14 }} />
-            <div style={{ display: "flex", gap: 8 }}>
-              {[60, 80, 70].map((w, i) => (
-                <div key={i} className="fp-sk" style={{ height: 26, width: w, borderRadius: 20 }} />
-              ))}
+      <main className="fp2-main">
+        <section className="fp2-job-card">
+          <div className="fp2-sk" style={{ width: 56, height: 56, borderRadius: 14, flexShrink: 0 }} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+            <div className="fp2-sk" style={{ height: 22, width: "45%", borderRadius: 6 }} />
+            <div className="fp2-sk" style={{ height: 14, width: "28%", borderRadius: 4 }} />
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              {[72, 64, 80].map((w, i) => <div key={i} className="fp2-sk" style={{ height: 24, width: w, borderRadius: 20 }} />)}
             </div>
           </div>
         </section>
-        <div className="fp-stats-bar">
-          {[1,2,3,4].map(i => (
-            <div key={i} className="fp-stat-chip">
-              <div className="fp-sk" style={{ height: 28, width: 28, borderRadius: 4, marginBottom: 6 }} />
-              <div className="fp-sk" style={{ height: 12, width: 50, borderRadius: 4 }} />
+        <div className="fp-statsbar" style={{ marginTop: 0 }}>
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="fp-statsbar-item">
+              <div className="fp2-sk" style={{ height: 26, width: 32, borderRadius: 5, marginBottom: 6 }} />
+              <div className="fp2-sk" style={{ height: 11, width: 56, borderRadius: 4 }} />
             </div>
           ))}
         </div>
-        <section className="fp-candidates">
-          {[0,1,2].map(i => (
-            <div key={i} className="fp-card" style={{ animationDelay: `${i * 0.08}s` }}>
-              <div className="fp-card-header">
-                <div className="fp-sk" style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0 }} />
+        <div className="fp2-list">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="fpc fpc--sk" style={{ "--fpc-delay": `${i * 0.08}s` } as React.CSSProperties}>
+              <div className="fpc-header">
+                <div className="fp2-sk" style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0 }} />
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div className="fp-sk" style={{ height: 16, width: "50%", borderRadius: 4 }} />
-                  <div className="fp-sk" style={{ height: 13, width: "35%", borderRadius: 4 }} />
+                  <div className="fp2-sk" style={{ height: 15, width: "48%", borderRadius: 4 }} />
+                  <div className="fp2-sk" style={{ height: 12, width: "32%", borderRadius: 4 }} />
                 </div>
-                <div className="fp-sk" style={{ height: 24, width: 80, borderRadius: 20 }} />
+                <div className="fp2-sk" style={{ height: 24, width: 100, borderRadius: 20 }} />
               </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                {[60, 80, 70, 90].map((w, j) => (
-                  <div key={j} className="fp-sk" style={{ height: 28, width: w, borderRadius: 20 }} />
+              <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                {[55, 75, 65, 85].map((w, j) => (
+                  <div key={j} className="fp2-sk" style={{ height: 25, width: w, borderRadius: 20 }} />
                 ))}
               </div>
-              <div className="fp-sk" style={{ height: 68, borderRadius: 10, marginTop: 14 }} />
+              <div className="fp2-sk" style={{ height: 72, borderRadius: 12, marginTop: 14 }} />
+              <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+                {[1, 2, 3].map(j => <div key={j} className="fp2-sk" style={{ height: 36, flex: j === 1 ? 1.4 : 1, borderRadius: 10 }} />)}
+              </div>
             </div>
           ))}
-        </section>
+        </div>
       </main>
     </div>
   );
 }
 
-// ── Error ──────────────────────────────────────────────────────────────────────
+// ── Error ─────────────────────────────────────────────────────────────────────
 
 function PortalError({ message }: { message: string }) {
   return (
-    <div className="fp-root fp-root--center">
-      <div className="fp-error-card">
-        <div className="fp-error-icon">⚠</div>
-        <h2 className="fp-error-title">Portal unavailable</h2>
-        <p className="fp-error-desc">{message}</p>
-        <p className="fp-error-desc" style={{ marginTop: 8, fontSize: 13 }}>
+    <div className="fp2-error-page">
+      <div className="fp2-error-card">
+        <div className="fp2-error-icon">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <path d="M14 3L26 24H2L14 3Z" stroke="#D97706" strokeWidth="1.6" strokeLinejoin="round" />
+            <path d="M14 11v5" stroke="#D97706" strokeWidth="1.8" strokeLinecap="round" />
+            <circle cx="14" cy="19.5" r="1" fill="#D97706" />
+          </svg>
+        </div>
+        <h2 className="fp2-error-title">Portal unavailable</h2>
+        <p className="fp2-error-desc">{message}</p>
+        <p className="fp2-error-hint">
           If you received this link via email, it may have expired.<br />
           Reply to the original intro email for assistance.
         </p>
