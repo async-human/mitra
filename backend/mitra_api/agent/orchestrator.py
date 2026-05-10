@@ -676,11 +676,13 @@ async def run_agent_turn(
                         try:
                             payload = json.loads(out)
                             last_search_jobs_payload = payload
-                            picks = payload.get("picks") or []
+                            jobs = payload.get("jobs") or []
+                            no_match = len(jobs) == 1 and jobs[0].get("note")
                             log.info(
-                                "[agent:%s] search_jobs returned %d result(s): %s",
-                                whatsapp_sender_id, len(picks),
-                                [(p.get("title"), p.get("company")) for p in picks[:5]],
+                                "[agent:%s] search_jobs returned %d job(s)%s: %s",
+                                whatsapp_sender_id, 0 if no_match else len(jobs),
+                                " (no match)" if no_match else "",
+                                [(j.get("title"), j.get("company")) for j in jobs[:5]] if not no_match else jobs[0],
                             )
                         except json.JSONDecodeError:
                             log.warning("[agent:%s] search_jobs result was not valid JSON", whatsapp_sender_id)

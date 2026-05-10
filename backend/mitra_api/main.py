@@ -11,7 +11,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 
@@ -96,6 +96,71 @@ async def readyz(settings: Settings = Depends(get_settings)) -> dict[str, Any]:
         result["db"] = {"ok": False, "error": "MITRA_DATABASE_URL not set"}
 
     return result
+
+
+@app.delete("/admin/candidates/{phone}/reset")
+async def reset_candidate(
+    phone: str,
+    x_admin_key: str = Header(default=""),
+    settings: Settings = Depends(get_settings),
+    store: AgentSessionStore = Depends(get_sessions),
+) -> dict[str, Any]:
+    """
+    Wipe all history for a candidate — Redis session + Postgres rows.
+    Useful for test resets. Requires X-Admin-Key header.
+    Phone must be E.164 format: %2B919405109606 (URL-encode the +).
+    """
+    expected = (getattr(settings, "mitra_admin_key", "") or "").strip()
+    if not expected or x_admin_key != expected:
+        raise HTTPException(403, "Invalid admin key")
+
+    # normalise: accept +91... or 91... or URL-encoded %2B91...
+    sid = phone.strip()
+    if not sid.startswith("+"):
+        sid = "+" + sid
+
+    deleted: dict[str, Any] = {"phone": sid}
+
+    # ── Redis ─────────────────────────────────────────────────────────────────
+    try:
+        pfx = getattr(settings, "mitra_redis_key_prefix", "mitra") or "mitra"
+        raw_store = store  # RedisAgentSessionStore or InMemory
+        if hasattr(raw_store, "_r"):
+            r = raw_store._r
+            msgs_key = f"{pfx}:session:{sid}:msgs"
+            sigs_key = f"{pfx}:session:{sid}:signals"
+            deleted["redis_msgs"]    = await r.delete(msgs_key)
+            deleted["redis_signals"] = await r.delete(sigs_key)
+        else:
+            # InMemoryAgentSessionStore
+            raw_store._history.pop(sid, None)
+            raw_store._signals.pop(sid, None)
+            deleted["redis_msgs"] = deleted["redis_signals"] = "in-memory cleared"
+    except Exception as exc:
+        deleted["redis_error"] = str(exc)
+
+    # ── Postgres ──────────────────────────────────────────────────────────────
+    try:
+        from sqlalchemy import delete as sa_delete, select as sa_select
+        from mitra_api.db.engine import get_session_factory
+        from mitra_api.db.models import Candidate
+
+        factory = get_session_factory()
+        async with factory() as db:
+            row = (await db.execute(
+                sa_select(Candidate).where(Candidate.phone == sid)
+            )).scalar_one_or_none()
+
+            if row:
+                await db.delete(row)   # cascades to candidate_signals + intros
+                await db.commit()
+                deleted["postgres"] = "candidate + signals + intros deleted"
+            else:
+                deleted["postgres"] = "no candidate row found"
+    except Exception as exc:
+        deleted["postgres_error"] = str(exc)
+
+    return deleted
 
 
 @app.post("/debug/agent")
