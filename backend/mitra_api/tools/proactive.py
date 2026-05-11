@@ -283,6 +283,9 @@ async def get_stalled_interviews(
 
     results = []
     for intro, job, candidate in rows:
+        candidate_email = (
+            candidate.phone[4:] if candidate.phone.startswith("web:") else None
+        )
         results.append({
             "intro_id":        intro.id,
             "job_title":       job.title,
@@ -292,6 +295,7 @@ async def get_stalled_interviews(
             "founder_email":   job.founder_email,
             "candidate_name":  candidate.name or "the candidate",
             "candidate_phone": candidate.phone,
+            "candidate_email": candidate_email,
         })
 
     return results
@@ -353,8 +357,9 @@ async def get_pending_offers(
 
     results = []
     for intro, job, candidate in rows:
-        if candidate.phone.startswith("web:"):
-            continue
+        candidate_email = (
+            candidate.phone[4:] if candidate.phone.startswith("web:") else None
+        )
         results.append({
             "intro_id":        intro.id,
             "job_title":       job.title,
@@ -362,6 +367,7 @@ async def get_pending_offers(
             "founder_name":    job.founder_name or "there",
             "candidate_name":  candidate.name or "the candidate",
             "candidate_phone": candidate.phone,
+            "candidate_email": candidate_email,
         })
 
     return results
@@ -426,6 +432,7 @@ async def get_placements_for_checkin(
         })
 
     return results
+
 
 
 def build_candidate_checkin_message(placement: dict[str, Any]) -> str:

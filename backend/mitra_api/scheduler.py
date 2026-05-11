@@ -130,12 +130,21 @@ async def run_placement_checkins(days: int = 30) -> None:
                 len(placements), days,
             )
             for p in placements:
-                # Message candidate (WhatsApp only — web candidates skipped)
+                # Message candidate — WhatsApp for phone users, email for web users
                 phone = p.get("candidate_phone", "")
+                msg   = build_candidate_checkin_message(p)
                 if phone and not phone.startswith("web:"):
-                    msg = build_candidate_checkin_message(p)
                     await send_proactive_message(
                         phone, msg, label=f"checkin-{days}d-candidate"
+                    )
+                elif phone.startswith("web:"):
+                    candidate_email = phone[4:]
+                    await send_email(
+                        to=candidate_email,
+                        subject=(
+                            f"{days}-day check-in: How's {p.get('company')} going?"
+                        ),
+                        text=msg,
                     )
 
                 # Message founder
@@ -213,12 +222,21 @@ async def run_interview_outcome_check() -> None:
             intros = await get_stalled_interviews(db, hours_since_interview=hours)
             log.info("scheduler: found %d stalled interviews", len(intros))
             for intro in intros[:10]:
-                # Ask candidate
+                # Ask candidate — WhatsApp for phone users, email for web users
                 phone = intro.get("candidate_phone", "")
+                msg   = build_interview_outcome_candidate(intro)
                 if phone and not phone.startswith("web:"):
-                    msg = build_interview_outcome_candidate(intro)
                     await send_proactive_message(
                         phone, msg, label="interview-outcome-candidate"
+                    )
+                elif intro.get("candidate_email"):
+                    await send_email(
+                        to=intro["candidate_email"],
+                        subject=(
+                            f"How did the interview go? — "
+                            f"{intro['job_title']} at {intro['company']}"
+                        ),
+                        text=msg,
                     )
                 # Ask founder
                 msg = build_interview_outcome_founder(intro)
@@ -257,10 +275,19 @@ async def run_offer_pending_check() -> None:
             log.info("scheduler: found %d pending offers", len(offers))
             for offer in offers[:10]:
                 phone = offer.get("candidate_phone", "")
-                if phone:
-                    msg = build_offer_pending_message(offer)
+                msg   = build_offer_pending_message(offer)
+                if phone and not phone.startswith("web:"):
                     await send_proactive_message(
                         phone, msg, label="offer-pending"
+                    )
+                elif offer.get("candidate_email"):
+                    await send_email(
+                        to=offer["candidate_email"],
+                        subject=(
+                            f"Your offer from {offer['company']} — "
+                            f"{offer['job_title']}"
+                        ),
+                        text=msg,
                     )
     except Exception:
         log.exception("scheduler: offer_pending_check failed")
