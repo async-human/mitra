@@ -31,6 +31,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import case, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from mitra_api.config import get_settings
 from mitra_api.db.engine import get_db
@@ -179,7 +180,11 @@ async def create_job(
 
     await _generate_and_store_embedding(job, db)
     await db.commit()
-    await db.refresh(job)
+
+    result = await db.execute(
+        select(Job).options(selectinload(Job.embedding)).where(Job.id == job.id)
+    )
+    job = result.scalar_one()
 
     log.info("Job created: id=%d external_id=%s title=%s", job.id, job.external_id, job.title)
 
@@ -197,7 +202,8 @@ async def list_jobs(
 ) -> list[JobOut]:
     """List jobs filtered by status."""
     result = await db.execute(
-        select(Job).where(Job.status == status).order_by(Job.created_at.desc())
+        select(Job).options(selectinload(Job.embedding))
+        .where(Job.status == status).order_by(Job.created_at.desc())
     )
     jobs = result.scalars().all()
     return [_to_out(j) for j in jobs]
@@ -234,7 +240,11 @@ async def update_job(
         await _generate_and_store_embedding(job, db)
 
     await db.commit()
-    await db.refresh(job)
+
+    result = await db.execute(
+        select(Job).options(selectinload(Job.embedding)).where(Job.id == job_id)
+    )
+    job = result.scalar_one()
 
     # Re-alert candidates when the role content changes materially
     if content_changed:
