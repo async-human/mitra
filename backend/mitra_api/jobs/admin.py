@@ -28,6 +28,7 @@ from typing import Any
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, Field
 from sqlalchemy import case, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -176,7 +177,11 @@ async def create_job(
         founder_wa=payload.founder_wa,
     )
     db.add(job)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, f"Job with external_id '{payload.external_id}' already exists")
 
     await _generate_and_store_embedding(job, db)
     await db.commit()
