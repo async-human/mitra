@@ -104,6 +104,7 @@ async def run_intro_followup() -> None:
                             f"{intro['job_title']}"
                         ),
                         text=msg,
+                        reply_context={"type": "founder", "intro_id": intro["intro_id"], "job_id": intro["job_id"]},
                     )
     except Exception:
         log.exception("scheduler: intro_followup failed")
@@ -141,10 +142,9 @@ async def run_placement_checkins(days: int = 30) -> None:
                     candidate_email = phone[4:]
                     await send_email(
                         to=candidate_email,
-                        subject=(
-                            f"{days}-day check-in: How's {p.get('company')} going?"
-                        ),
+                        subject=f"{days}-day check-in: How's {p.get('company')} going?",
                         text=msg,
+                        reply_context={"type": "candidate", "session_id": phone},
                     )
 
                 # Message founder
@@ -162,6 +162,7 @@ async def run_placement_checkins(days: int = 30) -> None:
                                 f"at {p.get('company')}"
                             ),
                             text=msg,
+                            reply_context={"type": "founder", "intro_id": p.get("intro_id")},
                         )
     except Exception:
         log.exception("scheduler: placement_checkins(%dd) failed", days)
@@ -198,6 +199,7 @@ async def run_acknowledged_nudge() -> None:
                             f"{intro['job_title']}"
                         ),
                         text=msg,
+                        reply_context={"type": "founder", "intro_id": intro["intro_id"]},
                     )
     except Exception:
         log.exception("scheduler: acknowledged_nudge failed")
@@ -232,11 +234,9 @@ async def run_interview_outcome_check() -> None:
                 elif intro.get("candidate_email"):
                     await send_email(
                         to=intro["candidate_email"],
-                        subject=(
-                            f"How did the interview go? — "
-                            f"{intro['job_title']} at {intro['company']}"
-                        ),
+                        subject=f"How did the interview go? — {intro['job_title']} at {intro['company']}",
                         text=msg,
+                        reply_context={"type": "candidate", "session_id": intro["candidate_phone"]},
                     )
                 # Ask founder
                 msg = build_interview_outcome_founder(intro)
@@ -247,11 +247,9 @@ async def run_interview_outcome_check() -> None:
                 elif intro.get("founder_email"):
                     await send_email(
                         to=intro["founder_email"],
-                        subject=(
-                            f"How did the interview go? {intro['candidate_name']} — "
-                            f"{intro['job_title']}"
-                        ),
+                        subject=f"How did the interview go? {intro['candidate_name']} — {intro['job_title']}",
                         text=msg,
+                        reply_context={"type": "founder", "intro_id": intro["intro_id"]},
                     )
     except Exception:
         log.exception("scheduler: interview_outcome_check failed")
@@ -283,11 +281,9 @@ async def run_offer_pending_check() -> None:
                 elif offer.get("candidate_email"):
                     await send_email(
                         to=offer["candidate_email"],
-                        subject=(
-                            f"Your offer from {offer['company']} — "
-                            f"{offer['job_title']}"
-                        ),
+                        subject=f"Your offer from {offer['company']} — {offer['job_title']}",
                         text=msg,
+                        reply_context={"type": "candidate", "session_id": offer["candidate_phone"]},
                     )
     except Exception:
         log.exception("scheduler: offer_pending_check failed")

@@ -138,6 +138,11 @@ class Settings(BaseSettings):
         validation_alias="MITRA_WEB_BASE_URL",
         description="Public base URL of the Next.js web app — used to build founder portal links in emails.",
     )
+    email_webhook_secret: str = Field(
+        default="",
+        validation_alias="EMAIL_WEBHOOK_SECRET",
+        description="Shared secret between Cloudflare Email Worker and this API — validates inbound email webhooks.",
+    )
 
 
 @lru_cache

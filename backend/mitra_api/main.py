@@ -25,6 +25,7 @@ from mitra_api.llm.factory import get_llm_adapter
 from mitra_api.llm.types import ChatMessage, ToolDefinition
 from mitra_api.twilio_whatsapp.routes import router as twilio_whatsapp_router
 from mitra_api.whatsapp.routes import router as whatsapp_router
+from mitra_api.email_reply.routes import router as email_reply_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -87,6 +88,7 @@ app.include_router(admin_router)
 app.include_router(admin_meta_router)
 app.include_router(founder_router)
 app.include_router(candidate_router)
+app.include_router(email_reply_router)
 
 
 @app.get("/healthz", response_class=PlainTextResponse)
