@@ -6643,6 +6643,20 @@ img.wchat-av--user { border-radius: 50%; }
   opacity: 1;
 }
 
+.fpc-btn--offer {
+  flex: 1.4;
+  background: #1D4ED8;
+  color: #fff;
+}
+.fpc-btn--offer:hover:not(:disabled) { background: #1E40AF; opacity: 1; }
+
+.fpc-btn--hired {
+  flex: 1.4;
+  background: #059669;
+  color: #fff;
+}
+.fpc-btn--hired:hover:not(:disabled) { background: #047857; opacity: 1; }
+
 /* Spinner */
 .fpc-spinner {
   display: inline-block;
@@ -6865,4 +6879,6 @@ img.wchat-av--user { border-radius: 50%; }
   .fpc-btn--primary  { flex: 1 1 100%; }
   .fpc-btn--schedule { flex: 1; }
   .fpc-btn--pass     { flex: auto; }
+  .fpc-btn--offer    { flex: 1 1 100%; }
+  .fpc-btn--hired    { flex: 1 1 100%; }
 }

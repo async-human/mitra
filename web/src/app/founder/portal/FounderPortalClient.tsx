@@ -187,7 +187,7 @@ function CandidateCard({
   const palette = avatarPalette(idx);
   const [actionState, setActionState] = useState<"idle" | "loading" | "done">("idle");
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-  const isActioned = ["acknowledged", "interview", "declined", "hired", "offer"].includes(candidate.status);
+  const isTerminal = ["declined", "hired"].includes(candidate.status);
 
   const doAction = useCallback(async (action: string) => {
     setActionState("loading");
@@ -307,18 +307,15 @@ function CandidateCard({
         </div>
       )}
 
-      {/* Actions */}
-      {!isActioned ? (
+      {/* Progressive actions based on current status */}
+      {candidate.status === "sent" || candidate.status === "ghosted" ? (
         <div className="fpc-actions">
           <button
             className="fpc-btn fpc-btn--primary"
             disabled={actionState === "loading"}
             onClick={() => doAction("interested")}
           >
-            {actionState === "loading"
-              ? <span className="fpc-spinner" />
-              : <IconCheck />
-            }
+            {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
             Interested
           </button>
           <button
@@ -338,15 +335,70 @@ function CandidateCard({
             Pass
           </button>
         </div>
-      ) : (
+      ) : candidate.status === "acknowledged" ? (
+        <div className="fpc-actions">
+          <button
+            className="fpc-btn fpc-btn--schedule"
+            disabled={actionState === "loading"}
+            onClick={() => doAction("schedule")}
+          >
+            {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCalendar />}
+            Schedule interview
+          </button>
+          <button
+            className="fpc-btn fpc-btn--pass"
+            disabled={actionState === "loading"}
+            onClick={() => doAction("not_a_fit")}
+          >
+            <IconX />
+            Pass
+          </button>
+        </div>
+      ) : candidate.status === "interview" ? (
+        <div className="fpc-actions">
+          <button
+            className="fpc-btn fpc-btn--offer"
+            disabled={actionState === "loading"}
+            onClick={() => doAction("offer")}
+          >
+            {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
+            Offer extended
+          </button>
+          <button
+            className="fpc-btn fpc-btn--pass"
+            disabled={actionState === "loading"}
+            onClick={() => doAction("not_a_fit")}
+          >
+            <IconX />
+            Didn&apos;t proceed
+          </button>
+        </div>
+      ) : candidate.status === "offer" ? (
+        <div className="fpc-actions">
+          <button
+            className="fpc-btn fpc-btn--hired"
+            disabled={actionState === "loading"}
+            onClick={() => doAction("hired")}
+          >
+            {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
+            They joined! 🎉
+          </button>
+          <button
+            className="fpc-btn fpc-btn--pass"
+            disabled={actionState === "loading"}
+            onClick={() => doAction("not_a_fit")}
+          >
+            <IconX />
+            Offer declined
+          </button>
+        </div>
+      ) : isTerminal ? (
         <div className="fpc-actioned" style={{ borderColor: meta.dot, color: meta.color }}>
           <span className="fpc-actioned-dot" style={{ background: meta.dot }} />
           <span>{meta.label}</span>
-          {candidate.status !== "declined" && (
-            <span className="fpc-actioned-note">· candidate notified</span>
-          )}
+          <span className="fpc-actioned-note">· candidate notified</span>
         </div>
-      )}
+      ) : null}
     </article>
   );
 }
