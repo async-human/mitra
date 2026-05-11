@@ -16,7 +16,7 @@ RESEND_URL = "https://api.resend.com/emails"
 async def send_email(*, to: str, subject: str, text: str) -> bool:
     """Send a plain-text email via Resend. Returns True on success."""
     s = get_settings()
-    api_key  = s.resend_api_key.strip()
+    api_key   = s.resend_api_key.strip()
     from_addr = s.mitra_from_email.strip()
 
     if not api_key:
@@ -26,10 +26,17 @@ async def send_email(*, to: str, subject: str, text: str) -> bool:
         log.warning("email send skipped: MITRA_FROM_EMAIL not set")
         return False
 
+    payload: dict = {"from": from_addr, "to": [to], "subject": subject, "text": text}
+
+    # Route replies to the ops inbox so they don't vanish into the void
+    ops_email = (s.mitra_ops_email or "").strip()
+    if ops_email:
+        payload["reply_to"] = [ops_email]
+
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.post(
             RESEND_URL,
-            json={"from": from_addr, "to": [to], "subject": subject, "text": text},
+            json=payload,
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
         )
 
