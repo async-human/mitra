@@ -25,14 +25,16 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import case, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from mitra_api.config import get_settings
 from mitra_api.db.engine import get_db
-from mitra_api.db.models import Job, JobEmbedding, JobStatus
+from mitra_api.db.models import Candidate, Intro, Job, JobEmbedding, JobStatus
 from mitra_api.tools.embeddings import EMBEDDING_DIM, embed_text, job_embed_text
 
 log = logging.getLogger(__name__)
@@ -146,8 +148,12 @@ async def _generate_and_store_embedding(
 # ── ENDPOINTS ─────────────────────────────────────────────────────────────────
 
 @admin_router.post("", response_model=JobOut, dependencies=[Depends(require_admin)])
-async def create_job(payload: JobIn, db: AsyncSession = Depends(get_db)) -> JobOut:
-    """Create a new job listing. Embedding is generated automatically."""
+async def create_job(
+    payload: JobIn,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> JobOut:
+    """Create a new job listing. Embedding is generated and matching candidates are alerted."""
     job = Job(
         external_id=payload.external_id,
         status=JobStatus.active,
@@ -176,6 +182,11 @@ async def create_job(payload: JobIn, db: AsyncSession = Depends(get_db)) -> JobO
     await db.refresh(job)
 
     log.info("Job created: id=%d external_id=%s title=%s", job.id, job.external_id, job.title)
+
+    # Alert matching candidates in the background — non-blocking
+    from mitra_api.tools.notifications import notify_matching_candidates_bg
+    background_tasks.add_task(notify_matching_candidates_bg, job.id)
+
     return _to_out(job)
 
 
@@ -196,9 +207,10 @@ async def list_jobs(
 async def update_job(
     job_id: int,
     payload: JobIn,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> JobOut:
-    """Update a job. Regenerates embedding if title, stack, or summary changed."""
+    """Update a job. Regenerates embedding and re-alerts candidates if content changed."""
     result = await db.execute(select(Job).where(Job.id == job_id))
     job = result.scalar_one_or_none()
     if not job:
@@ -223,6 +235,12 @@ async def update_job(
 
     await db.commit()
     await db.refresh(job)
+
+    # Re-alert candidates when the role content changes materially
+    if content_changed:
+        from mitra_api.tools.notifications import notify_matching_candidates_bg
+        background_tasks.add_task(notify_matching_candidates_bg, job.id)
+
     return _to_out(job)
 
 
@@ -306,4 +324,197 @@ def _to_out(job: Job) -> JobOut:
         stack=job.stack,
         summary=job.summary,
         has_embedding=job.embedding is not None,
+    )
+
+
+# ── METRICS ROUTER ────────────────────────────────────────────────────────────
+
+admin_meta_router = APIRouter(prefix="/admin", tags=["admin"])
+
+_FUNNEL_STAGES = [
+    ("sent",         "Intros sent"),
+    ("acknowledged", "Interested"),
+    ("interview",    "Interview"),
+    ("offer",        "Offer"),
+    ("hired",        "Hired"),
+]
+
+
+class MetricsSnapshot(BaseModel):
+    total_candidates: int
+    total_jobs:       int
+    active_jobs:      int
+    total_intros:     int
+
+
+class FunnelStage(BaseModel):
+    status: str
+    label:  str
+    count:  int
+    pct:    float
+
+
+class WeeklyPoint(BaseModel):
+    week_start:  str
+    intros:      int
+    interviews:  int
+    hires:       int
+
+
+class TopJob(BaseModel):
+    job_id:  int
+    title:   str
+    company: str
+    stage:   str | None
+    intros:  int
+    hires:   int
+    rate:    float
+
+
+class MetricsResponse(BaseModel):
+    snapshot:              MetricsSnapshot
+    funnel:                list[FunnelStage]
+    by_status:             dict[str, int]
+    weekly_trend:          list[WeeklyPoint]
+    top_jobs:              list[TopJob]
+    response_rate:         float
+    ghosted_rate:          float
+    avg_days_to_interview: float | None
+    avg_days_to_hire:      float | None
+
+
+@admin_meta_router.get("/metrics", response_model=MetricsResponse, dependencies=[Depends(require_admin)])
+async def get_metrics(db: AsyncSession = Depends(get_db)) -> MetricsResponse:
+    """Business metrics: intro funnel, weekly trend, top jobs, time-to-hire."""
+
+    # ── Snapshot counts ───────────────────────────────────────────────────────
+    total_candidates = (await db.execute(select(func.count(Candidate.id)))).scalar_one() or 0
+    total_jobs       = (await db.execute(select(func.count(Job.id)))).scalar_one() or 0
+    active_jobs      = (await db.execute(
+        select(func.count(Job.id)).where(Job.status == JobStatus.active)
+    )).scalar_one() or 0
+
+    # ── Intros by status ──────────────────────────────────────────────────────
+    status_rows = (await db.execute(
+        select(Intro.status, func.count(Intro.id).label("cnt"))
+        .group_by(Intro.status)
+    )).all()
+    by_status: dict[str, int] = {}
+    for row in status_rows:
+        key = row.status.value if hasattr(row.status, "value") else str(row.status)
+        by_status[key] = int(row.cnt)
+
+    total_intros = sum(by_status.values())
+    total_sent   = by_status.get("sent", 0) + by_status.get("acknowledged", 0) + \
+                   by_status.get("interview", 0) + by_status.get("offer", 0) + \
+                   by_status.get("hired", 0) + by_status.get("declined", 0) + \
+                   by_status.get("ghosted", 0)
+
+    # ── Funnel ────────────────────────────────────────────────────────────────
+    funnel: list[FunnelStage] = []
+    for status_key, label in _FUNNEL_STAGES:
+        count = by_status.get(status_key, 0)
+        pct   = round(count / total_sent * 100, 1) if total_sent else 0.0
+        funnel.append(FunnelStage(status=status_key, label=label, count=count, pct=pct))
+
+    # ── Derived rates ─────────────────────────────────────────────────────────
+    engaged      = sum(by_status.get(s, 0) for s in ("acknowledged", "interview", "offer", "hired"))
+    ghosted      = by_status.get("ghosted", 0)
+    response_rate = round(engaged / total_sent * 100, 1) if total_sent else 0.0
+    ghosted_rate  = round(ghosted / total_sent * 100, 1) if total_sent else 0.0
+
+    # ── Weekly trend (last 8 weeks) ───────────────────────────────────────────
+    eight_weeks_ago = datetime.now(timezone.utc) - timedelta(weeks=8)
+    weekly_raw = (await db.execute(
+        select(
+            func.date_trunc("week", Intro.sent_at).label("week_start"),
+            func.count(Intro.id).label("intros"),
+            func.sum(case(
+                (Intro.status.in_(["interview", "offer", "hired"]), 1), else_=0
+            )).label("interviews"),
+            func.sum(case(
+                (Intro.status == "hired", 1), else_=0
+            )).label("hires"),
+        )
+        .where(Intro.sent_at >= eight_weeks_ago)
+        .group_by(text("1"))
+        .order_by(text("1"))
+    )).all()
+
+    # Fill any missing weeks with zeros
+    week_map: dict[str, WeeklyPoint] = {}
+    for row in weekly_raw:
+        ws = row.week_start.date().isoformat() if hasattr(row.week_start, "date") else str(row.week_start)[:10]
+        week_map[ws] = WeeklyPoint(
+            week_start=ws,
+            intros=int(row.intros or 0),
+            interviews=int(row.interviews or 0),
+            hires=int(row.hires or 0),
+        )
+
+    weekly_trend: list[WeeklyPoint] = []
+    cursor = eight_weeks_ago.date()
+    # Align to Monday
+    cursor = cursor - timedelta(days=cursor.weekday())
+    for _ in range(8):
+        iso = cursor.isoformat()
+        weekly_trend.append(week_map.get(iso, WeeklyPoint(week_start=iso, intros=0, interviews=0, hires=0)))
+        cursor += timedelta(weeks=1)
+
+    # ── Top jobs ──────────────────────────────────────────────────────────────
+    top_raw = (await db.execute(
+        select(
+            Job.id, Job.title, Job.company, Job.stage,
+            func.count(Intro.id).label("intros"),
+            func.sum(case((Intro.status == "hired", 1), else_=0)).label("hires"),
+        )
+        .join(Intro, Job.id == Intro.job_id)
+        .group_by(Job.id, Job.title, Job.company, Job.stage)
+        .order_by(func.count(Intro.id).desc())
+        .limit(6)
+    )).all()
+
+    top_jobs = [
+        TopJob(
+            job_id=row.id,
+            title=row.title,
+            company=row.company,
+            stage=row.stage,
+            intros=int(row.intros or 0),
+            hires=int(row.hires or 0),
+            rate=round(int(row.hires or 0) / int(row.intros or 1) * 100, 1),
+        )
+        for row in top_raw
+    ]
+
+    # ── Time-to-milestone averages ────────────────────────────────────────────
+    avg_interview_raw = (await db.execute(
+        select(func.avg(
+            func.extract("epoch", Intro.interview_at - Intro.sent_at) / 86400
+        ))
+        .where(Intro.interview_at.isnot(None), Intro.sent_at.isnot(None))
+    )).scalar_one()
+
+    avg_hire_raw = (await db.execute(
+        select(func.avg(
+            func.extract("epoch", Intro.hired_at - Intro.sent_at) / 86400
+        ))
+        .where(Intro.hired_at.isnot(None), Intro.sent_at.isnot(None))
+    )).scalar_one()
+
+    return MetricsResponse(
+        snapshot=MetricsSnapshot(
+            total_candidates=total_candidates,
+            total_jobs=total_jobs,
+            active_jobs=active_jobs,
+            total_intros=total_intros,
+        ),
+        funnel=funnel,
+        by_status=by_status,
+        weekly_trend=weekly_trend,
+        top_jobs=top_jobs,
+        response_rate=response_rate,
+        ghosted_rate=ghosted_rate,
+        avg_days_to_interview=round(float(avg_interview_raw), 1) if avg_interview_raw else None,
+        avg_days_to_hire=round(float(avg_hire_raw), 1) if avg_hire_raw else None,
     )

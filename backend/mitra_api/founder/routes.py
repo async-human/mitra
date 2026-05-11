@@ -304,6 +304,10 @@ async def _auto_submit_job(session_id: str, signals: dict[str, Any], auth_email:
             job.id, external_id, title, company,
         )
 
+        # Alert matching candidates now that the job is live
+        from mitra_api.tools.notifications import notify_matching_candidates_bg
+        await notify_matching_candidates_bg(job.id)
+
 
 # ── Request / Response schemas ────────────────────────────────────────────────
 
