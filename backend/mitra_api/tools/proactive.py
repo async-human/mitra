@@ -3,11 +3,14 @@ mitra_api/tools/proactive.py
 
 Proactive workflow engine — makes Mitra act without being prompted.
 
-Four autonomous behaviours:
-  1. candidate_re_engagement  — re-engages candidates who went quiet mid-intake
-  2. intro_follow_up          — nudges founders who haven't replied in 48h
-  3. outcome_check_in         — checks in at 30d / 90d post-placement
-  4. founder_pipeline_digest  — pipeline summary to founders on demand
+Seven autonomous behaviours:
+  1. candidate_re_engagement       — re-engages candidates who went quiet mid-intake
+  2. intro_follow_up               — nudges founders who haven't replied in 48h
+  3. acknowledged_no_interview     — nudges founder when interested but no interview booked
+  4. stalled_interview_outcome     — asks both sides how interview went after 3 days
+  5. pending_offer_check           — checks in with candidate on pending offer after 48h
+  6. outcome_check_in              — checks in at 30d / 90d post-placement
+  7. founder_pipeline_digest       — pipeline summary to founders on demand
 
 Each function is designed to be called from the scheduler.
 None require a human to trigger them.
@@ -194,7 +197,194 @@ def build_founder_followup_message(intro_data: dict[str, Any]) -> str:
     )
 
 
-# ── 3. POST-PLACEMENT OUTCOME CHECK-IN ───────────────────────────────────────
+# ── 3. ACKNOWLEDGED → NO INTERVIEW BOOKED ────────────────────────────────────
+
+async def get_acknowledged_no_interview(
+    db: AsyncSession,
+    *,
+    hours_since_acknowledged: int = 120,  # 5 days
+) -> list[dict[str, Any]]:
+    """
+    Find intros where the founder acknowledged interest but no interview
+    has been booked after hours_since_acknowledged.
+    Nudge: ask the founder if they need help scheduling.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_since_acknowledged)
+
+    rows = (await db.execute(
+        select(Intro, Job, Candidate)
+        .join(Job,       Intro.job_id       == Job.id)
+        .join(Candidate, Intro.candidate_id == Candidate.id)
+        .where(
+            Intro.status         == IntroStatus.acknowledged,
+            Intro.updated_at     <= cutoff,
+            Intro.interview_at.is_(None),
+        )
+        .order_by(Intro.updated_at)
+    )).all()
+
+    results = []
+    for intro, job, candidate in rows:
+        if not (job.founder_wa or job.founder_email):
+            continue
+        results.append({
+            "intro_id":        intro.id,
+            "job_title":       job.title,
+            "company":         job.company,
+            "founder_name":    job.founder_name or "there",
+            "founder_wa":      job.founder_wa,
+            "founder_email":   job.founder_email,
+            "candidate_name":  candidate.name or "the candidate",
+            "candidate_phone": candidate.phone,
+        })
+
+    return results
+
+
+def build_acknowledged_nudge_message(intro_data: dict[str, Any]) -> str:
+    founder   = intro_data.get("founder_name", "there")
+    candidate = intro_data.get("candidate_name", "the candidate")
+    role      = intro_data.get("job_title", "the role")
+
+    return (
+        f"Hi {founder},\n\n"
+        f"Just checking in — you expressed interest in {candidate} for {role}. "
+        f"Have you had a chance to connect yet?\n\n"
+        f"If you'd like to move forward, I can help coordinate availability. "
+        f"Or if your requirements have shifted, just let me know and I'll "
+        f"adjust what I send next.\n\n"
+        f"— Mitra"
+    )
+
+
+# ── 4. INTERVIEW BOOKED → NO OUTCOME UPDATE ───────────────────────────────────
+
+async def get_stalled_interviews(
+    db: AsyncSession,
+    *,
+    hours_since_interview: int = 72,  # 3 days
+) -> list[dict[str, Any]]:
+    """
+    Find intros with an interview booked but no status update after
+    hours_since_interview. Ask both sides how it went.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_since_interview)
+
+    rows = (await db.execute(
+        select(Intro, Job, Candidate)
+        .join(Job,       Intro.job_id       == Job.id)
+        .join(Candidate, Intro.candidate_id == Candidate.id)
+        .where(
+            Intro.status     == IntroStatus.interview,
+            Intro.updated_at <= cutoff,
+        )
+        .order_by(Intro.updated_at)
+    )).all()
+
+    results = []
+    for intro, job, candidate in rows:
+        results.append({
+            "intro_id":        intro.id,
+            "job_title":       job.title,
+            "company":         job.company,
+            "founder_name":    job.founder_name or "there",
+            "founder_wa":      job.founder_wa,
+            "founder_email":   job.founder_email,
+            "candidate_name":  candidate.name or "the candidate",
+            "candidate_phone": candidate.phone,
+        })
+
+    return results
+
+
+def build_interview_outcome_candidate(intro_data: dict[str, Any]) -> str:
+    name    = (intro_data.get("candidate_name") or "").split()[0] or "hey"
+    company = intro_data.get("company", "them")
+    role    = intro_data.get("job_title", "the role")
+
+    return (
+        f"Hey {name},\n\n"
+        f"How did the interview with {company} go for the {role} position?\n\n"
+        f"Even a quick 'it went well' or 'not the right fit' helps me know "
+        f"where things stand — and whether I should be exploring other options "
+        f"for you in parallel.\n\n"
+        f"— Mitra"
+    )
+
+
+def build_interview_outcome_founder(intro_data: dict[str, Any]) -> str:
+    founder   = intro_data.get("founder_name", "there")
+    candidate = intro_data.get("candidate_name", "the candidate")
+    role      = intro_data.get("job_title", "the role")
+
+    return (
+        f"Hi {founder},\n\n"
+        f"How did the interview with {candidate} for {role} go?\n\n"
+        f"If you're moving forward, I can help coordinate next steps. "
+        f"If not, a quick note on why helps me calibrate what I send next time.\n\n"
+        f"— Mitra"
+    )
+
+
+# ── 5. OFFER RECEIVED → NO ACCEPTANCE ────────────────────────────────────────
+
+async def get_pending_offers(
+    db: AsyncSession,
+    *,
+    hours_since_offer: int = 48,
+) -> list[dict[str, Any]]:
+    """
+    Find intros where an offer was extended but the candidate hasn't accepted
+    (status still 'offer') after hours_since_offer.
+    Nudge: check in with the candidate.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_since_offer)
+
+    rows = (await db.execute(
+        select(Intro, Job, Candidate)
+        .join(Job,       Intro.job_id       == Job.id)
+        .join(Candidate, Intro.candidate_id == Candidate.id)
+        .where(
+            Intro.status     == IntroStatus.offer,
+            Intro.updated_at <= cutoff,
+        )
+        .order_by(Intro.updated_at)
+    )).all()
+
+    results = []
+    for intro, job, candidate in rows:
+        if candidate.phone.startswith("web:"):
+            continue
+        results.append({
+            "intro_id":        intro.id,
+            "job_title":       job.title,
+            "company":         job.company,
+            "founder_name":    job.founder_name or "there",
+            "candidate_name":  candidate.name or "the candidate",
+            "candidate_phone": candidate.phone,
+        })
+
+    return results
+
+
+def build_offer_pending_message(intro_data: dict[str, Any]) -> str:
+    name    = (intro_data.get("candidate_name") or "").split()[0] or "hey"
+    company = intro_data.get("company", "them")
+    role    = intro_data.get("job_title", "the role")
+
+    return (
+        f"Hey {name},\n\n"
+        f"Congratulations on the offer from {company} for {role}!\n\n"
+        f"Are you leaning towards accepting? If you're weighing it up or have "
+        f"questions about the comp, equity, or role scope — I'm happy to help "
+        f"you think it through.\n\n"
+        f"And if you decide not to take it, just let me know — I'll keep your "
+        f"search active.\n\n"
+        f"— Mitra"
+    )
+
+
+# ── 6. POST-PLACEMENT OUTCOME CHECK-IN ───────────────────────────────────────
 
 async def get_placements_for_checkin(
     db: AsyncSession,
