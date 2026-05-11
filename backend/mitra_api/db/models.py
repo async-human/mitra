@@ -184,6 +184,9 @@ class Intro(Base):
     response_token: Mapped[str|None] = mapped_column(String(64), unique=True, index=True)  # one-click reply
     requested_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     sent_at:        Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    interview_at:   Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    offer_at:       Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    hired_at:       Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
     updated_at:     Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     candidate: Mapped[Candidate] = relationship(back_populates="intros")

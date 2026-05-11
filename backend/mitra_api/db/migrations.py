@@ -44,6 +44,14 @@ async def create_all() -> None:
         await conn.run_sync(Base.metadata.create_all)
         log.info("All tables created")
 
+        # Stage timestamps on intros — track time-to-hire funnel
+        for col in ("interview_at", "offer_at", "hired_at"):
+            await conn.execute(text(f"""
+                ALTER TABLE intros
+                ADD COLUMN IF NOT EXISTS {col} TIMESTAMPTZ
+            """))
+        log.info("intros stage timestamp columns ready")
+
         # Add the actual vector column to job_embeddings
         # (SQLAlchemy doesn't have a native pgvector column type yet)
         await conn.execute(text(f"""

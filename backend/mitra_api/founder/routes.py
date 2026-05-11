@@ -682,41 +682,88 @@ _RESPOND_HTML = """<!DOCTYPE html>
 </html>"""
 
 
+_ACTION_MESSAGES = {
+    "interested": (
+        "Good news — {company} wants to connect",
+        "Great news — {founder} at {company} responded to your intro for the *{role}* role "
+        "and they're interested in connecting!\n\nWe'll coordinate next steps and reach out to you shortly.",
+    ),
+    "not_a_fit": (
+        "Update on your intro to {company}",
+        "{company} has reviewed your intro for the *{role}* role. "
+        "They mentioned it's not the right fit at this moment — but your profile is strong "
+        "and we're continuing to look for the best opportunities for you.",
+    ),
+    "schedule": (
+        "Interview scheduled with {company}",
+        "Your interview with {company} for the *{role}* role has been confirmed! "
+        "The team will be in touch shortly with details.\n\nGood luck — you've got this.",
+    ),
+    "offer": (
+        "{company} has extended you an offer",
+        "Big news — {company} has extended you an offer for the *{role}* role! "
+        "We'll reach out to help you navigate next steps, including any negotiation support.\n\n"
+        "Congratulations — this is a big moment.",
+    ),
+    "hired": (
+        "Congratulations — you joined {company}!",
+        "Incredible news — you've officially joined {company} as *{role}*! "
+        "We're so glad we could make this intro happen.\n\n"
+        "Best of luck in the new role. You're going to do great.",
+    ),
+}
+
+
 async def _notify_candidate_of_response(
     *,
-    candidate_email: str,
+    candidate_phone: str,
     candidate_name: str,
     founder_name: str,
     company: str,
     job_title: str,
     action: str,
 ) -> None:
-    """Send the candidate an email when a founder responds to their intro."""
+    """
+    Notify the candidate when a founder takes an action on their intro.
+    Sends via email for web candidates (phone starts with 'web:')
+    and via WhatsApp for WhatsApp candidates (plain phone number).
+    """
     from mitra_api.tools.email import send_email
 
-    if action == "interested":
-        subject = f"Good news — {company} wants to connect · Mitra"
-        body = (
-            f"Hi {candidate_name},\n\n"
-            f"Great news — {founder_name or 'the founder'} at {company} responded to your intro "
-            f"for the {job_title} role and they're interested in connecting!\n\n"
-            f"We'll coordinate next steps and reach out to you shortly.\n\n"
-            f"— Mitra"
-        )
-    else:
-        subject = f"Update on your intro to {company} · Mitra"
-        body = (
-            f"Hi {candidate_name},\n\n"
-            f"{company} has reviewed your intro for the {job_title} role. "
-            f"They mentioned it's not the right fit at this moment — but your profile is strong "
-            f"and we're continuing to look for the best opportunities for you.\n\n"
-            f"— Mitra"
-        )
+    subject_tpl, body_tpl = _ACTION_MESSAGES.get(action, _ACTION_MESSAGES["not_a_fit"])
+    ctx = {
+        "founder": founder_name or "the founder",
+        "company": company,
+        "role":    job_title,
+    }
+    subject = subject_tpl.format(**ctx) + " · Mitra"
+    body    = f"Hi {candidate_name},\n\n" + body_tpl.format(**ctx) + "\n\n— Mitra"
 
+    # ── Email delivery (web candidates) ───────────────────────────────────────
+    if candidate_phone.startswith("web:"):
+        candidate_email = candidate_phone.removeprefix("web:").strip()
+        if "@" in candidate_email:
+            try:
+                await send_email(to=candidate_email, subject=subject, text=body)
+            except Exception:
+                log.warning("candidate email notification failed for %s (non-critical)", candidate_email)
+        return
+
+    # ── WhatsApp delivery (phone candidates) ─────────────────────────────────
+    phone = candidate_phone.strip()
+    if not phone:
+        return
     try:
-        await send_email(to=candidate_email, subject=subject, text=body)
+        from mitra_api.twilio_whatsapp.client import send_whatsapp_reply
+        # WhatsApp body: plain text without email subject line, keep markdown bold (*..*)
+        wa_body = f"Hi {candidate_name},\n\n" + body_tpl.format(**ctx) + "\n\n— Mitra"
+        # Normalise to whatsapp:+XXXXXXXXXX format
+        digits = "".join(c for c in phone if c.isdigit())
+        wa_to  = f"whatsapp:+{digits}"
+        await send_whatsapp_reply(to_whatsapp_from_value=wa_to, body=wa_body)
+        log.info("candidate WA notification sent to %s action=%s", phone, action)
     except Exception:
-        log.warning("candidate response notification failed for %s (non-critical)", candidate_email)
+        log.warning("candidate WA notification failed for %s action=%s (non-critical)", phone, action)
 
 
 @router.get("/respond", response_class=HTMLResponse)
@@ -776,18 +823,14 @@ async def founder_respond(
 
     # Derive candidate contact info
     cand_name  = (candidate.name or "there") if candidate else "there"
-    cand_email = ""
-    if candidate and candidate.phone.startswith("web:"):
-        cand_email = candidate.phone.removeprefix("web:").strip()
+    company    = job.company if job else "the company"
+    job_title  = job.title   if job else "the role"
 
-    company   = job.company   if job else "the company"
-    job_title = job.title     if job else "the role"
-
-    # Fire-and-forget candidate notification
-    if cand_email and "@" in cand_email:
+    # Fire-and-forget candidate notification (email or WhatsApp)
+    if candidate and candidate.phone:
         import asyncio
         asyncio.create_task(_notify_candidate_of_response(
-            candidate_email=cand_email,
+            candidate_phone=candidate.phone,
             candidate_name=cand_name,
             founder_name=(job.founder_name or "") if job else "",
             company=company,
@@ -1110,13 +1153,17 @@ async def founder_portal_link(
     return PortalLinkResponse(portal_url=portal_url, job_id=job.id)
 
 
+_GHOST_AFTER_DAYS = 7
+
+
 @router.get("/portal", response_model=PortalResponse)
 async def founder_portal(
     token: str = Query(..., description="Founder access token from intro email"),
 ) -> PortalResponse:
     """Return job details + all introduced candidates for this founder's role."""
+    from datetime import datetime, timedelta, timezone
     from mitra_api.db.engine import get_session_factory
-    from mitra_api.db.models import Job as JobModel, Intro, Candidate, CandidateSignal
+    from mitra_api.db.models import Job as JobModel, Intro, IntroStatus, Candidate, CandidateSignal
 
     factory = get_session_factory()
     async with factory() as db:
@@ -1126,6 +1173,22 @@ async def founder_portal(
 
         if not job:
             raise HTTPException(status_code=404, detail="Portal not found or token expired.")
+
+        # Auto-ghost stale intros that never got a founder response
+        ghost_cutoff = datetime.now(timezone.utc) - timedelta(days=_GHOST_AFTER_DAYS)
+        stale = (await db.execute(
+            select(Intro).where(
+                Intro.job_id == job.id,
+                Intro.status == IntroStatus.sent,
+                Intro.sent_at <= ghost_cutoff,
+            )
+        )).scalars().all()
+        if stale:
+            for intro in stale:
+                intro.status     = IntroStatus.ghosted
+                intro.updated_at = datetime.now(timezone.utc)
+            await db.commit()
+            log.info("auto-ghosted %d stale intro(s) for job=%d", len(stale), job.id)
 
         # Load all intros for this job with candidates
         rows = (await db.execute(
@@ -1198,9 +1261,11 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
         "interested": IntroStatus.acknowledged,
         "not_a_fit":  IntroStatus.declined,
         "schedule":   IntroStatus.interview,
+        "offer":      IntroStatus.offer,
+        "hired":      IntroStatus.hired,
     }
     if body.action not in action_map:
-        raise HTTPException(400, f"Invalid action '{body.action}'. Use: interested, not_a_fit, schedule.")
+        raise HTTPException(400, f"Invalid action '{body.action}'. Use: interested, not_a_fit, schedule, offer, hired.")
 
     factory = get_session_factory()
     async with factory() as db:
@@ -1221,13 +1286,22 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
 
         # Skip if already in a terminal state
         terminal = {IntroStatus.hired, IntroStatus.declined}
-        if intro.status in terminal and body.action == "not_a_fit":
-            return PortalActionResponse(ok=True, new_status=intro.status.value if hasattr(intro.status, "value") else str(intro.status), message="Already actioned.")
+        current_status = intro.status.value if hasattr(intro.status, "value") else str(intro.status)
+        if current_status in {s.value for s in terminal} and body.action == "not_a_fit":
+            return PortalActionResponse(ok=True, new_status=current_status, message="Already actioned.")
 
         new_status = action_map[body.action]
-        intro.status = new_status
-        intro.updated_at = datetime.now(timezone.utc)
-        # Consume response_token if present (same link should not double-trigger)
+        now = datetime.now(timezone.utc)
+        intro.status     = new_status
+        intro.updated_at = now
+        # Set stage timestamp on first transition into each state
+        if body.action == "schedule" and intro.interview_at is None:
+            intro.interview_at = now
+        elif body.action == "offer" and intro.offer_at is None:
+            intro.offer_at = now
+        elif body.action == "hired" and intro.hired_at is None:
+            intro.hired_at = now
+        # Consume response_token (same link should not double-trigger)
         if intro.response_token:
             intro.response_token = None
         await db.commit()
@@ -1237,15 +1311,12 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
             select(Candidate).where(Candidate.id == intro.candidate_id)
         )).scalar_one_or_none()
 
-    cand_name  = (candidate.name or "there") if candidate else "there"
-    cand_email = ""
-    if candidate and candidate.phone.startswith("web:"):
-        cand_email = candidate.phone.removeprefix("web:").strip()
+    cand_name = (candidate.name or "there") if candidate else "there"
 
-    if cand_email and "@" in cand_email:
+    if candidate and candidate.phone:
         import asyncio
         asyncio.create_task(_notify_candidate_of_response(
-            candidate_email=cand_email,
+            candidate_phone=candidate.phone,
             candidate_name=cand_name,
             founder_name=job.founder_name or "",
             company=job.company,
@@ -1257,6 +1328,8 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
         "interested": f"Marked as interested — {cand_name} will be notified.",
         "not_a_fit":  f"Noted. {cand_name} has been informed respectfully.",
         "schedule":   f"Interview stage set — we'll coordinate with {cand_name}.",
+        "offer":      f"Offer extended — {cand_name} has been notified. Exciting!",
+        "hired":      f"Congratulations! {cand_name} is now marked as hired.",
     }
 
     log.info("portal action: job=%d intro=%d action=%s", job.id, intro.id, body.action)
