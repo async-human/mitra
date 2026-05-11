@@ -16,11 +16,13 @@ All other files (inbound.py, session_store.py, routes, etc.) stay unchanged.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
+from mitra_api.agent.memory import build_candidate_memory, inject_memory_into_context
 from mitra_api.agent.prompts import SYSTEM_PROMPT
 from mitra_api.agent.session_store import AgentSessionStore
 from mitra_api.config import Settings, get_settings
@@ -297,6 +299,18 @@ def build_tool_runner(
             except Exception:
                 log.exception("Postgres signal persist failed for %s (session store updated OK)", session_id)
 
+            # Fire memory build in background once enough signals have accumulated
+            try:
+                all_signals = await sessions.get_signals(session_id)
+                non_meta = {k: v for k, v in all_signals.items() if not k.startswith("_")}
+                if len(non_meta) >= 5:
+                    asyncio.create_task(
+                        _build_and_persist_memory(session_id, non_meta, db_factory),
+                        name=f"memory-build-{session_id}",
+                    )
+            except Exception:
+                log.debug("memory build scheduling failed (non-critical)")
+
             return json.dumps({"ok": True, "stored_keys": list(cleaned.keys())}, ensure_ascii=False)
 
         # ── 3. get_salary_benchmark ───────────────────────────────────────────
@@ -468,6 +482,27 @@ async def _load_weak_intros_note(candidate_phone: str, db_factory) -> str | None
         return None
 
 
+async def _build_and_persist_memory(
+    session_id: str,
+    signals: dict[str, Any],
+    db_factory: Any,
+) -> None:
+    """Background task: build a candidate memory portrait and store it in Postgres."""
+    try:
+        portrait_json = await build_candidate_memory(
+            signals=signals,
+            intro_history=[],
+        )
+        if not portrait_json:
+            return
+
+        async with db_factory() as db:
+            await persist_signals(session_id, {"_memory": portrait_json}, session=db)
+        log.info("memory: persisted candidate portrait for %s", session_id)
+    except Exception:
+        log.exception("_build_and_persist_memory failed for %s", session_id)
+
+
 async def _load_candidate_signals(
     *,
     session_id: str,
@@ -531,8 +566,12 @@ async def run_agent_turn(
         sessions=sessions,
     )
 
-    # Build message history
-    msgs: list[ChatMessage] = [ChatMessage(role="system", content=SYSTEM_PROMPT)]
+    # Separate the persisted memory portrait (never exposed as a raw signal)
+    candidate_memory = known_signals.pop("_memory", None) if known_signals else None
+
+    # Build message history — inject memory portrait into system prompt if available
+    effective_prompt = inject_memory_into_context(SYSTEM_PROMPT, candidate_memory, "candidate")
+    msgs: list[ChatMessage] = [ChatMessage(role="system", content=effective_prompt)]
     transcript: list[ChatMessage] = []
 
     if fresh_start:
