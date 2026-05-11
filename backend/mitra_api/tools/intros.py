@@ -353,6 +353,30 @@ async def request_intro(
             ),
         }
 
+    # ── Score intro confidence (advisory — never blocks sending) ─────────────
+    try:
+        from mitra_api.tools.intelligence import score_intro_confidence
+        confidence = score_intro_confidence(
+            candidate_signals=signals,
+            job={
+                "title":          job.title,
+                "company":        job.company,
+                "sector":         job.sector,
+                "stack":          job.stack,
+                "salary_max_lpa": job.salary_max_lpa,
+            },
+            founder_profile={},  # founder learning profiles not yet persisted
+        )
+        log.info(
+            "intro confidence: candidate=%s job=%s score=%.2f recommendation=%s reasons=%s",
+            candidate_phone, job_external_id,
+            confidence["confidence"],
+            confidence["send_recommendation"],
+            confidence["reasons"],
+        )
+    except Exception:
+        log.debug("confidence scoring failed (non-critical)")
+
     # ── Build intro message ───────────────────────────────────────────────────
     intro_note = _build_intro(
         candidate=candidate,

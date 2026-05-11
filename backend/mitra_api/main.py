@@ -44,9 +44,24 @@ async def lifespan(app: FastAPI):
     except Exception:
         pass  # DB may not be configured in all envs
 
+    # Start background scheduler (re-engagement, intro follow-up, check-ins)
+    scheduler_tasks: list = []
+    try:
+        from mitra_api.scheduler import start_scheduler
+        scheduler_tasks = await start_scheduler()
+    except Exception:
+        logging.exception("Scheduler failed to start (non-critical)")
+
     yield
 
     # Graceful shutdown
+    if scheduler_tasks:
+        try:
+            from mitra_api.scheduler import stop_scheduler
+            await stop_scheduler(scheduler_tasks)
+        except Exception:
+            pass
+
     await session_store.aclose()
     try:
         from mitra_api.db.engine import _engine
