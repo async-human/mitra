@@ -2712,6 +2712,122 @@ body {
   max-width: 460px;
 }
 
+/* Stats row */
+.dash-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+.dash-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--white);
+  border: 1px solid rgba(28,25,23,0.1);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+.dash-stat-pill--amber {
+  background: #FFFBEB;
+  border-color: #FDE68A;
+  color: #92400E;
+}
+.dash-stat-pill--green {
+  background: #ECFDF5;
+  border-color: #A7F3D0;
+  color: #065F46;
+}
+.dash-stat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dash-stat-dot--teal  { background: var(--teal); }
+.dash-stat-dot--ink   { background: rgba(28,25,23,0.35); }
+.dash-stat-dot--amber { background: #F59E0B; }
+.dash-stat-dot--green { background: #10B981; }
+
+/* Onboarding complete badge */
+.dash-onboarding-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 18px;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #065F46;
+  flex-wrap: wrap;
+}
+.dash-onboarding-icon {
+  display: flex;
+  align-items: center;
+  color: #10B981;
+}
+.dash-onboarding-sep {
+  width: 1px;
+  height: 13px;
+  background: rgba(6,95,70,0.25);
+  border-radius: 1px;
+}
+
+/* Pipeline status card */
+.dash-pipeline-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 28px;
+  background: var(--white);
+  border: 1.5px solid rgba(28,25,23,0.08);
+  border-radius: 18px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+  flex-wrap: wrap;
+}
+.dash-pipeline-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.dash-pipeline-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--teal) 10%, transparent);
+  color: var(--teal);
+  flex-shrink: 0;
+}
+.dash-pipeline-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: 3px;
+}
+.dash-pipeline-sub {
+  font-size: 13px;
+  color: var(--foreground-muted);
+  line-height: 1.5;
+}
+.dash-pipeline-update {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(28,25,23,0.4);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+.dash-pipeline-update:hover { color: var(--foreground); }
+
 /* Journey steps */
 .dash-journey {
   background: var(--white);
