@@ -457,7 +457,7 @@ export function FounderJobBuilder({
                   className="fjb-input"
                   placeholder={
                     stage === "confirming"
-                      ? "Say "post it" to go live, or describe what to change…"
+                      ? `Say "post it" to go live, or describe what to change…`
                       : "Paste your job description, or describe the role…"
                   }
                   value={input}
