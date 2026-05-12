@@ -367,6 +367,10 @@ def interpret_timing_signals(text: str) -> dict[str, Any]:
     ]):
         sigs["actively_interviewing"] = True
         sigs["urgency"] = "high"
+        sigs["framing_hint"] = (
+            "Candidate is actively interviewing elsewhere. Move fast — "
+            "acknowledge the timeline, search immediately, don't linger on intake."
+        )
 
     deadline_patterns = [
         r"deadline (?:is |in )?(\d+) (?:days?|weeks?)",
@@ -379,6 +383,10 @@ def interpret_timing_signals(text: str) -> dict[str, Any]:
         if m:
             sigs["offer_deadline_hint"] = m.group(0)
             sigs["urgency"] = "very_high"
+            sigs["framing_hint"] = (
+                f"URGENT — candidate has an offer deadline ({m.group(0)}). "
+                "Skip intake. Search immediately. Acknowledge the deadline first."
+            )
             break
 
     notice_patterns = [
