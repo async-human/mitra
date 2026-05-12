@@ -99,7 +99,9 @@ function JDExtractionLoader() {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    const timers = STEP_DELAYS.map((delay, i) =>
+    // Skip the last timer — final step stays "active" (spinning) until the
+    // API actually responds and the loader unmounts.
+    const timers = STEP_DELAYS.slice(0, EXTRACT_STEPS.length - 1).map((delay, i) =>
       setTimeout(() => setPhase(i + 1), delay)
     );
     return () => timers.forEach(clearTimeout);
