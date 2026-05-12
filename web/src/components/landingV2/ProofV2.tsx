@@ -27,7 +27,7 @@ export function ProofV2({ audience }: { audience: V2Audience }) {
 
   return (
     <section className={s.proof}>
-      <div className={s.proofInner}>
+      <div className={`${s.proofInner} ${s.audiencePane}`} key={audience}>
         <div className={s.proofStats}>
           {STATS[audience].map((stat) => (
             <div key={stat.label}>

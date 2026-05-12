@@ -16,6 +16,7 @@ export function FAQV2({ audience }: { audience: V2Audience }) {
         <div className={s.faqInner}>
           <p className={s.sectionLabel}>FAQ</p>
           <h2 className={s.sectionTitle}>Questions</h2>
+          <div className={s.audiencePane} key={audience}>
           {items.map((item) => (
             <details key={item.id} className={s.faqItem}>
               <summary className={s.faqSummary}>
@@ -25,6 +26,7 @@ export function FAQV2({ audience }: { audience: V2Audience }) {
               <p className={s.faqBody}>{item.a}</p>
             </details>
           ))}
+          </div>
         </div>
       </div>
     </section>

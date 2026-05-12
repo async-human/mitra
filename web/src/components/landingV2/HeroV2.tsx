@@ -1,6 +1,49 @@
+"use client";
+
+import { useState, useEffect, useRef, Fragment } from "react";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
 import s from "./landing-v2.module.css";
+
+/* ── Typing hook ──────────────────────────────────────────── */
+
+function useTyping(fullText: string, speed = 36) {
+  const [displayed, setDisplayed] = useState("");
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    let i = 0;
+    setDisplayed("");
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    const tick = () => {
+      if (i < fullText.length) {
+        setDisplayed(fullText.slice(0, i + 1));
+        i++;
+        // Slight jitter makes it feel hand-typed rather than mechanical
+        timerRef.current = setTimeout(tick, speed + Math.random() * 18);
+      }
+    };
+
+    timerRef.current = setTimeout(tick, 180);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [fullText, speed]);
+
+  return displayed;
+}
+
+/* Render a typed string — handles \n as <br /> */
+function TypedText({ text }: { text: string }) {
+  return (
+    <>
+      {text.split("\n").map((line, i) => (
+        <Fragment key={i}>{i > 0 && <br />}{line}</Fragment>
+      ))}
+    </>
+  );
+}
+
+/* ── Icons ────────────────────────────────────────────────── */
 
 function WhatsAppIcon() {
   return (
@@ -10,10 +53,12 @@ function WhatsAppIcon() {
   );
 }
 
+/* ── Content ──────────────────────────────────────────────── */
+
 const CONTENT = {
   candidate: {
     chip: "Now live · Engineers placed at Setu, CRED & Razorpay",
-    headline: <>The right introduction<br />changes everything.</>,
+    headlineText: "The right introduction\nchanges everything.",
     sub: (
       <>
         Brief Mitra on what actually matters. We search hundreds of funded startups
@@ -34,7 +79,7 @@ const CONTENT = {
   },
   company: {
     chip: "Now live · First 2 hires completely free",
-    headline: <>Hire the engineers<br />others can&apos;t reach.</>,
+    headlineText: "Hire the engineers\nothers can't reach.",
     sub: (
       <>
         Mitra speaks with engineers every day and understands them beyond their CV.
@@ -55,29 +100,53 @@ const CONTENT = {
   },
 };
 
+/* ── Component ────────────────────────────────────────────── */
+
 export function HeroV2({ audience }: { audience: V2Audience }) {
   const c = CONTENT[audience];
+  const typed = useTyping(c.headlineText);
+
+  // Delay for sub/CTA/proof to appear — gives the typing a head start
+  const afterDelay = Math.round(c.headlineText.length * 36 * 0.55);
 
   return (
     <section className={s.hero}>
       <div className={s.heroInner}>
-        <div className={s.heroBody}>
+        {/*
+          key=audience remounts this div on audience switch,
+          which resets all CSS animations and restarts typing.
+        */}
+        <div className={s.heroBody} key={audience}>
 
-          <div className={s.heroChip}>
+          {/* Chip fades in first */}
+          <div
+            className={`${s.heroChip} ${s.fadeUp}`}
+            style={{ "--anim-delay": "0ms" } as React.CSSProperties}
+          >
             <span className={s.chip}>
               <span className={s.chipDot} />
               {c.chip}
             </span>
           </div>
 
+          {/* Headline types out — cursor blinks at end */}
           <h1 className={s.heroHeadline}>
-            {c.headline}
+            <TypedText text={typed} />
             <span className={s.heroCursor} aria-hidden="true" />
           </h1>
 
-          <p className={s.heroSub}>{c.sub}</p>
+          {/* Sub, CTA, and proof fade in once typing has a head start */}
+          <p
+            className={`${s.heroSub} ${s.fadeUp}`}
+            style={{ "--anim-delay": `${afterDelay}ms` } as React.CSSProperties}
+          >
+            {c.sub}
+          </p>
 
-          <div className={s.heroCtaRow}>
+          <div
+            className={`${s.heroCtaRow} ${s.fadeUp}`}
+            style={{ "--anim-delay": `${afterDelay + 120}ms` } as React.CSSProperties}
+          >
             <a
               href={c.ctaHref}
               target="_blank"
@@ -92,15 +161,18 @@ export function HeroV2({ audience }: { audience: V2Audience }) {
             </a>
           </div>
 
-          <div className={s.heroProof}>
+          <div
+            className={`${s.heroProof} ${s.fadeUp}`}
+            style={{ "--anim-delay": `${afterDelay + 240}ms` } as React.CSSProperties}
+          >
             {c.proof.map((item, i) => (
-              <>
-                {i > 0 && <span key={`sep-${i}`} className={s.heroProofSep} />}
-                <div key={item} className={s.heroProofItem}>
+              <Fragment key={item}>
+                {i > 0 && <span className={s.heroProofSep} />}
+                <div className={s.heroProofItem}>
                   <span className={s.heroProofDot} />
                   {item}
                 </div>
-              </>
+              </Fragment>
             ))}
           </div>
 

@@ -1,5 +1,43 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import type { V2Audience } from "./LandingV2";
 import s from "./landing-v2.module.css";
+
+/* ── Scroll-reveal wrapper ────────────────────────────────── */
+
+function RevealCard({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.12 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`${s.revealCard} ${visible ? s.inView : ""}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ── Icons ────────────────────────────────────────────────── */
 
 function IconChat() {
   return (
@@ -54,45 +92,41 @@ function IconCheck() {
   );
 }
 
+/* ── Content ──────────────────────────────────────────────── */
+
 const STEPS = {
   candidate: [
     {
-      num: "Step 01",
-      Icon: IconChat,
+      num: "Step 01", Icon: IconChat,
       title: "Brief Mitra in 2 minutes",
       body: "Tell us what you actually want — not just your CV. A short WhatsApp conversation covers your motivation, what you want to own next, and what would make you say yes without sleeping on it.",
     },
     {
-      num: "Step 02",
-      Icon: IconSearch,
+      num: "Step 02", Icon: IconSearch,
       title: "We find roles with genuine fit",
       body: "Mitra searches funded startups and ranks them against your real preferences, not keywords. You see only roles where there's a strong match — scored by how well they fit what you actually described.",
     },
     {
-      num: "Step 03",
-      Icon: IconArrow,
+      num: "Step 03", Icon: IconArrow,
       title: "You get introduced, not applied",
       body: "A warm introduction from Mitra lands in the founder's inbox — not a cold application in a pile. They know who you are, why you fit, and why they should respond. Our intro response rate is over 90%.",
     },
   ],
   company: [
     {
-      num: "Step 01",
-      Icon: IconDoc,
+      num: "Step 01", Icon: IconDoc,
       title: "Brief us on the role",
       body: "Tell us what the role actually needs — not just the JD, but what good looks like in 90 days, what someone needs to thrive on your team, and what you won't compromise on.",
     },
     {
-      num: "Step 02",
-      Icon: IconUsers,
+      num: "Step 02", Icon: IconUsers,
       title: "We find candidates with intent",
-      body: "Mitra speaks with engineers daily and filters for people who are motivated to join a company like yours — not just 'open to opportunities'. Every candidate is screened for motivation, stage fit, and technical background.",
+      body: "Mitra speaks with engineers daily and filters for people who are motivated to join a company like yours — not just 'open to opportunities'. Every candidate is screened for motivation, stage fit, and background.",
     },
     {
-      num: "Step 03",
-      Icon: IconCheck,
+      num: "Step 03", Icon: IconCheck,
       title: "You get warm introductions",
-      body: "A shortlist of 3–5 pre-qualified candidates, each with full context: motivation, timeline, salary expectation, and why they want to specifically join your company. Not CVs — introductions.",
+      body: "A shortlist of 3–5 pre-qualified candidates, each with full context: motivation, timeline, salary expectation, and why they want to join your company specifically. Not CVs — introductions.",
     },
   ],
 };
@@ -102,22 +136,29 @@ const TITLE = {
   company: "From brief to shortlist in under a week.",
 };
 
+/* ── Component ────────────────────────────────────────────── */
+
 export function HowItWorksV2({ audience }: { audience: V2Audience }) {
   return (
     <section className={s.sectionWrap} id="how-it-works">
-      <div className={s.sectionInner}>
-        <p className={s.sectionLabel}>How it works</p>
-        <h2 className={s.sectionTitle}>{TITLE[audience]}</h2>
+      {/* key=audience re-triggers scroll reveal when switching modes */}
+      <div className={s.sectionInner} key={audience}>
+        <p className={`${s.sectionLabel} ${s.fadeUp}`} style={{ "--anim-delay": "0ms" } as React.CSSProperties}>
+          How it works
+        </p>
+        <h2 className={`${s.sectionTitle} ${s.fadeUp}`} style={{ "--anim-delay": "80ms" } as React.CSSProperties}>
+          {TITLE[audience]}
+        </h2>
         <div className={s.hiwSteps}>
-          {STEPS[audience].map(({ num, Icon, title, body }) => (
-            <div key={num} className={s.hiwStep}>
-              <p className={s.hiwStepNum}>{num}</p>
-              <div className={s.hiwStepIcon} aria-hidden="true">
-                <Icon />
+          {STEPS[audience].map(({ num, Icon, title, body }, i) => (
+            <RevealCard key={num} delay={i * 110}>
+              <div className={s.hiwStep}>
+                <p className={s.hiwStepNum}>{num}</p>
+                <div className={s.hiwStepIcon} aria-hidden="true"><Icon /></div>
+                <h3 className={s.hiwStepTitle}>{title}</h3>
+                <p className={s.hiwStepBody}>{body}</p>
               </div>
-              <h3 className={s.hiwStepTitle}>{title}</h3>
-              <p className={s.hiwStepBody}>{body}</p>
-            </div>
+            </RevealCard>
           ))}
         </div>
       </div>
