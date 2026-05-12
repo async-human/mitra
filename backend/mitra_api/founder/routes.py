@@ -927,6 +927,7 @@ class PortalActionRequest(BaseModel):
     action: str  # "interested" | "not_a_fit" | "schedule" | "offer" | "hired"
     interview_details: dict | None = None  # {"scheduled_at","format","link","notes"}
     offer_details: dict | None = None      # {"salary_lpa","equity_percent","start_date","notes"}
+    decline_reason: str | None = None      # optional free text when action == "not_a_fit"
 
 
 class PortalActionResponse(BaseModel):
@@ -1294,6 +1295,8 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
     if body.action not in action_map:
         raise HTTPException(400, f"Invalid action '{body.action}'. Use: interested, not_a_fit, schedule, offer, hired.")
 
+    from mitra_api.db.models import Match
+
     factory = get_session_factory()
     async with factory() as db:
         # Verify the token owns this intro
@@ -1334,9 +1337,21 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
                 intro.offer_details = body.offer_details
         elif body.action == "hired" and intro.hired_at is None:
             intro.hired_at = now
+        elif body.action == "not_a_fit" and body.decline_reason:
+            intro.decline_reason = body.decline_reason.strip()
         # Consume response_token (same link should not double-trigger)
         if intro.response_token:
             intro.response_token = None
+
+        # Sync outcome back to matches table for learning
+        match_row = (await db.execute(
+            select(Match).where(Match.intro_id == intro.id)
+        )).scalar_one_or_none()
+        if match_row:
+            match_row.founder_action   = body.action
+            match_row.founder_feedback = body.decline_reason.strip() if body.decline_reason else None
+            match_row.decided_at       = now
+
         await db.commit()
 
         # Notify candidate asynchronously

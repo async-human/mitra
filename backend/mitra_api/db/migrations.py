@@ -78,6 +78,46 @@ async def create_all() -> None:
         """))
         log.info("IVFFlat cosine index created on job_embeddings")
 
+        # decline_reason on intros — founder's stated reason when they decline
+        await conn.execute(text("""
+            ALTER TABLE intros
+            ADD COLUMN IF NOT EXISTS decline_reason TEXT
+        """))
+        log.info("intros.decline_reason column ready")
+
+        # matches table — every recommendation decision, gated or sent
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS matches (
+                id             SERIAL PRIMARY KEY,
+                candidate_id   INTEGER NOT NULL REFERENCES candidates(id),
+                job_id         INTEGER NOT NULL REFERENCES jobs(id),
+                intro_id       INTEGER REFERENCES intros(id),
+
+                salary_fit     FLOAT,
+                location_fit   FLOAT,
+                skill_fit      FLOAT,
+                overall_fit    FLOAT,
+
+                reranker_rank    INTEGER,
+                reranker_fit_pct INTEGER,
+                reranker_why     TEXT,
+
+                intro_sent   BOOLEAN NOT NULL DEFAULT FALSE,
+                gate_blocked BOOLEAN NOT NULL DEFAULT FALSE,
+                gate_missing JSONB,
+
+                founder_action   VARCHAR(30),
+                founder_feedback TEXT,
+
+                matched_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                decided_at  TIMESTAMPTZ
+            )
+        """))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS matches_candidate_idx ON matches(candidate_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS matches_job_idx ON matches(job_id)"))
+        await conn.execute(text("CREATE INDEX IF NOT EXISTS matches_intro_idx ON matches(intro_id)"))
+        log.info("matches table and indexes ready")
+
     await engine.dispose()
     log.info("Migrations complete")
 

@@ -20,7 +20,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
-    Boolean, DateTime, ForeignKey, Index, Integer,
+    Boolean, DateTime, Float, ForeignKey, Index, Integer,
     String, Text, UniqueConstraint, func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -189,10 +189,57 @@ class Intro(Base):
     hired_at:          Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
     interview_details: Mapped[Any|None]      = mapped_column(JSONB)  # {"scheduled_at","format","link","notes"}
     offer_details:     Mapped[Any|None]      = mapped_column(JSONB)  # {"salary_lpa","equity_percent","start_date","notes"}
+    decline_reason:    Mapped[str|None]      = mapped_column(Text)   # founder's stated reason for declining
     updated_at:        Mapped[datetime]      = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     candidate: Mapped[Candidate] = relationship(back_populates="intros")
     job:       Mapped[Job]       = relationship(back_populates="intros")
+    match:     Mapped[Match|None] = relationship(back_populates="intro", uselist=False)
+
+
+# ── MATCHES ───────────────────────────────────────────────────────────────────
+
+class Match(Base):
+    """
+    Every time Mitra considers a candidate for a job — whether or not an intro
+    was sent. This is the core learning dataset that enables quality improvement.
+
+    Gate outcome + dimensional fit scores are recorded at decision time.
+    Founder action / feedback are synced back when the founder responds.
+    """
+    __tablename__ = "matches"
+
+    id:           Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    candidate_id: Mapped[int] = mapped_column(ForeignKey("candidates.id"), nullable=False, index=True)
+    job_id:       Mapped[int] = mapped_column(ForeignKey("jobs.id"),       nullable=False, index=True)
+    intro_id:     Mapped[int|None] = mapped_column(ForeignKey("intros.id"), index=True)
+
+    # Dimensional fit scores — 0.0 (no fit) to 1.0 (perfect fit)
+    salary_fit:   Mapped[float|None] = mapped_column(Float)
+    location_fit: Mapped[float|None] = mapped_column(Float)
+    skill_fit:    Mapped[float|None] = mapped_column(Float)
+    overall_fit:  Mapped[float|None] = mapped_column(Float)
+
+    # LLM reranker context (populated when search produces this match)
+    reranker_rank:    Mapped[int|None] = mapped_column(Integer)  # position in shortlist
+    reranker_fit_pct: Mapped[int|None] = mapped_column(Integer)  # LLM's 0-100 score
+    reranker_why:     Mapped[str|None] = mapped_column(Text)     # personalised fit explanation
+
+    # Gate decision
+    intro_sent:   Mapped[bool]     = mapped_column(Boolean, default=False)
+    gate_blocked: Mapped[bool]     = mapped_column(Boolean, default=False)
+    gate_missing: Mapped[Any|None] = mapped_column(JSONB)  # list of missing signal keys
+
+    # Founder outcome (written back when founder responds)
+    founder_action:   Mapped[str|None] = mapped_column(String(30))  # interested|declined|interview|offer|hired
+    founder_feedback: Mapped[str|None] = mapped_column(Text)        # extracted reason / free text
+
+    matched_at:  Mapped[datetime]      = mapped_column(DateTime(timezone=True), server_default=func.now())
+    decided_at:  Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+
+    candidate: Mapped[Candidate] = relationship()
+    job:       Mapped[Job]       = relationship()
+    intro:     Mapped[Intro|None] = relationship(back_populates="match")
 
 
 # ── SALARY BENCHMARKS ─────────────────────────────────────────────────────────

@@ -37,6 +37,12 @@ Classify the reply intent as exactly one of these labels:
 
 Reply with ONLY the single label. No explanation."""
 
+_DECLINE_REASON_SYSTEM = """Extract the founder's reason for declining a candidate from their email reply.
+Return a single concise sentence (max 20 words) capturing the core reason.
+Examples: "Not enough backend experience", "Looking for a senior IC not a manager", "Already hired someone", "Salary expectations too high".
+If no clear reason is stated, return an empty string.
+Reply with ONLY the extracted reason or empty string — no explanation."""
+
 _FOUNDER_RESPONSES: dict[str, str] = {
     "interested": (
         "Great to hear — I'll let the candidate know you're interested.\n\n"
@@ -214,9 +220,9 @@ async def _handle_founder_reply(
         intent = (result.content or "other").strip().lower()
         log.info("email-reply: founder intent=%s intro_id=%s", intent, intro_id)
 
-        # Update intro status in DB
+        # Update intro status in DB (pass reply_text for decline reason extraction)
         if intro_id:
-            await _update_intro_from_intent(intro_id, intent)
+            await _update_intro_from_intent(intro_id, intent, reply_text=reply_text[:800])
 
         # Respond to founder
         response = _FOUNDER_RESPONSES.get(intent, _FOUNDER_RESPONSES["other"])
@@ -232,10 +238,34 @@ async def _handle_founder_reply(
         log.exception("email-reply: founder handler failed for %s", from_email)
 
 
-async def _update_intro_from_intent(intro_id: int, intent: str) -> None:
-    """Map founder intent to an IntroStatus and persist it."""
+async def _extract_decline_reason(reply_text: str) -> str:
+    """Use LLM to pull a concise decline reason from the founder's email."""
+    try:
+        from mitra_api.config import get_settings
+        from mitra_api.llm.factory import get_llm_adapter
+        from mitra_api.llm.types import ChatMessage
+        s = get_settings()
+        adapter = get_llm_adapter(s)
+        result = await adapter.complete(
+            model=s.mitra_llm_model,
+            messages=[
+                ChatMessage(role="system", content=_DECLINE_REASON_SYSTEM),
+                ChatMessage(role="user",   content=reply_text[:800]),
+            ],
+            tools=[],
+            max_tokens=40,
+            temperature=0.0,
+        )
+        return (result.content or "").strip()
+    except Exception:
+        log.debug("decline reason extraction failed (non-critical)")
+        return ""
+
+
+async def _update_intro_from_intent(intro_id: int, intent: str, reply_text: str = "") -> None:
+    """Map founder intent to an IntroStatus, capture decline reason, and persist."""
     from mitra_api.db.engine import get_session_factory
-    from mitra_api.db.models import Intro, IntroStatus
+    from mitra_api.db.models import Intro, IntroStatus, Match
     from sqlalchemy import select
 
     status_map = {
@@ -247,7 +277,12 @@ async def _update_intro_from_intent(intro_id: int, intent: str) -> None:
     if not new_status:
         return
 
+    decline_reason = ""
+    if intent == "passing" and reply_text:
+        decline_reason = await _extract_decline_reason(reply_text)
+
     try:
+        now = datetime.now(timezone.utc)
         factory = get_session_factory()
         async with factory() as db:
             row = (await db.execute(
@@ -256,11 +291,26 @@ async def _update_intro_from_intent(intro_id: int, intent: str) -> None:
 
             if row:
                 row.status     = new_status
-                row.updated_at = datetime.now(timezone.utc)
+                row.updated_at = now
                 if new_status == IntroStatus.interview:
-                    row.interview_at = datetime.now(timezone.utc)
+                    row.interview_at = now
+                if decline_reason:
+                    row.decline_reason = decline_reason
+
+                # Sync outcome to matches table
+                match_row = (await db.execute(
+                    select(Match).where(Match.intro_id == intro_id)
+                )).scalar_one_or_none()
+                if match_row:
+                    match_row.founder_action   = intent
+                    match_row.founder_feedback = decline_reason or None
+                    match_row.decided_at       = now
+
                 await db.commit()
-                log.info("intro %d status updated to %s", intro_id, new_status)
+                log.info(
+                    "intro %d status→%s decline_reason=%r",
+                    intro_id, new_status, decline_reason or "(none)",
+                )
     except Exception:
         log.exception("_update_intro_from_intent failed for intro_id=%d", intro_id)
 

@@ -18,13 +18,36 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mitra_api.db.models import Candidate, CandidateSignal, Intro, IntroStatus, Job
+from mitra_api.db.models import Candidate, CandidateSignal, Intro, IntroStatus, Job, Match
 from mitra_api.tools.candidates import upsert_candidate
+from mitra_api.tools.fit_score import compute_fit_scores
 
 log = logging.getLogger(__name__)
 
-# Signals that make an intro strong — checked for thin-intro detection, not as a gate
-_QUALITY_SIGNALS = ("candidate_name", "primary_stack", "current_role")
+# ── Intro gate ─────────────────────────────────────────────────────────────────
+
+# Hard-required: without these the intro message is hollow
+_GATE_REQUIRED = {
+    "candidate_name": "your full name",
+    "primary_stack":  "your primary tech stack (e.g. Python, React)",
+    "current_role":   "your current job title",
+}
+# At least one salary signal must be present
+_SALARY_SIGNALS = ("salary_floor_lpa", "salary_target_lpa", "salary_min_lpa", "current_ctc_lpa")
+
+# Soft-required: collected if missing but don't block the intro
+_SOFT_SIGNALS = ("notice_period_days", "motivation")
+
+
+def _gate_missing(signals: dict) -> list[str]:
+    """Return human-readable labels for every hard-required field that is absent."""
+    missing: list[str] = []
+    for key, label in _GATE_REQUIRED.items():
+        if not signals.get(key):
+            missing.append(label)
+    if not any(signals.get(k) for k in _SALARY_SIGNALS):
+        missing.append("your salary expectation (floor or target in LPA)")
+    return missing
 
 
 # ── Intro message builder ─────────────────────────────────────────────────────
@@ -264,14 +287,7 @@ async def request_intro(
     if candidate.current_role and "current_role" not in signals:
         signals["current_role"] = candidate.current_role
 
-    missing = [k for k in _QUALITY_SIGNALS if not signals.get(k)]
-    if missing:
-        log.info(
-            "request_intro: sending with thin profile — missing signals %s for %s",
-            missing, candidate_phone,
-        )
-
-    # ── Look up job ───────────────────────────────────────────────────────────
+    # ── Look up job (needed for gate message + fit scoring) ──────────────────
     # Strip the "job_" prefix that interactive_native.py prepends to row_ids
     clean_id = job_external_id.removeprefix("job_").strip()
 
@@ -292,6 +308,44 @@ async def request_intro(
         log.warning("request_intro: job not found — job_external_id=%r", job_external_id)
         return {"ok": False, "message": f"I couldn't find an active role with id '{job_external_id}'. Please share the job title or company name and I'll look it up."}
 
+    # ── Hard intro gate — block if required signals are missing ───────────────
+    missing = _gate_missing(signals)
+    if missing:
+        missing_str = ", ".join(missing)
+        log.info(
+            "request_intro: GATE BLOCKED — missing signals %s for candidate=%s job=%s",
+            missing, candidate_phone, job_external_id,
+        )
+        # Record the blocked match decision so we can track gate hit rates
+        blocked_match = Match(
+            candidate_id=candidate.id,
+            job_id=job.id,
+            gate_blocked=True,
+            gate_missing=missing,
+            intro_sent=False,
+        )
+        session.add(blocked_match)
+        await session.commit()
+        return {
+            "ok": False,
+            "needs_more_info": True,
+            "missing_signals": missing,
+            "message": (
+                f"I'd love to send your intro to {job.company} — but to make it strong enough "
+                f"that {job.founder_name or 'the founder'} actually responds, I need a few more "
+                f"details first: {missing_str}. "
+                f"A complete intro is 3× more likely to get a reply. Can you share those now?"
+            ),
+        }
+
+    # ── Soft signal nudge (non-blocking) ─────────────────────────────────────
+    soft_missing = [k for k in _SOFT_SIGNALS if not signals.get(k)]
+    if soft_missing:
+        log.info(
+            "request_intro: proceeding with soft-missing signals %s for candidate=%s",
+            soft_missing, candidate_phone,
+        )
+
     # ── Duplicate check — allow strengthen if original was thin ──────────────
     existing_intro = (await session.execute(
         select(Intro).where(Intro.candidate_id == candidate.id, Intro.job_id == job.id)
@@ -299,7 +353,7 @@ async def request_intro(
 
     if existing_intro:
         old_note = existing_intro.intro_note or ""
-        signals_now_complete = all(signals.get(k) for k in _QUALITY_SIGNALS)
+        signals_now_complete = not bool(_gate_missing(signals))
         intro_was_thin = any(
             marker in old_note
             for marker in ("not specified", "several years", "their current company", "+91")
@@ -353,7 +407,22 @@ async def request_intro(
             ),
         }
 
-    # ── Score intro confidence (advisory — never blocks sending) ─────────────
+    # ── Compute dimensional fit scores ───────────────────────────────────────
+    fit = compute_fit_scores(
+        signals=signals,
+        job_salary_min=job.salary_min_lpa,
+        job_salary_max=job.salary_max_lpa,
+        job_location=job.location,
+        job_remote_policy=job.remote_policy,
+        job_stack=job.stack if isinstance(job.stack, list) else [],
+    )
+    log.info(
+        "fit scores: candidate=%s job=%s salary=%.2f location=%.2f skill=%.2f overall=%.2f",
+        candidate_phone, job_external_id,
+        fit["salary_fit"], fit["location_fit"], fit["skill_fit"], fit["overall_fit"],
+    )
+
+    # ── Score intro confidence (advisory) ────────────────────────────────────
     try:
         from mitra_api.tools.intelligence import score_intro_confidence
         confidence = score_intro_confidence(
@@ -365,7 +434,7 @@ async def request_intro(
                 "stack":          job.stack,
                 "salary_max_lpa": job.salary_max_lpa,
             },
-            founder_profile={},  # founder learning profiles not yet persisted
+            founder_profile={},
         )
         log.info(
             "intro confidence: candidate=%s job=%s score=%.2f recommendation=%s reasons=%s",
@@ -385,7 +454,7 @@ async def request_intro(
         why_note=why_note or "Strong technical and cultural fit based on their full profile.",
     )
 
-    # ── Persist intro record ──────────────────────────────────────────────────
+    # ── Persist intro + match records ─────────────────────────────────────────
     response_token = secrets.token_urlsafe(32)
     intro = Intro(
         candidate_id=candidate.id,
@@ -396,6 +465,20 @@ async def request_intro(
         sent_at=datetime.now(timezone.utc),
     )
     session.add(intro)
+    await session.flush()  # get intro.id
+
+    match_record = Match(
+        candidate_id=candidate.id,
+        job_id=job.id,
+        intro_id=intro.id,
+        salary_fit=fit["salary_fit"],
+        location_fit=fit["location_fit"],
+        skill_fit=fit["skill_fit"],
+        overall_fit=fit["overall_fit"],
+        intro_sent=True,
+        gate_blocked=False,
+    )
+    session.add(match_record)
     await session.flush()
 
     # ── Deliver to founder (+ ops BCC / fallback) ────────────────────────────
