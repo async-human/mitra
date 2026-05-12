@@ -60,9 +60,6 @@ export default async function SignInPage({ searchParams }: Props) {
   if (!role) {
     return (
       <main className="signin-page">
-        <div className="signin-glow signin-glow--a" aria-hidden="true" />
-        <div className="signin-glow signin-glow--b" aria-hidden="true" />
-
         <div className="signin-card signin-card--wide">
           <div className="signin-logo-row"><Logo /></div>
 
@@ -111,9 +108,6 @@ export default async function SignInPage({ searchParams }: Props) {
 
   return (
     <main className="signin-page">
-      <div className="signin-glow signin-glow--a" aria-hidden="true" />
-      <div className="signin-glow signin-glow--b" aria-hidden="true" />
-
       <div className="signin-card">
         <div className="signin-logo-row"><Logo /></div>
 
