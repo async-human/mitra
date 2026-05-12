@@ -49,7 +49,6 @@ async def enrich_company(
     Fire-and-forget: enriches Job.signals["company_info"] for the given job.
     Silently logs errors — never raises so it cannot break the job creation flow.
     """
-    import asyncio
     from mitra_api.config import get_settings
     from mitra_api.db.engine import get_session_factory
     from mitra_api.db.models import Job as JobModel
@@ -70,8 +69,7 @@ async def enrich_company(
 
     user_content = "\n".join(context_parts)
 
-    # Small delay so the job commit is visible before we read it back
-    await asyncio.sleep(0.5)
+    log.info("company_enricher: starting LLM enrichment for company=%r job_id=%d", company_name, job_id)
 
     try:
         adapter = get_llm_adapter(s)

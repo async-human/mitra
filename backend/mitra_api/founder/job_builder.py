@@ -19,7 +19,7 @@ import re
 import secrets as _secrets
 from typing import Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from mitra_api.agent.session_store import AgentSessionStore, build_session_store
@@ -159,8 +159,8 @@ def _merge_job(base: dict, update: dict) -> dict:
     return result
 
 
-async def _create_job(job: dict, auth_email: str | None, session_id: str) -> tuple[int, str]:
-    """Create a Job record in DB. Returns (job_id, portal_url). Idempotent."""
+async def _create_job(job: dict, auth_email: str | None, session_id: str) -> tuple[int, str, str, str | None, str | None]:
+    """Create a Job record in DB. Returns (job_id, portal_url, company, sector, location). Idempotent."""
     from sqlalchemy import select
     from mitra_api.db.engine import get_session_factory
     from mitra_api.db.models import Job as JobModel, JobStatus
@@ -184,7 +184,7 @@ async def _create_job(job: dict, auth_email: str | None, session_id: str) -> tup
         if existing:
             settings = get_settings()
             portal_url = f"{settings.mitra_web_base_url.rstrip('/')}/founder/portal?token={existing.founder_access_token}"
-            return existing.id, portal_url
+            return existing.id, portal_url, company, job.get("sector"), job.get("location")
 
         sal_min = job.get("salary_min_lpa")
         sal_max = job.get("salary_max_lpa")
@@ -233,22 +233,9 @@ async def _create_job(job: dict, auth_email: str | None, session_id: str) -> tup
         except Exception:
             log.warning("job_builder: notify_matching_candidates_bg failed (non-critical)")
 
-        # Fire company enrichment in the background (never blocks job creation)
-        try:
-            import asyncio
-            from mitra_api.founder.company_enricher import enrich_company
-            asyncio.create_task(enrich_company(
-                company_name=company,
-                sector=job.get("sector"),
-                location=job.get("location"),
-                job_id=new_job.id,
-            ))
-        except Exception:
-            log.warning("job_builder: could not schedule company enrichment for job_id=%d", new_job.id)
-
         settings = get_settings()
         portal_url = f"{settings.mitra_web_base_url.rstrip('/')}/founder/portal?token={new_job.founder_access_token}"
-        return new_job.id, portal_url
+        return new_job.id, portal_url, company, job.get("sector"), job.get("location")
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -330,6 +317,7 @@ async def _run_llm_turn(
 @router.post("/chat", response_model=JobBuilderChatResponse)
 async def job_builder_chat(
     body: JobBuilderChatRequest,
+    background_tasks: BackgroundTasks,
     settings: Settings = Depends(get_settings),
 ) -> JobBuilderChatResponse:
     store = _get_store(settings)
@@ -353,7 +341,16 @@ async def job_builder_chat(
     # ── Confirmation → create job ─────────────────────────────────────────────
     if current_stage == "confirming" and not is_init and _is_confirmation(body.message.strip()):
         try:
-            _, portal_url = await _create_job(current_job, body.auth_email, body.session_id)
+            from mitra_api.founder.company_enricher import enrich_company
+            job_id, portal_url, _company, _sector, _location = await _create_job(current_job, body.auth_email, body.session_id)
+            background_tasks.add_task(
+                enrich_company,
+                company_name=_company,
+                sector=_sector,
+                location=_location,
+                job_id=job_id,
+            )
+            log.info("job_builder: company enrichment queued for job_id=%d company=%r", job_id, _company)
             await store.merge_signals(sid, {"_stage": "posted", "_portal_url": portal_url})
             await store.append_messages(sid, [
                 ChatMessage(role="user",      content=body.message.strip()),
