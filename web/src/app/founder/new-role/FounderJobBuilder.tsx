@@ -23,26 +23,24 @@ interface JobPreview {
   summary?: string;
 }
 
-interface ChatMessage {
+interface ChatMsg {
   role: "mitra" | "user";
   text: string;
   jobPreview?: JobPreview;
   portalUrl?: string;
-  isUpload?: boolean;
+  isFile?: boolean;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Text rendering ────────────────────────────────────────────────────────────
 
 function renderInline(line: string): React.ReactNode[] {
   const regex = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
   const nodes: React.ReactNode[] = [];
-  let last = 0;
-  let m: RegExpExecArray | null;
+  let last = 0, m: RegExpExecArray | null;
   while ((m = regex.exec(line)) !== null) {
     if (m.index > last) nodes.push(line.slice(last, m.index));
     const s = m[0];
-    if (s.startsWith("**")) nodes.push(<strong key={m.index}>{s.slice(2, -2)}</strong>);
-    else nodes.push(<strong key={m.index}>{s.slice(1, -1)}</strong>);
+    nodes.push(<strong key={m.index}>{s.startsWith("**") ? s.slice(2, -2) : s.slice(1, -1)}</strong>);
     last = m.index + s.length;
   }
   if (last < line.length) nodes.push(line.slice(last));
@@ -55,36 +53,43 @@ function renderText(text: string) {
   ));
 }
 
-function salaryLabel(min?: number, max?: number): string | null {
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function salaryLabel(min?: number, max?: number) {
   if (!min && !max) return null;
   if (min && max && min !== max) return `₹${min}–${max}L / yr`;
   return `₹${min || max}L / yr`;
 }
 
-function remoteBadge(policy?: string): string {
-  if (!policy) return "";
-  return { remote: "Remote", hybrid: "Hybrid", onsite: "In-office" }[policy] ?? policy;
-}
-
-function employmentBadge(emp?: string): string {
-  return { full_time: "Full-time", contract: "Contract", part_time: "Part-time" }[emp ?? ""] ?? "";
-}
+const REMOTE_LABEL: Record<string, string> = {
+  remote: "Remote", hybrid: "Hybrid", onsite: "In-office",
+};
+const EMP_LABEL: Record<string, string> = {
+  full_time: "Full-time", contract: "Contract", part_time: "Part-time",
+};
 
 // ── Job preview card ──────────────────────────────────────────────────────────
 
-function JobPreviewCard({
-  job, onPost, onEdit, posting,
-}: {
-  job: JobPreview;
-  onPost: () => void;
-  onEdit: () => void;
-  posting: boolean;
+function JobPreviewCard({ job, onPost, onEdit, posting }: {
+  job: JobPreview; onPost: () => void; onEdit: () => void; posting: boolean;
 }) {
   const salary = salaryLabel(job.salary_min_lpa, job.salary_max_lpa);
+  const badges = [
+    job.stage, job.sector,
+    job.location,
+    job.remote_policy ? REMOTE_LABEL[job.remote_policy] : null,
+    job.employment && job.employment !== "full_time" ? EMP_LABEL[job.employment] : null,
+  ].filter(Boolean) as string[];
 
   return (
     <div className="fjb-preview">
-      <div className="fjb-preview-eyebrow">Preview — how candidates will see this role</div>
+      <p className="fjb-preview-eyebrow">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ display:"inline",verticalAlign:"middle",marginRight:5 }}>
+          <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.3" />
+          <path d="M6 4v3M6 8.5v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </svg>
+        Preview — how this role appears to candidates
+      </p>
 
       <div className="fjb-preview-header">
         <div className="fjb-preview-av">
@@ -94,16 +99,14 @@ function JobPreviewCard({
           <h3 className="fjb-preview-title">{job.title || "Untitled role"}</h3>
           <p className="fjb-preview-company">{job.company}</p>
         </div>
+        {salary && <span className="fjb-preview-salary">{salary}</span>}
       </div>
 
-      <div className="fjb-preview-badges">
-        {job.stage       && <span className="fjb-preview-badge">{job.stage}</span>}
-        {job.sector      && <span className="fjb-preview-badge">{job.sector}</span>}
-        {job.location    && <span className="fjb-preview-badge">{job.location}</span>}
-        {job.remote_policy && <span className="fjb-preview-badge">{remoteBadge(job.remote_policy)}</span>}
-        {job.employment  && job.employment !== "full_time" && <span className="fjb-preview-badge">{employmentBadge(job.employment)}</span>}
-        {salary          && <span className="fjb-preview-badge fjb-preview-badge--salary">{salary}</span>}
-      </div>
+      {badges.length > 0 && (
+        <div className="fjb-preview-badges">
+          {badges.map((b, i) => <span key={i} className="fjb-preview-badge">{b}</span>)}
+        </div>
+      )}
 
       {job.stack && job.stack.length > 0 && (
         <div className="fjb-preview-stack">
@@ -111,21 +114,14 @@ function JobPreviewCard({
         </div>
       )}
 
-      {job.summary && (
-        <p className="fjb-preview-summary">{job.summary}</p>
-      )}
+      {job.summary && <p className="fjb-preview-summary">{job.summary}</p>}
 
       <div className="fjb-preview-actions">
-        <button
-          className="fjb-preview-post-btn"
-          onClick={onPost}
-          disabled={posting}
-        >
-          {posting ? (
-            <><span className="fjb-spinner" /> Posting…</>
-          ) : (
-            "Post this role →"
-          )}
+        <button className="fjb-preview-post-btn" onClick={onPost} disabled={posting}>
+          {posting
+            ? <><span className="fjb-btn-spinner" /> Posting…</>
+            : <>Post this role <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg></>
+          }
         </button>
         <button className="fjb-preview-edit-btn" onClick={onEdit} disabled={posting}>
           Edit something
@@ -139,94 +135,133 @@ function JobPreviewCard({
 
 function PortalSuccessCard({ portalUrl }: { portalUrl: string }) {
   const [copied, setCopied] = useState(false);
-
   const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(portalUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch { /* ignore */ }
+    try { await navigator.clipboard.writeText(portalUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+    catch { /* ignore */ }
   }, [portalUrl]);
 
   return (
     <div className="fjb-success">
-      <div className="fjb-success-icon">✓</div>
-      <h3 className="fjb-success-title">Role is live!</h3>
-      <p className="fjb-success-sub">
-        Mitra is now matching candidates. You&apos;ll see introductions appear in your portal as they come in.
-      </p>
-      <a href={portalUrl} className="fjb-success-portal-btn">
-        Open founder portal →
-      </a>
-      <button className="fjb-success-copy-btn" onClick={copy}>
-        {copied ? "Copied!" : "Copy portal link"}
-      </button>
+      <div className="fjb-success-check">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M4 10l5 5 7-8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <div className="fjb-success-text">
+        <p className="fjb-success-title">Role is live — candidates incoming</p>
+        <p className="fjb-success-sub">Mitra is now matching engineers to this role. You&apos;ll see introductions in your portal.</p>
+      </div>
+      <div className="fjb-success-btns">
+        <a href={portalUrl} className="fjb-success-portal-btn">Open portal →</a>
+        <button className="fjb-success-copy-btn" onClick={copy}>{copied ? "Copied!" : "Copy link"}</button>
+      </div>
     </div>
   );
 }
 
-// ── Upload zone ───────────────────────────────────────────────────────────────
+// ── Hero (initial state before first message) ─────────────────────────────────
 
-function UploadZone({ onFile, disabled }: { onFile: (f: File) => void; disabled: boolean }) {
+function Hero({ onFile, onText, disabled }: {
+  onFile: (f: File) => void;
+  onText: (t: string) => void;
+  disabled: boolean;
+}) {
   const [dragging, setDragging] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [input, setInput] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
+    e.preventDefault(); setDragging(false);
     const f = e.dataTransfer.files?.[0];
     if (f) onFile(f);
   }, [onFile]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (input.trim()) { onText(input.trim()); setInput(""); } }
+  }, [input, onText]);
+
   return (
-    <div
-      className={`fjb-upload-zone${dragging ? " fjb-upload-zone--drag" : ""}${disabled ? " fjb-upload-zone--disabled" : ""}`}
-      onDragOver={e => { e.preventDefault(); setDragging(true); }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={handleDrop}
-      onClick={() => !disabled && inputRef.current?.click()}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".pdf,.docx,.doc"
-        style={{ display: "none" }}
-        onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); }}
-      />
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
-        <path d="M4 14v3a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M11 4v9M8 7l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <span>Upload JD <span className="fjb-upload-formats">PDF or Word</span></span>
+    <div className="fjb-hero">
+      <div className="fjb-hero-icon">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <rect width="28" height="28" rx="8" fill="#1C1917" />
+          <path d="M7 21V10l7-3 7 3v11l-7 2-7-2Z" stroke="white" strokeWidth="1.4" strokeLinejoin="round" />
+          <path d="M14 7v14M7 10l7 3 7-3" stroke="white" strokeWidth="1.4" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <h1 className="fjb-hero-title">Post a role in minutes</h1>
+      <p className="fjb-hero-sub">Upload a JD or describe the role — Mitra extracts all the details, writes a candidate-facing summary, and posts it for you.</p>
+
+      {/* Drop zone */}
+      <div
+        className={`fjb-drop${dragging ? " fjb-drop--active" : ""}${disabled ? " fjb-drop--disabled" : ""}`}
+        onDragOver={e => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => !disabled && fileRef.current?.click()}
+      >
+        <input ref={fileRef} type="file" accept=".pdf,.docx,.doc" style={{ display: "none" }}
+          onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
+        <div className="fjb-drop-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 4v10M8 8l4-4 4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        </div>
+        <p className="fjb-drop-label">{dragging ? "Drop it here" : "Drag & drop your JD here"}</p>
+        <p className="fjb-drop-formats">PDF or Word · up to 10 MB · <span className="fjb-drop-browse">browse files</span></p>
+      </div>
+
+      <div className="fjb-hero-divider"><span>or describe the role</span></div>
+
+      {/* Inline text input in hero */}
+      <div className="fjb-hero-input-wrap">
+        <textarea
+          className="fjb-hero-input"
+          placeholder="e.g. Senior Backend Engineer at Finstack, Series A fintech. Remote, 30–40 LPA. Python, FastAPI, PostgreSQL."
+          value={input}
+          rows={3}
+          disabled={disabled}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+        <button
+          className="fjb-hero-send"
+          disabled={!input.trim() || disabled}
+          onClick={() => { if (input.trim()) { onText(input.trim()); setInput(""); } }}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M14 8H2M8 3l6 5-6 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function FounderJobBuilder({
-  authEmail,
-  founderName,
-}: {
-  authEmail: string;
-  founderName: string;
+export function FounderJobBuilder({ authEmail, founderName }: {
+  authEmail: string; founderName: string;
 }) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [posting, setPosting] = useState(false);
   const [stage, setStage] = useState<"collecting" | "confirming" | "posted">("collecting");
   const [currentPreview, setCurrentPreview] = useState<JobPreview | null>(null);
-  const [portalUrl, setPortalUrl] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const initialized = useRef(false);
 
+  const hasUserMessage = messages.some(m => m.role === "user");
+
   const scrollToBottom = useCallback(() => {
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 60);
+    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
   }, []);
 
-  // ── API call ──────────────────────────────────────────────────────────────
+  // ── API ────────────────────────────────────────────────────────────────────
 
   const callChat = useCallback(async (message: string) => {
     setLoading(true);
@@ -241,110 +276,89 @@ export function FounderJobBuilder({
 
       setStage(data.stage);
       if (data.job_preview) setCurrentPreview(data.job_preview);
-      if (data.portal_url)  setPortalUrl(data.portal_url);
 
-      setMessages(prev => [
-        ...prev,
-        {
-          role: "mitra",
-          text: data.reply,
-          jobPreview: data.stage === "confirming" ? (data.job_preview ?? undefined) : undefined,
-          portalUrl:  data.stage === "posted"     ? (data.portal_url  ?? undefined) : undefined,
-        },
-      ]);
-    } catch (e) {
       setMessages(prev => [...prev, {
         role: "mitra",
-        text: "Something went wrong. Please try again.",
+        text: data.reply,
+        jobPreview: data.stage === "confirming" ? (data.job_preview ?? undefined) : undefined,
+        portalUrl:  data.stage === "posted"     ? (data.portal_url  ?? undefined) : undefined,
       }]);
+    } catch {
+      setMessages(prev => [...prev, { role: "mitra", text: "Something went wrong. Please try again." }]);
     } finally {
       setLoading(false);
       scrollToBottom();
     }
   }, [authEmail, scrollToBottom]);
 
-  // ── Init ──────────────────────────────────────────────────────────────────
-
+  // Init — just load greeting, don't show it until hero is dismissed
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    callChat("");
-  }, [callChat]);
+    // Pre-warm session silently — greeting shows after first user action
+  }, []);
 
-  // ── Send message ──────────────────────────────────────────────────────────
+  // ── Send text ──────────────────────────────────────────────────────────────
 
   const sendMessage = useCallback(async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || loading) return;
+    if (!text.trim() || loading) return;
     setInput("");
-    setMessages(prev => [...prev, { role: "user", text: trimmed }]);
+    // On first message, get greeting + response together
+    if (!hasUserMessage) {
+      setMessages([{ role: "user", text: text.trim() }]);
+    } else {
+      setMessages(prev => [...prev, { role: "user", text: text.trim() }]);
+    }
     scrollToBottom();
-    await callChat(trimmed);
-  }, [loading, callChat, scrollToBottom]);
+    await callChat(text.trim());
+  }, [loading, hasUserMessage, callChat, scrollToBottom]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input);
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
   }, [input, sendMessage]);
 
-  // Auto-grow textarea
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
     e.target.style.height = "auto";
-    e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+    e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
   }, []);
 
-  // ── File upload ───────────────────────────────────────────────────────────
+  // ── Upload ─────────────────────────────────────────────────────────────────
 
   const handleFile = useCallback(async (file: File) => {
     if (loading) return;
     setLoading(true);
-    setMessages(prev => [...prev, { role: "user", text: `📎 ${file.name}`, isUpload: true }]);
+    setMessages(prev => [...prev, { role: "user", text: file.name, isFile: true }]);
     scrollToBottom();
-
     try {
       const form = new FormData();
       form.append("session_id", authEmail);
       form.append("auth_email", authEmail);
       form.append("file", file);
 
-      const res = await fetch(`${API_URL}/founder/job-builder/upload`, {
-        method: "POST",
-        body: form,
-      });
+      const res = await fetch(`${API_URL}/founder/job-builder/upload`, { method: "POST", body: form });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { detail?: string }).detail || `Upload failed (${res.status})`);
       }
       const data = await res.json();
-
       setStage(data.stage);
       if (data.job_preview) setCurrentPreview(data.job_preview);
-      if (data.portal_url)  setPortalUrl(data.portal_url);
-
-      setMessages(prev => [
-        ...prev,
-        {
-          role: "mitra",
-          text: data.reply,
-          jobPreview: data.stage === "confirming" ? (data.job_preview ?? undefined) : undefined,
-          portalUrl:  data.stage === "posted"     ? (data.portal_url  ?? undefined) : undefined,
-        },
-      ]);
-    } catch (e) {
       setMessages(prev => [...prev, {
         role: "mitra",
-        text: e instanceof Error ? e.message : "Upload failed. Please try again.",
+        text: data.reply,
+        jobPreview: data.stage === "confirming" ? (data.job_preview ?? undefined) : undefined,
+        portalUrl:  data.stage === "posted"     ? (data.portal_url  ?? undefined) : undefined,
       }]);
+    } catch (e) {
+      setMessages(prev => [...prev, { role: "mitra", text: e instanceof Error ? e.message : "Upload failed." }]);
     } finally {
       setLoading(false);
       scrollToBottom();
     }
   }, [loading, authEmail, scrollToBottom]);
 
-  // ── Post confirmation (from preview card button) ───────────────────────────
+  // ── Confirm post ───────────────────────────────────────────────────────────
 
   const handlePostConfirm = useCallback(async () => {
     if (posting) return;
@@ -360,10 +374,8 @@ export function FounderJobBuilder({
       if (!res.ok) throw new Error(`API error ${res.status}`);
       const data = await res.json();
       setStage(data.stage);
-      if (data.portal_url) setPortalUrl(data.portal_url);
       setMessages(prev => [...prev, {
-        role: "mitra",
-        text: data.reply,
+        role: "mitra", text: data.reply,
         portalUrl: data.portal_url ?? undefined,
       }]);
     } catch {
@@ -374,10 +386,6 @@ export function FounderJobBuilder({
     }
   }, [posting, authEmail, scrollToBottom]);
 
-  const handleEditRequest = useCallback(() => {
-    textareaRef.current?.focus();
-  }, []);
-
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -387,99 +395,115 @@ export function FounderJobBuilder({
         <Link href="/founder/setup" className="fjb-topbar-logo">
           Mitra<span className="fjb-topbar-dot">.</span>
         </Link>
-        <div className="fjb-topbar-right">
-          <Link href="/founder/setup" className="fjb-topbar-link">← My roles</Link>
-        </div>
+        <nav className="fjb-topbar-nav">
+          <Link href="/founder/setup" className="fjb-topbar-link">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            My roles
+          </Link>
+        </nav>
       </header>
 
       <main className="fjb-main">
-        <div className="fjb-chat-wrap">
+        {/* Hero — shown before first user message */}
+        {!hasUserMessage && (
+          <Hero onFile={handleFile} onText={sendMessage} disabled={loading} />
+        )}
 
-          {/* Upload zone — shown until first user message */}
-          {messages.filter(m => m.role === "user").length === 0 && (
-            <UploadZone onFile={handleFile} disabled={loading} />
-          )}
+        {/* Chat — shown after first user message */}
+        {hasUserMessage && (
+          <div className="fjb-chat">
+            <div className="fjb-messages">
+              {messages.map((msg, i) => (
+                <div key={i} className={`fjb-msg fjb-msg--${msg.role}`}>
+                  {msg.role === "mitra" && <div className="fjb-av">M</div>}
 
-          {/* Messages */}
-          <div className="fjb-messages">
-            {messages.map((msg, i) => (
-              <div key={i} className={`fjb-msg fjb-msg--${msg.role}`}>
-                {msg.role === "mitra" && (
-                  <div className="fjb-msg-av">M</div>
-                )}
-                <div className="fjb-msg-body">
-                  <div className="fjb-msg-bubble">
-                    {renderText(msg.text)}
-                  </div>
+                  <div className="fjb-msg-body">
+                    {msg.isFile ? (
+                      <div className="fjb-file-pill">
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                          <path d="M3 1h6l3 3v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                          <path d="M8 1v4h4" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+                        </svg>
+                        {msg.text}
+                      </div>
+                    ) : (
+                      <div className="fjb-bubble">{renderText(msg.text)}</div>
+                    )}
 
-                  {/* Job preview card — inline in chat */}
-                  {msg.jobPreview && stage === "confirming" && (
-                    <JobPreviewCard
-                      job={msg.jobPreview}
-                      onPost={handlePostConfirm}
-                      onEdit={handleEditRequest}
-                      posting={posting}
-                    />
-                  )}
+                    {/* Preview card */}
+                    {msg.jobPreview && stage === "confirming" && (
+                      <JobPreviewCard
+                        job={msg.jobPreview}
+                        onPost={handlePostConfirm}
+                        onEdit={() => textareaRef.current?.focus()}
+                        posting={posting}
+                      />
+                    )}
 
-                  {/* Portal success card */}
-                  {msg.portalUrl && stage === "posted" && (
-                    <PortalSuccessCard portalUrl={msg.portalUrl} />
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {/* Loading indicator */}
-            {loading && (
-              <div className="fjb-msg fjb-msg--mitra">
-                <div className="fjb-msg-av">M</div>
-                <div className="fjb-msg-body">
-                  <div className="fjb-msg-bubble fjb-msg-bubble--loading">
-                    <span /><span /><span />
+                    {/* Success card */}
+                    {msg.portalUrl && stage === "posted" && (
+                      <PortalSuccessCard portalUrl={msg.portalUrl} />
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
+              ))}
 
-            <div ref={bottomRef} />
-          </div>
-
-          {/* Input row — hidden once posted */}
-          {stage !== "posted" && (
-            <div className="fjb-input-row">
-              {messages.filter(m => m.role === "user").length > 0 && (
-                <UploadZone onFile={handleFile} disabled={loading} />
+              {loading && (
+                <div className="fjb-msg fjb-msg--mitra">
+                  <div className="fjb-av">M</div>
+                  <div className="fjb-msg-body">
+                    <div className="fjb-bubble fjb-bubble--typing">
+                      <span /><span /><span />
+                    </div>
+                  </div>
+                </div>
               )}
-              <div className="fjb-input-wrap">
+
+              <div ref={bottomRef} />
+            </div>
+
+            {/* Input bar */}
+            {stage !== "posted" && (
+              <div className="fjb-inputbar">
+                <input ref={fileRef} type="file" accept=".pdf,.docx,.doc"
+                  style={{ display: "none" }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); if (e.target) e.target.value = ""; }} />
+
+                <button className="fjb-attach-btn" onClick={() => fileRef.current?.click()}
+                  disabled={loading || posting} title="Upload JD" aria-label="Upload JD">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 2v8M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M2 12v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+
                 <textarea
                   ref={textareaRef}
                   className="fjb-input"
-                  placeholder={
-                    stage === "confirming"
-                      ? `Say "post it" to go live, or describe what to change…`
-                      : "Paste your job description, or describe the role…"
-                  }
+                  placeholder={stage === "confirming"
+                    ? `Say "post it" to go live, or describe what to change…`
+                    : "Ask a follow-up or add more details…"}
                   value={input}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
                   rows={1}
                   disabled={loading || posting}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
                 />
-                <button
-                  className="fjb-send-btn"
+
+                <button className="fjb-send-btn"
                   onClick={() => sendMessage(input)}
                   disabled={!input.trim() || loading || posting}
-                  aria-label="Send"
-                >
-                  <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                    <path d="M15.5 9H2.5M9 3l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  aria-label="Send">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M14 8H2M9 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </button>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
