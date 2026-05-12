@@ -289,6 +289,7 @@ export function FounderJobBuilder({ authEmail, founderName }: {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingHint, setLoadingHint] = useState("")
   const [posting, setPosting] = useState(false);
   const [stage, setStage] = useState<"collecting" | "confirming" | "posted">("collecting");
   const [currentPreview, setCurrentPreview] = useState<JobPreview | null>(null);
@@ -370,6 +371,7 @@ export function FounderJobBuilder({ authEmail, founderName }: {
   const handleFile = useCallback(async (file: File) => {
     if (loading) return;
     setLoading(true);
+    setLoadingHint("Reading your JD…");
     setMessages(prev => [...prev, { role: "user", text: file.name, isFile: true }]);
     scrollToBottom();
     try {
@@ -396,6 +398,7 @@ export function FounderJobBuilder({ authEmail, founderName }: {
       setMessages(prev => [...prev, { role: "mitra", text: e instanceof Error ? e.message : "Upload failed." }]);
     } finally {
       setLoading(false);
+      setLoadingHint("");
       scrollToBottom();
     }
   }, [loading, authEmail, scrollToBottom]);
@@ -498,6 +501,7 @@ export function FounderJobBuilder({ authEmail, founderName }: {
                   <div className="fjb-msg-body">
                     <div className="fjb-bubble fjb-bubble--typing">
                       <span /><span /><span />
+                      {loadingHint && <span className="fjb-typing-hint">{loadingHint}</span>}
                     </div>
                   </div>
                 </div>
@@ -508,40 +512,42 @@ export function FounderJobBuilder({ authEmail, founderName }: {
 
             {/* Input bar */}
             {stage !== "posted" && (
-              <div className="fjb-inputbar">
-                <input ref={fileRef} type="file" accept=".pdf,.docx,.doc"
-                  style={{ display: "none" }}
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); if (e.target) e.target.value = ""; }} />
+              <div className="fjb-inputbar-wrap">
+                <div className="fjb-inputbar">
+                  <input ref={fileRef} type="file" accept=".pdf,.docx,.doc"
+                    style={{ display: "none" }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); if (e.target) e.target.value = ""; }} />
 
-                <button className="fjb-attach-btn" onClick={() => fileRef.current?.click()}
-                  disabled={loading || posting} title="Upload JD" aria-label="Upload JD">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                    <path d="M8 2v8M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M2 12v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                </button>
+                  <button className="fjb-attach-btn" onClick={() => fileRef.current?.click()}
+                    disabled={loading || posting} title="Upload JD" aria-label="Upload JD">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M8 2v8M5 5l3-3 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M2 12v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </button>
 
-                <textarea
-                  ref={textareaRef}
-                  className="fjb-input"
-                  placeholder={stage === "confirming"
-                    ? `Say "post it" to go live, or describe what to change…`
-                    : "Ask a follow-up or add more details…"}
-                  value={input}
-                  rows={1}
-                  disabled={loading || posting}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                />
+                  <textarea
+                    ref={textareaRef}
+                    className="fjb-input"
+                    placeholder={stage === "confirming"
+                      ? `Say "post it" to go live, or describe what to change…`
+                      : "Ask a follow-up or add more details…"}
+                    value={input}
+                    rows={1}
+                    disabled={loading || posting}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                  />
 
-                <button className="fjb-send-btn"
-                  onClick={() => sendMessage(input)}
-                  disabled={!input.trim() || loading || posting}
-                  aria-label="Send">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                    <path d="M14 8H2M9 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
+                  <button className="fjb-send-btn"
+                    onClick={() => sendMessage(input)}
+                    disabled={!input.trim() || loading || posting}
+                    aria-label="Send">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M14 8H2M9 3l5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             )}
           </div>

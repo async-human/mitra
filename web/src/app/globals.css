@@ -7880,8 +7880,7 @@ img.wchat-av--user { border-radius: 50%; }
   flex: 1;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  padding: 0 16px 40px;
+  padding: 0 16px;
 }
 
 /* ── Hero (before first message) ───────────────────────────────────────── */
@@ -8059,14 +8058,16 @@ img.wchat-av--user { border-radius: 50%; }
   max-width: 680px;
   display: flex;
   flex-direction: column;
-  padding-top: 24px;
+  min-height: calc(100vh - 56px); /* always fill viewport below topbar */
 }
 
 .fjb-messages {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: flex-end; /* messages cluster near input bar, like iMessage */
   gap: 20px;
-  padding-bottom: 16px;
+  padding: 28px 0 0;
 }
 
 .fjb-msg {
@@ -8142,6 +8143,19 @@ img.wchat-av--user { border-radius: 50%; }
   40%            { transform: scale(1.1); opacity: 1; }
 }
 
+.fjb-typing-hint {
+  font-size: 12px;
+  color: #9CA3AF;
+  margin-left: 6px;
+  font-style: italic;
+  animation: none;
+  background: none;
+  display: inline;
+  border-radius: 0;
+  width: auto;
+  height: auto;
+}
+
 /* File pill */
 .fjb-file-pill {
   display: inline-flex;
@@ -8161,6 +8175,15 @@ img.wchat-av--user { border-radius: 50%; }
 
 /* ── Input bar ──────────────────────────────────────────────────────────── */
 
+/* Gradient backdrop that sits above the message list */
+.fjb-inputbar-wrap {
+  position: sticky;
+  bottom: 0;
+  padding: 20px 0 24px;
+  background: linear-gradient(to bottom, rgba(250,248,245,0) 0%, #FAF8F5 28%);
+  pointer-events: none; /* allow scroll through the gradient area */
+}
+
 .fjb-inputbar {
   display: flex;
   align-items: flex-end;
@@ -8169,10 +8192,9 @@ img.wchat-av--user { border-radius: 50%; }
   border: 1.5px solid #E5E7EB;
   border-radius: 16px;
   padding: 10px 10px 10px 12px;
-  position: sticky;
-  bottom: 24px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.09);
   transition: border-color 0.15s;
+  pointer-events: auto; /* re-enable on the actual bar */
 }
 .fjb-inputbar:focus-within { border-color: #9CA3AF; }
 
@@ -8531,7 +8553,7 @@ img.wchat-av--user { border-radius: 50%; }
 
 @media (max-width: 600px) {
   .fjb-topbar { padding: 0 16px; }
-  .fjb-main   { padding: 0 12px 32px; }
+  .fjb-main   { padding: 0 12px; }
   .fjb-hero   { padding-top: 36px; }
   .fjb-hero-title { font-size: 22px; }
   .fjb-preview { padding: 14px; }
@@ -8539,4 +8561,5 @@ img.wchat-av--user { border-radius: 50%; }
   .fjb-preview-post-btn { flex: none; }
   .fjb-success { flex-wrap: wrap; }
   .fjb-success-btns { flex-direction: row; }
+  .fjb-inputbar-wrap { padding: 16px 0 20px; }
 }
