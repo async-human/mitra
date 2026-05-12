@@ -8131,16 +8131,13 @@ img.wchat-av--user { border-radius: 50%; }
   max-width: 680px;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 56px); /* always fill viewport below topbar */
 }
 
 .fjb-messages {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end; /* messages cluster near input bar, like iMessage */
   gap: 20px;
-  padding: 28px 0 0;
+  padding: 28px 0 140px;
 }
 
 .fjb-msg {
@@ -8216,17 +8213,19 @@ img.wchat-av--user { border-radius: 50%; }
   40%            { transform: scale(1.1); opacity: 1; }
 }
 
-.fjb-typing-hint {
+.fjb-bubble--typing .fjb-typing-hint {
+  display: inline;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  animation: none;
   font-size: 12px;
   color: #9CA3AF;
   margin-left: 6px;
   font-style: italic;
-  animation: none;
-  background: none;
-  display: inline;
-  border-radius: 0;
-  width: auto;
-  height: auto;
+  transform: none;
+  opacity: 1;
 }
 
 /* File pill */
@@ -8248,16 +8247,23 @@ img.wchat-av--user { border-radius: 50%; }
 
 /* ── Input bar ──────────────────────────────────────────────────────────── */
 
-/* Gradient backdrop that sits above the message list */
+/* Fixed input bar — floats over messages at bottom of viewport */
 .fjb-inputbar-wrap {
-  position: sticky;
+  position: fixed;
   bottom: 0;
-  padding: 20px 0 24px;
-  background: linear-gradient(to bottom, rgba(250,248,245,0) 0%, #FAF8F5 28%);
-  pointer-events: none; /* allow scroll through the gradient area */
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  padding: 36px 16px 24px;
+  background: linear-gradient(to bottom, transparent 0%, #FAF8F5 38%);
+  pointer-events: none;
 }
 
 .fjb-inputbar {
+  width: 100%;
+  max-width: 680px;
   display: flex;
   align-items: flex-end;
   gap: 6px;
@@ -8267,7 +8273,7 @@ img.wchat-av--user { border-radius: 50%; }
   padding: 10px 10px 10px 12px;
   box-shadow: 0 2px 16px rgba(0,0,0,0.09);
   transition: border-color 0.15s;
-  pointer-events: auto; /* re-enable on the actual bar */
+  pointer-events: auto;
 }
 .fjb-inputbar:focus-within { border-color: #9CA3AF; }
 
@@ -8634,5 +8640,5 @@ img.wchat-av--user { border-radius: 50%; }
   .fjb-preview-post-btn { flex: none; }
   .fjb-success { flex-wrap: wrap; }
   .fjb-success-btns { flex-direction: row; }
-  .fjb-inputbar-wrap { padding: 16px 0 20px; }
+  .fjb-inputbar-wrap { padding: 24px 12px 16px; }
 }
