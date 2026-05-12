@@ -8701,6 +8701,28 @@ img.wchat-av--user { border-radius: 50%; }
   padding-top: 4px;
 }
 
+/* Shown below preview card when still collecting missing fields */
+.fjb-preview-incomplete {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: #9CA3AF;
+  padding: 10px 2px 2px;
+}
+
+/* Follow-up question shown below preview card in collecting stage */
+.fjb-preview-followup {
+  font-size: 13.5px;
+  color: #374151;
+  margin: 8px 0 0;
+  line-height: 1.55;
+  padding: 12px 16px;
+  background: #F9F8F5;
+  border-radius: 12px;
+  border: 1.5px solid #F0EDE8;
+}
+
 .fjb-preview-post-btn {
   flex: 1;
   background: #1C1917;

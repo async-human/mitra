@@ -32,6 +32,7 @@ interface ChatMsg {
   role: "mitra" | "user";
   text: string;
   jobPreview?: JobPreview;
+  jobPreviewReady?: boolean;  // true = show post button
   portalUrl?: string;
   isFile?: boolean;
 }
@@ -151,8 +152,8 @@ function JDExtractionLoader() {
 
 // ── Job preview card ──────────────────────────────────────────────────────────
 
-function JobPreviewCard({ job, onPost, onEdit, posting }: {
-  job: JobPreview; onPost: () => void; onEdit: () => void; posting: boolean;
+function JobPreviewCard({ job, onPost, onEdit, posting, isReady = true }: {
+  job: JobPreview; onPost: () => void; onEdit: () => void; posting: boolean; isReady?: boolean;
 }) {
   const salary = salaryLabel(job.salary_min_lpa, job.salary_max_lpa);
   const exp    = expLabel(job.exp_min_yrs, job.exp_max_yrs);
@@ -244,18 +245,28 @@ function JobPreviewCard({ job, onPost, onEdit, posting }: {
         </div>
       )}
 
-      {/* Actions */}
-      <div className="fjb-preview-actions">
-        <button className="fjb-preview-post-btn" onClick={onPost} disabled={posting}>
-          {posting
-            ? <><span className="fjb-btn-spinner" /> Posting…</>
-            : <>Post this role <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg></>
-          }
-        </button>
-        <button className="fjb-preview-edit-btn" onClick={onEdit} disabled={posting}>
-          Edit something
-        </button>
-      </div>
+      {/* Actions — only shown when all required fields are present */}
+      {isReady ? (
+        <div className="fjb-preview-actions">
+          <button className="fjb-preview-post-btn" onClick={onPost} disabled={posting}>
+            {posting
+              ? <><span className="fjb-btn-spinner" /> Posting…</>
+              : <>Post this role <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 7h8M8 4l3 3-3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg></>
+            }
+          </button>
+          <button className="fjb-preview-edit-btn" onClick={onEdit} disabled={posting}>
+            Edit something
+          </button>
+        </div>
+      ) : (
+        <div className="fjb-preview-incomplete">
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+            <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.3" />
+            <path d="M6.5 4v3M6.5 8.5v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
+          Answer the question above to post this role
+        </div>
+      )}
     </div>
   );
 }
@@ -410,8 +421,9 @@ export function FounderJobBuilder({ authEmail, founderName }: {
       setMessages(prev => [...prev, {
         role: "mitra",
         text: data.reply,
-        jobPreview: data.stage === "confirming" ? (data.job_preview ?? undefined) : undefined,
-        portalUrl:  data.stage === "posted"     ? (data.portal_url  ?? undefined) : undefined,
+        jobPreview:      data.job_preview  ?? undefined,
+        jobPreviewReady: data.stage === "confirming",
+        portalUrl:       data.stage === "posted" ? (data.portal_url ?? undefined) : undefined,
       }]);
     } catch {
       setMessages(prev => [...prev, { role: "mitra", text: "Something went wrong. Please try again." }]);
@@ -478,8 +490,9 @@ export function FounderJobBuilder({ authEmail, founderName }: {
       setMessages(prev => [...prev, {
         role: "mitra",
         text: data.reply,
-        jobPreview: data.stage === "confirming" ? (data.job_preview ?? undefined) : undefined,
-        portalUrl:  data.stage === "posted"     ? (data.portal_url  ?? undefined) : undefined,
+        jobPreview:      data.job_preview  ?? undefined,
+        jobPreviewReady: data.stage === "confirming",
+        portalUrl:       data.stage === "posted" ? (data.portal_url ?? undefined) : undefined,
       }]);
     } catch (e) {
       setMessages(prev => [...prev, { role: "mitra", text: e instanceof Error ? e.message : "Upload failed." }]);
@@ -564,14 +577,21 @@ export function FounderJobBuilder({ authEmail, founderName }: {
                       <div className="fjb-bubble">{renderText(msg.text)}</div>
                     ) : null}
 
-                    {/* Preview card — rendered alone, no duplicate text bubble */}
-                    {msg.jobPreview && stage === "confirming" && (
-                      <JobPreviewCard
-                        job={msg.jobPreview}
-                        onPost={handlePostConfirm}
-                        onEdit={() => textareaRef.current?.focus()}
-                        posting={posting}
-                      />
+                    {/* Preview card — always shown when job data exists */}
+                    {msg.jobPreview && (
+                      <>
+                        <JobPreviewCard
+                          job={msg.jobPreview}
+                          onPost={handlePostConfirm}
+                          onEdit={() => textareaRef.current?.focus()}
+                          posting={posting}
+                          isReady={msg.jobPreviewReady ?? false}
+                        />
+                        {/* Follow-up question shown below card instead of as a text bubble */}
+                        {!msg.jobPreviewReady && msg.text && (
+                          <p className="fjb-preview-followup">{msg.text}</p>
+                        )}
+                      </>
                     )}
 
                     {/* Success card */}

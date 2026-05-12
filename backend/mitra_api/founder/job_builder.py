@@ -82,7 +82,9 @@ Showing invented data is worse than showing nothing.
 
 ## TONE
 
-Warm, efficient, founder-first. Confirm what you found, ask clearly about what's missing. No fluff."""
+Warm, efficient, founder-first. Keep your message to 1-2 sentences.
+NEVER list extracted fields in the message — the founder sees a live preview card with all the data.
+Just say something like "Got the {role} role at {company}! What's the salary range and experience level?" and nothing more."""
 
 # ── Tool definition ───────────────────────────────────────────────────────────
 
@@ -94,7 +96,7 @@ _BUILD_TOOL = ToolDefinition(
         "properties": {
             "message": {
                 "type": "string",
-                "description": "Reply to the founder (2-3 sentences max). Confirm what was parsed, ask only what's missing.",
+                "description": "Brief reply to the founder (1-2 sentences). Do NOT list or repeat extracted fields — the founder sees a live preview card. Just name the role/company found and ask for anything missing (salary, experience).",
             },
             "job": {
                 "type": "object",
@@ -420,7 +422,7 @@ async def job_builder_chat(
     return JobBuilderChatResponse(
         reply=reply,
         stage=new_stage,
-        job_preview=merged_job if new_stage == "confirming" else None,
+        job_preview=merged_job if merged_job.get("title") else None,
         quick_replies=quick_replies,
     )
 
@@ -581,6 +583,6 @@ async def job_builder_upload(
     return JobBuilderChatResponse(
         reply=reply,
         stage=new_stage,
-        job_preview=final_job if new_stage == "confirming" else None,
+        job_preview=final_job if final_job.get("title") else None,
         quick_replies=quick_replies,
     )
