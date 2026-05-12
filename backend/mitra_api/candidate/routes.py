@@ -169,6 +169,8 @@ class IntroSummary(BaseModel):
     company: str
     status: str
     sent_at: str | None = None   # ISO-8601
+    interview_details: dict | None = None  # {"scheduled_at","format","link","notes"}
+    offer_details: dict | None = None      # {"salary_lpa","equity_percent","start_date","notes"}
 
 
 @router.get("/intros", response_model=list[IntroSummary])
@@ -203,6 +205,8 @@ async def list_candidate_intros(
             company=job.company,
             status=str(intro.status),
             sent_at=intro.sent_at.isoformat() if intro.sent_at else None,
+            interview_details=intro.interview_details or None,
+            offer_details=intro.offer_details or None,
         )
         for intro, job in rows
     ]

@@ -187,20 +187,35 @@ function CandidateCard({
   const palette = avatarPalette(idx);
   const [actionState, setActionState] = useState<"idle" | "loading" | "done">("idle");
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [showForm, setShowForm] = useState<"schedule" | "offer" | null>(null);
+
+  // Interview form state
+  const [ivDate, setIvDate] = useState("");
+  const [ivTime, setIvTime] = useState("");
+  const [ivFormat, setIvFormat] = useState("video");
+  const [ivLink, setIvLink] = useState("");
+
+  // Offer form state
+  const [ofSalary, setOfSalary] = useState("");
+  const [ofEquity, setOfEquity] = useState("");
+  const [ofStart, setOfStart] = useState("");
+  const [ofNotes, setOfNotes] = useState("");
+
   const isTerminal = ["declined", "hired"].includes(candidate.status);
 
-  const doAction = useCallback(async (action: string) => {
+  const doAction = useCallback(async (action: string, extraBody?: object) => {
     setActionState("loading");
     try {
       const res = await fetch(`${API_URL}/founder/portal/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, intro_id: candidate.intro_id, action }),
+        body: JSON.stringify({ token, intro_id: candidate.intro_id, action, ...extraBody }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.detail || "Failed");
       setToast({ msg: data.message, ok: true });
       setActionState("done");
+      setShowForm(null);
       onStatusChange(candidate.intro_id, data.new_status);
     } catch (e: unknown) {
       setActionState("idle");
@@ -208,6 +223,28 @@ function CandidateCard({
     }
     setTimeout(() => setToast(null), 4000);
   }, [token, candidate.intro_id, onStatusChange]);
+
+  const submitSchedule = useCallback(() => {
+    const scheduledAt = ivDate && ivTime ? `${ivDate}T${ivTime}:00` : undefined;
+    doAction("schedule", {
+      interview_details: {
+        scheduled_at: scheduledAt,
+        format: ivFormat,
+        link: ivLink || undefined,
+      },
+    });
+  }, [doAction, ivDate, ivTime, ivFormat, ivLink]);
+
+  const submitOffer = useCallback(() => {
+    doAction("offer", {
+      offer_details: {
+        salary_lpa: ofSalary ? Number(ofSalary) : undefined,
+        equity_percent: ofEquity ? Number(ofEquity) : undefined,
+        start_date: ofStart || undefined,
+        notes: ofNotes || undefined,
+      },
+    });
+  }, [doAction, ofSalary, ofEquity, ofStart, ofNotes]);
 
   return (
     <article className="fpc" style={{ "--fpc-delay": `${idx * 0.07}s` } as React.CSSProperties}>
@@ -307,98 +344,121 @@ function CandidateCard({
         </div>
       )}
 
+      {/* Inline schedule form */}
+      {showForm === "schedule" && (
+        <div className="fpc-form">
+          <p className="fpc-form-title">Schedule interview</p>
+          <div className="fpc-form-row">
+            <label className="fpc-form-label">Date</label>
+            <input type="date" className="fpc-form-input" value={ivDate} onChange={e => setIvDate(e.target.value)} />
+            <label className="fpc-form-label">Time</label>
+            <input type="time" className="fpc-form-input" value={ivTime} onChange={e => setIvTime(e.target.value)} />
+          </div>
+          <div className="fpc-form-row">
+            <label className="fpc-form-label">Format</label>
+            <select className="fpc-form-input" value={ivFormat} onChange={e => setIvFormat(e.target.value)}>
+              <option value="video">Video call</option>
+              <option value="phone">Phone call</option>
+              <option value="in-person">In-person</option>
+            </select>
+          </div>
+          <div className="fpc-form-row">
+            <label className="fpc-form-label">Link / location</label>
+            <input type="text" className="fpc-form-input fpc-form-input--wide" placeholder="Meet link or address (optional)" value={ivLink} onChange={e => setIvLink(e.target.value)} />
+          </div>
+          <div className="fpc-form-actions">
+            <button className="fpc-btn fpc-btn--schedule" disabled={actionState === "loading"} onClick={submitSchedule}>
+              {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCalendar />}
+              Confirm schedule
+            </button>
+            <button className="fpc-btn fpc-btn--ghost" onClick={() => setShowForm(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Inline offer form */}
+      {showForm === "offer" && (
+        <div className="fpc-form">
+          <p className="fpc-form-title">Record offer details</p>
+          <div className="fpc-form-row">
+            <label className="fpc-form-label">Salary (LPA)</label>
+            <input type="number" className="fpc-form-input" placeholder="e.g. 28" value={ofSalary} onChange={e => setOfSalary(e.target.value)} />
+            <label className="fpc-form-label">Equity %</label>
+            <input type="number" className="fpc-form-input" placeholder="e.g. 0.5" step="0.1" value={ofEquity} onChange={e => setOfEquity(e.target.value)} />
+          </div>
+          <div className="fpc-form-row">
+            <label className="fpc-form-label">Start date</label>
+            <input type="date" className="fpc-form-input" value={ofStart} onChange={e => setOfStart(e.target.value)} />
+          </div>
+          <div className="fpc-form-row">
+            <label className="fpc-form-label">Notes for candidate</label>
+            <input type="text" className="fpc-form-input fpc-form-input--wide" placeholder="Optional — deadline to respond, next steps, etc." value={ofNotes} onChange={e => setOfNotes(e.target.value)} />
+          </div>
+          <div className="fpc-form-actions">
+            <button className="fpc-btn fpc-btn--offer" disabled={actionState === "loading"} onClick={submitOffer}>
+              {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
+              Record offer
+            </button>
+            <button className="fpc-btn fpc-btn--ghost" onClick={() => setShowForm(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
       {/* Progressive actions based on current status */}
-      {candidate.status === "sent" || candidate.status === "ghosted" ? (
-        <div className="fpc-actions">
-          <button
-            className="fpc-btn fpc-btn--primary"
-            disabled={actionState === "loading"}
-            onClick={() => doAction("interested")}
-          >
-            {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
-            Interested
-          </button>
-          <button
-            className="fpc-btn fpc-btn--schedule"
-            disabled={actionState === "loading"}
-            onClick={() => doAction("schedule")}
-          >
-            <IconCalendar />
-            Schedule interview
-          </button>
-          <button
-            className="fpc-btn fpc-btn--pass"
-            disabled={actionState === "loading"}
-            onClick={() => doAction("not_a_fit")}
-          >
-            <IconX />
-            Pass
-          </button>
-        </div>
-      ) : candidate.status === "acknowledged" ? (
-        <div className="fpc-actions">
-          <button
-            className="fpc-btn fpc-btn--schedule"
-            disabled={actionState === "loading"}
-            onClick={() => doAction("schedule")}
-          >
-            {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCalendar />}
-            Schedule interview
-          </button>
-          <button
-            className="fpc-btn fpc-btn--pass"
-            disabled={actionState === "loading"}
-            onClick={() => doAction("not_a_fit")}
-          >
-            <IconX />
-            Pass
-          </button>
-        </div>
-      ) : candidate.status === "interview" ? (
-        <div className="fpc-actions">
-          <button
-            className="fpc-btn fpc-btn--offer"
-            disabled={actionState === "loading"}
-            onClick={() => doAction("offer")}
-          >
-            {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
-            Offer extended
-          </button>
-          <button
-            className="fpc-btn fpc-btn--pass"
-            disabled={actionState === "loading"}
-            onClick={() => doAction("not_a_fit")}
-          >
-            <IconX />
-            Didn&apos;t proceed
-          </button>
-        </div>
-      ) : candidate.status === "offer" ? (
-        <div className="fpc-actions">
-          <button
-            className="fpc-btn fpc-btn--hired"
-            disabled={actionState === "loading"}
-            onClick={() => doAction("hired")}
-          >
-            {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
-            They joined! 🎉
-          </button>
-          <button
-            className="fpc-btn fpc-btn--pass"
-            disabled={actionState === "loading"}
-            onClick={() => doAction("not_a_fit")}
-          >
-            <IconX />
-            Offer declined
-          </button>
-        </div>
-      ) : isTerminal ? (
-        <div className="fpc-actioned" style={{ borderColor: meta.dot, color: meta.color }}>
-          <span className="fpc-actioned-dot" style={{ background: meta.dot }} />
-          <span>{meta.label}</span>
-          <span className="fpc-actioned-note">· candidate notified</span>
-        </div>
-      ) : null}
+      {showForm === null && (
+        <>
+          {candidate.status === "sent" || candidate.status === "ghosted" ? (
+            <div className="fpc-actions">
+              <button className="fpc-btn fpc-btn--primary" disabled={actionState === "loading"} onClick={() => doAction("interested")}>
+                {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
+                Interested
+              </button>
+              <button className="fpc-btn fpc-btn--schedule" disabled={actionState === "loading"} onClick={() => setShowForm("schedule")}>
+                <IconCalendar />Schedule interview
+              </button>
+              <button className="fpc-btn fpc-btn--pass" disabled={actionState === "loading"} onClick={() => doAction("not_a_fit")}>
+                <IconX />Pass
+              </button>
+            </div>
+          ) : candidate.status === "acknowledged" ? (
+            <div className="fpc-actions">
+              <button className="fpc-btn fpc-btn--schedule" disabled={actionState === "loading"} onClick={() => setShowForm("schedule")}>
+                {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCalendar />}
+                Schedule interview
+              </button>
+              <button className="fpc-btn fpc-btn--pass" disabled={actionState === "loading"} onClick={() => doAction("not_a_fit")}>
+                <IconX />Pass
+              </button>
+            </div>
+          ) : candidate.status === "interview" ? (
+            <div className="fpc-actions">
+              <button className="fpc-btn fpc-btn--offer" disabled={actionState === "loading"} onClick={() => setShowForm("offer")}>
+                {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
+                Offer extended
+              </button>
+              <button className="fpc-btn fpc-btn--pass" disabled={actionState === "loading"} onClick={() => doAction("not_a_fit")}>
+                <IconX />Didn&apos;t proceed
+              </button>
+            </div>
+          ) : candidate.status === "offer" ? (
+            <div className="fpc-actions">
+              <button className="fpc-btn fpc-btn--hired" disabled={actionState === "loading"} onClick={() => doAction("hired")}>
+                {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
+                They joined! 🎉
+              </button>
+              <button className="fpc-btn fpc-btn--pass" disabled={actionState === "loading"} onClick={() => doAction("not_a_fit")}>
+                <IconX />Offer declined
+              </button>
+            </div>
+          ) : isTerminal ? (
+            <div className="fpc-actioned" style={{ borderColor: meta.dot, color: meta.color }}>
+              <span className="fpc-actioned-dot" style={{ background: meta.dot }} />
+              <span>{meta.label}</span>
+              <span className="fpc-actioned-note">· candidate notified</span>
+            </div>
+          ) : null}
+        </>
+      )}
     </article>
   );
 }

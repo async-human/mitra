@@ -52,6 +52,14 @@ async def create_all() -> None:
             """))
         log.info("intros stage timestamp columns ready")
 
+        # Structured details for interview and offer stages
+        for col in ("interview_details", "offer_details"):
+            await conn.execute(text(f"""
+                ALTER TABLE intros
+                ADD COLUMN IF NOT EXISTS {col} JSONB
+            """))
+        log.info("intros detail JSONB columns ready")
+
         # Add the actual vector column to job_embeddings
         # (SQLAlchemy doesn't have a native pgvector column type yet)
         await conn.execute(text(f"""

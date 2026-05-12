@@ -184,10 +184,12 @@ class Intro(Base):
     response_token: Mapped[str|None] = mapped_column(String(64), unique=True, index=True)  # one-click reply
     requested_at:   Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     sent_at:        Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
-    interview_at:   Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
-    offer_at:       Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
-    hired_at:       Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
-    updated_at:     Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    interview_at:      Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    offer_at:          Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    hired_at:          Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    interview_details: Mapped[Any|None]      = mapped_column(JSONB)  # {"scheduled_at","format","link","notes"}
+    offer_details:     Mapped[Any|None]      = mapped_column(JSONB)  # {"salary_lpa","equity_percent","start_date","notes"}
+    updated_at:        Mapped[datetime]      = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     candidate: Mapped[Candidate] = relationship(back_populates="intros")
     job:       Mapped[Job]       = relationship(back_populates="intros")

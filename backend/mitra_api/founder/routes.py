@@ -917,7 +917,9 @@ class PortalResponse(BaseModel):
 class PortalActionRequest(BaseModel):
     token: str
     intro_id: int
-    action: str  # "interested" | "not_a_fit" | "schedule"
+    action: str  # "interested" | "not_a_fit" | "schedule" | "offer" | "hired"
+    interview_details: dict | None = None  # {"scheduled_at","format","link","notes"}
+    offer_details: dict | None = None      # {"salary_lpa","equity_percent","start_date","notes"}
 
 
 class PortalActionResponse(BaseModel):
@@ -1299,10 +1301,16 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
         intro.status     = new_status
         intro.updated_at = now
         # Set stage timestamp on first transition into each state
-        if body.action == "schedule" and intro.interview_at is None:
-            intro.interview_at = now
-        elif body.action == "offer" and intro.offer_at is None:
-            intro.offer_at = now
+        if body.action == "schedule":
+            if intro.interview_at is None:
+                intro.interview_at = now
+            if body.interview_details:
+                intro.interview_details = body.interview_details
+        elif body.action == "offer":
+            if intro.offer_at is None:
+                intro.offer_at = now
+            if body.offer_details:
+                intro.offer_details = body.offer_details
         elif body.action == "hired" and intro.hired_at is None:
             intro.hired_at = now
         # Consume response_token (same link should not double-trigger)
