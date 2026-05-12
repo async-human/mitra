@@ -19,21 +19,33 @@ export function NavV2({ audience, onAudienceChange }: NavV2Props) {
           Mitra.
         </Link>
 
-        <ul className={s.navLinks}>
-          <li><a href="#how-it-works">How it works</a></li>
-          <li><a href="#faq">FAQ</a></li>
-          <li>
-            <button
-              type="button"
-              className={`${s.navAudienceBtn} ${isCompany ? s.navAudienceBtnActive : ""}`}
-              onClick={() => onAudienceChange(isCompany ? "candidate" : "company")}
-            >
-              {isCompany ? "For candidates" : "For companies"}
-            </button>
-          </li>
-        </ul>
+        {/* Segmented pill — both options always visible */}
+        <div className={s.navToggle} role="tablist" aria-label="View for">
+          <button
+            role="tab"
+            type="button"
+            aria-selected={!isCompany}
+            className={`${s.navToggleBtn} ${!isCompany ? s.navToggleBtnActive : ""}`}
+            onClick={() => onAudienceChange("candidate")}
+          >
+            Candidates
+          </button>
+          <button
+            role="tab"
+            type="button"
+            aria-selected={isCompany}
+            className={`${s.navToggleBtn} ${isCompany ? s.navToggleBtnActive : ""}`}
+            onClick={() => onAudienceChange("company")}
+          >
+            Companies
+          </button>
+        </div>
 
         <div className={s.navRight}>
+          <ul className={s.navLinks}>
+            <li><a href="#how-it-works">How it works</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
           <Link href="/dashboard" className={s.navSignIn}>Sign in</Link>
           <a
             href={whatsAppHrefFor(isCompany ? "founder" : "candidate")}

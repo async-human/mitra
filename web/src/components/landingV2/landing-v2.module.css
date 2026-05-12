@@ -86,31 +86,44 @@
 
 .navLinks a:hover { color: var(--ink); }
 
-.navAudienceBtn {
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--ink2);
-  background: none;
+.navToggle {
+  display: flex;
+  align-items: center;
+  background: rgba(0,0,0,0.07);
+  border-radius: 99px;
+  padding: 3px;
+  gap: 0;
+}
+
+.navToggleBtn {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 1rem;
+  border-radius: 99px;
   border: none;
   cursor: pointer;
-  padding: 0;
+  background: transparent;
+  color: var(--ink2);
+  transition: background 0.2s, color 0.2s;
   font-family: inherit;
-  transition: color 0.15s;
+  white-space: nowrap;
+  line-height: 1;
 }
 
-.navAudienceBtn:hover { color: var(--ink); }
-
-.navAudienceBtnActive {
-  color: var(--accent);
-  font-weight: 600;
+.navToggleBtn:hover:not(.navToggleBtnActive) {
+  color: var(--ink);
 }
 
-.navAudienceBtnActive:hover { color: var(--accent); }
+.navToggleBtnActive {
+  background: var(--ink);
+  color: var(--bg);
+}
 
 .navRight {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-shrink: 0;
 }
 
 .navSignIn {
@@ -567,6 +580,11 @@ details[open] .faqIcon {
   --ink2:   rgba(242,237,231,0.48);
   --bgCard: rgba(255,255,255,0.04);
   --border: rgba(255,255,255,0.09);
+}
+
+/* Nav toggle in company mode */
+.root[data-audience="company"] .navToggle {
+  background: rgba(255,255,255,0.1);
 }
 
 /* Nav in company mode */
