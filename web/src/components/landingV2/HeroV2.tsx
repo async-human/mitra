@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, Fragment } from "react";
+import Link from "next/link";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
 import s from "./landing-v2.module.css";
@@ -67,9 +68,7 @@ const CONTENT = {
         No cold applications. No ghosting. Ever.
       </>
     ),
-    ctaLabel: "Start on WhatsApp — free",
-    ctaHref: whatsAppHrefFor("candidate"),
-    ctaIcon: true,
+    cta: { label: "Get started — free", href: "/sign-in?role=candidate", external: false },
     proof: [
       "Free for candidates, always",
       "Avg. 8 days to first interview",
@@ -88,9 +87,7 @@ const CONTENT = {
         and ready for a direct introduction — not a pipeline to manage.
       </>
     ),
-    ctaLabel: "List a role — first 2 hires free",
-    ctaHref: whatsAppHrefFor("founder"),
-    ctaIcon: false,
+    cta: { label: "List a role — first 2 hires free", href: whatsAppHrefFor("founder"), external: true },
     proof: [
       "First 2 hires free",
       "3–5 pre-qualified intros / week",
@@ -147,15 +144,15 @@ export function HeroV2({ audience }: { audience: V2Audience }) {
             className={`${s.heroCtaRow} ${s.fadeUp}`}
             style={{ "--anim-delay": `${afterDelay + 120}ms` } as React.CSSProperties}
           >
-            <a
-              href={c.ctaHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={s.heroPrimaryCta}
-            >
-              {c.ctaIcon && <WhatsAppIcon />}
-              {c.ctaLabel}
-            </a>
+            {c.cta.external ? (
+              <a href={c.cta.href} target="_blank" rel="noopener noreferrer" className={s.heroPrimaryCta}>
+                {c.cta.label}
+              </a>
+            ) : (
+              <Link href={c.cta.href} className={s.heroPrimaryCta}>
+                {c.cta.label}
+              </Link>
+            )}
             <a href="#how-it-works" className={s.heroSecondaryCta}>
               See how it works →
             </a>

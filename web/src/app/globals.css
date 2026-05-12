@@ -2594,6 +2594,24 @@ body {
   font-weight: 500;
   color: var(--foreground);
 }
+.dash-signout-btn {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--foreground-muted);
+  background: none;
+  border: 1.5px solid transparent;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.dash-signout-btn:hover {
+  color: var(--foreground);
+  border-color: rgba(28,25,23,0.15);
+  background: rgba(28,25,23,0.04);
+}
 
 /* Main layout */
 .dash-main {

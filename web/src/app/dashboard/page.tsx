@@ -1,4 +1,4 @@
-import { auth } from "@/auth";
+import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
@@ -70,6 +70,12 @@ export default async function DashboardPage() {
               <span className="dash-topbar-av dash-topbar-av--fallback">{user.name?.[0] ?? "U"}</span>
             )}
             <span className="dash-topbar-name">{user.name}</span>
+            <form action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/" });
+            }}>
+              <button type="submit" className="dash-signout-btn">Sign out</button>
+            </form>
           </div>
         </div>
       </header>
