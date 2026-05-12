@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { introStatusMeta, isTerminalIntroStatus } from "./candidatePipeline";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 interface StoredCard { id: string; title: string; description: string; }
+
+interface IntroBrief {
+  job_id: number;
+  status: string;
+}
 
 function matchesKey(email: string) {
   return `mitra-matches-${email}`;
@@ -24,6 +32,7 @@ function MatchesEmptyIcon() {
 export function MatchesPanelClient({ userEmail }: { userEmail: string }) {
   const [cards, setCards] = useState<StoredCard[] | null>(null);
   const [matchIds, setMatchIds] = useState<string>("");
+  const [intros, setIntros] = useState<IntroBrief[] | null>(null);
 
   useEffect(() => {
     try {
@@ -39,26 +48,69 @@ export function MatchesPanelClient({ userEmail }: { userEmail: string }) {
     } catch { /* localStorage unavailable or corrupt */ }
   }, [userEmail]);
 
+  useEffect(() => {
+    if (!userEmail) return;
+    fetch(`${API_URL}/candidate/intros?session_id=${encodeURIComponent(userEmail)}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: IntroBrief[]) => {
+        if (Array.isArray(data)) setIntros(data.map((i) => ({ job_id: i.job_id, status: i.status })));
+      })
+      .catch(() => setIntros([]));
+  }, [userEmail]);
+
+  const introByJobId = useMemo(() => {
+    const m = new Map<string, IntroBrief>();
+    if (!intros) return m;
+    for (const i of intros) m.set(String(i.job_id), i);
+    return m;
+  }, [intros]);
+
   if (cards && cards.length > 0) {
+    const openRoles = cards.filter((c) => {
+      const intro = introByJobId.get(c.id.replace(/^job_/, ""));
+      return !intro || !isTerminalIntroStatus(intro.status);
+    }).length;
+    const badgeLabel =
+      intros === null
+        ? `${cards.length} saved`
+        : openRoles < cards.length
+        ? `${openRoles} open · ${cards.length - openRoles} wrapped up`
+        : `${cards.length} saved`;
+
     return (
       <>
         <div className="dash-panel-head">
           <h3 className="dash-panel-title">Your matches</h3>
-          <span className="dash-panel-badge dash-panel-badge--active">{cards.length} active</span>
+          <span className="dash-panel-badge dash-panel-badge--active">{badgeLabel}</span>
         </div>
         <div className="dash-matches-list">
-          {cards.map((card, i) => {
+          {cards.map((card) => {
             const parts = card.description.split(" · ").map(s => s.trim()).filter(Boolean);
             const fitPart = parts.find(p => p.includes("% fit") || p.includes("%fit")) ?? "";
             const company = parts[0] !== fitPart ? parts[0] : "";
+            const intro = introByJobId.get(card.id.replace(/^job_/, ""));
+            const meta = intro ? introStatusMeta(intro.status) : null;
             return (
-              <div key={card.id} className="dash-match-row">
+              <div
+                key={card.id}
+                className={`dash-match-row${intro && isTerminalIntroStatus(intro.status) ? " dash-match-row--settled" : ""}`}
+              >
                 <div className="dash-match-av">{(company || card.title).slice(0, 2).toUpperCase()}</div>
                 <div className="dash-match-info">
                   <span className="dash-match-role">{card.title}</span>
                   {company && <span className="dash-match-company">{company}</span>}
                 </div>
-                {fitPart && <span className="dash-match-fit">{fitPart}</span>}
+                <div className="dash-match-meta">
+                  {intro && meta && (
+                    <span
+                      className={`dash-match-intro-chip${meta.pulse ? " dash-match-intro-chip--pulse" : ""}`}
+                      style={{ color: meta.color, background: meta.bg }}
+                    >
+                      {meta.label}
+                    </span>
+                  )}
+                  {fitPart && <span className="dash-match-fit">{fitPart}</span>}
+                </div>
               </div>
             );
           })}
@@ -74,7 +126,7 @@ export function MatchesPanelClient({ userEmail }: { userEmail: string }) {
     <>
       <div className="dash-panel-head">
         <h3 className="dash-panel-title">Your matches</h3>
-        <span className="dash-panel-badge">0 active</span>
+        <span className="dash-panel-badge">0 saved</span>
       </div>
       <div className="dash-empty">
         <div className="dash-empty-icon"><MatchesEmptyIcon /></div>

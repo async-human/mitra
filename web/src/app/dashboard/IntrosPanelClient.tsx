@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { introStatusMeta, sortIntrosByPriority } from "./candidatePipeline";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -26,20 +27,6 @@ interface IntroSummary {
   sent_at: string | null;
   interview_details?: InterviewDetails | null;
   offer_details?: OfferDetails | null;
-}
-
-const STATUS_META: Record<string, { label: string; color: string; bg: string; dot: string; pulse?: boolean }> = {
-  sent:         { label: "Intro sent",         color: "#059669", bg: "#ECFDF5", dot: "#34D399" },
-  acknowledged: { label: "Interested ✦",       color: "#7C3AED", bg: "#F5F3FF", dot: "#A78BFA", pulse: true },
-  interview:    { label: "Interview booked",   color: "#D97706", bg: "#FFFBEB", dot: "#FCD34D", pulse: true },
-  offer:        { label: "Offer received",     color: "#059669", bg: "#ECFDF5", dot: "#6EE7B7", pulse: true },
-  hired:        { label: "Hired 🎉",           color: "#059669", bg: "#ECFDF5", dot: "#6EE7B7" },
-  declined:     { label: "Not a fit",          color: "#6B7280", bg: "#F3F4F6", dot: "#D1D5DB" },
-  ghosted:      { label: "Awaiting reply",     color: "#9CA3AF", bg: "#F9FAFB", dot: "#E5E7EB" },
-};
-
-function statusMeta(status: string) {
-  return STATUS_META[status] ?? { label: status, color: "#6B7280", bg: "#F3F4F6", dot: "#D1D5DB" };
 }
 
 function formatDate(iso: string | null): string {
@@ -67,7 +54,7 @@ function formatDateTime(iso: string | undefined): string {
 }
 
 function IntroDetailModal({ intro, onClose }: { intro: IntroSummary; onClose: () => void }) {
-  const meta = statusMeta(intro.status);
+  const meta = introStatusMeta(intro.status);
   const iv = intro.interview_details;
   const of = intro.offer_details;
 
@@ -186,6 +173,7 @@ export function IntrosPanelClient({ userEmail }: { userEmail: string }) {
   }, [userEmail]);
 
   const count = intros?.length ?? 0;
+  const sortedIntros = intros ? sortIntrosByPriority(intros) : null;
 
   return (
     <>
@@ -219,8 +207,8 @@ export function IntrosPanelClient({ userEmail }: { userEmail: string }) {
 
       {!loading && count > 0 && (
         <div className="dash-intros-list">
-          {intros!.map(intro => {
-            const meta = statusMeta(intro.status);
+          {sortedIntros!.map(intro => {
+            const meta = introStatusMeta(intro.status);
             const isClickable = ["interview", "offer", "hired"].includes(intro.status);
             return (
               <button

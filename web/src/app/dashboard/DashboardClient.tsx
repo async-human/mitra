@@ -70,7 +70,7 @@ interface IntroSummary {
 }
 type StepState = "done" | "current" | "locked";
 
-type DashboardUpdateKind = "offer" | "interview" | "intros" | "shortlist" | "default";
+type DashboardUpdateKind = "offer" | "interview" | "hired" | "intros" | "shortlist" | "default";
 
 interface DashboardUpdate {
   kind: DashboardUpdateKind;
@@ -113,6 +113,21 @@ function getDashboardUpdate(matches: StoredCard[], intros: IntroSummary[]): Dash
       detail: "Things are moving fast — keep an eye on your introductions.",
     };
   }
+  const hiredList = intros.filter((i) => i.status === "hired");
+  if (hiredList.length > 0 && offers.length === 0 && interviews.length === 0) {
+    const stillOpen = intros.some((i) => !["hired", "declined"].includes(i.status));
+    return {
+      kind: "hired",
+      label: stillOpen ? "Great news — pipeline still open" : "Great news",
+      headline:
+        hiredList.length === 1
+          ? `You're hired at ${hiredList[0].company}`
+          : `${hiredList.length} offers you've accepted`,
+      detail: stillOpen
+        ? "Other introductions below are still in progress if you're comparing options."
+        : "Each introduction is summarized in the list below.",
+    };
+  }
   if (intros.length > 0) {
     return {
       kind: "intros",
@@ -142,7 +157,7 @@ function DashboardUpdateNotice({ update }: { update: DashboardUpdate }) {
   }
 
   const icon =
-    update.kind === "offer" ? (
+    update.kind === "offer" || update.kind === "hired" ? (
       <CheckIcon />
     ) : update.kind === "interview" ? (
       <CalendarIcon />
@@ -201,6 +216,12 @@ export function DashboardClient({
 
   const offerCount    = intros.filter(i => i.status === "offer").length;
   const interviewCount = intros.filter(i => i.status === "interview").length;
+  const hiredCount = intros.filter((i) => i.status === "hired").length;
+
+  const pipelineCardQuiet =
+    offerCount > 0 ||
+    interviewCount > 0 ||
+    (hiredCount > 0 && hasIntros);
 
   const step2: StepState = hasMatches ? "done" : "current";
   const step3: StepState = hasIntros ? "done" : hasMatches ? "current" : "locked";
@@ -295,9 +316,7 @@ export function DashboardClient({
       ) : (
         /* Post-chat: pipeline status card */
         <div
-          className={`dash-pipeline-card${
-            offerCount > 0 || interviewCount > 0 ? " dash-pipeline-card--quiet" : ""
-          }`}
+          className={`dash-pipeline-card${pipelineCardQuiet ? " dash-pipeline-card--quiet" : ""}`}
         >
           <div className="dash-pipeline-left">
             <div className="dash-pipeline-icon">
@@ -305,9 +324,7 @@ export function DashboardClient({
             </div>
             <div>
               <p className="dash-pipeline-title">
-                {offerCount > 0
-                  ? "Your search"
-                  : interviewCount > 0
+                {pipelineCardQuiet
                   ? "Your search"
                   : hasIntros
                   ? "Pipeline active"
@@ -323,6 +340,8 @@ export function DashboardClient({
                       : ""}
                     Full schedule lives in Introductions.
                   </>
+                ) : hiredCount > 0 && offerCount === 0 && interviewCount === 0 ? (
+                  <>Update Mitra if your plans change — everything else lives in Introductions.</>
                 ) : hasIntros ? (
                   `${intros.length} introduction${intros.length !== 1 ? "s" : ""} tracked below.`
                 ) : (
