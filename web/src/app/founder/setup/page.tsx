@@ -143,7 +143,7 @@ export default async function FounderSetupPage({
 
           {/* Add another role */}
           <div className="fp-setup-divider">or</div>
-          <Link href="/onboarding" className="fp-setup-btn fp-setup-btn--ghost">
+          <Link href="/founder/new-role" className="fp-setup-btn fp-setup-btn--ghost">
             + Post another role
           </Link>
 
@@ -182,7 +182,7 @@ export default async function FounderSetupPage({
         )}
 
         <div className="fp-setup-actions">
-          <Link href="/onboarding" className="fp-setup-btn fp-setup-btn--primary">
+          <Link href="/founder/new-role" className="fp-setup-btn fp-setup-btn--primary">
             Post your first role →
           </Link>
           {lookupError && (

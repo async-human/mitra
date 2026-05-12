@@ -7820,3 +7820,488 @@ img.wchat-av--user { border-radius: 50%; }
   .adm-status-grid { grid-template-columns: repeat(4, 1fr); }
   .adm-funnel-row { grid-template-columns: 80px 1fr 36px 36px; gap: 8px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FOUNDER JOB BUILDER  (/founder/new-role)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.fjb-root {
+  min-height: 100vh;
+  background: #FAF8F5;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+}
+
+/* ── Topbar ─────────────────────────────────────────────────────────────── */
+
+.fjb-topbar {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(0,0,0,0.07);
+  background: #FFFFFF;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.fjb-topbar-logo {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: #0D0D0C;
+  text-decoration: none;
+}
+
+.fjb-topbar-dot { color: #1A7A4A; }
+
+.fjb-topbar-right { display: flex; align-items: center; gap: 16px; }
+
+.fjb-topbar-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6B7280;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.fjb-topbar-link:hover { color: #0D0D0C; }
+
+/* ── Main / chat wrap ───────────────────────────────────────────────────── */
+
+.fjb-main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px 40px;
+}
+
+.fjb-chat-wrap {
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Upload zone ────────────────────────────────────────────────────────── */
+
+.fjb-upload-zone {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1.5px dashed #D1D5DB;
+  background: #FFFFFF;
+  color: #6B7280;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  user-select: none;
+}
+.fjb-upload-zone:hover {
+  border-color: #9CA3AF;
+  color: #374151;
+}
+.fjb-upload-zone--drag {
+  border-color: #1A7A4A;
+  background: #F0FDF4;
+  color: #1A7A4A;
+}
+.fjb-upload-zone--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.fjb-upload-formats {
+  font-weight: 400;
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
+/* ── Messages ───────────────────────────────────────────────────────────── */
+
+.fjb-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fjb-msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.fjb-msg--user {
+  flex-direction: row-reverse;
+}
+
+.fjb-msg-av {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: #1A7A4A;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.fjb-msg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 560px;
+}
+
+.fjb-msg--user .fjb-msg-body { align-items: flex-end; }
+
+.fjb-msg-bubble {
+  padding: 11px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.fjb-msg--mitra .fjb-msg-bubble {
+  background: #FFFFFF;
+  color: #1C1917;
+  border: 1px solid #F3F4F6;
+  border-bottom-left-radius: 4px;
+}
+
+.fjb-msg--user .fjb-msg-bubble {
+  background: #1C1917;
+  color: #F9F8F5;
+  border-bottom-right-radius: 4px;
+}
+
+/* Loading dots */
+.fjb-msg-bubble--loading {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 14px 18px;
+}
+.fjb-msg-bubble--loading span {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #D1D5DB;
+  animation: fjbDot 1.2s ease-in-out infinite;
+}
+.fjb-msg-bubble--loading span:nth-child(2) { animation-delay: 0.2s; }
+.fjb-msg-bubble--loading span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes fjbDot {
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
+  40%            { transform: scale(1.1); opacity: 1; }
+}
+
+/* ── Job preview card ───────────────────────────────────────────────────── */
+
+.fjb-preview {
+  background: #FFFFFF;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: fjbSlideUp 0.3s cubic-bezier(0.22,1,0.36,1);
+}
+
+@keyframes fjbSlideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fjb-preview-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #9CA3AF;
+}
+
+.fjb-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fjb-preview-av {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #DBEAFE;
+  color: #1E40AF;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.05em;
+}
+
+.fjb-preview-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1C1917;
+  margin: 0 0 3px;
+  line-height: 1.25;
+}
+
+.fjb-preview-company {
+  font-size: 13px;
+  color: #6B7280;
+  margin: 0;
+}
+
+.fjb-preview-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fjb-preview-badge {
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  background: #F3F4F6;
+  border-radius: 20px;
+  padding: 4px 10px;
+}
+
+.fjb-preview-badge--salary {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.fjb-preview-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fjb-preview-tag {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1E40AF;
+  background: #EFF6FF;
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+.fjb-preview-summary {
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.65;
+  margin: 0;
+  padding: 12px;
+  background: #F9FAFB;
+  border-radius: 10px;
+  border-left: 3px solid #D1D5DB;
+}
+
+.fjb-preview-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.fjb-preview-post-btn {
+  flex: 1;
+  background: #1C1917;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 20px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.fjb-preview-post-btn:hover:not(:disabled) { opacity: 0.88; }
+.fjb-preview-post-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.fjb-preview-edit-btn {
+  background: transparent;
+  color: #6B7280;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 10px;
+  padding: 11px 16px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.fjb-preview-edit-btn:hover:not(:disabled) {
+  background: #F3F4F6;
+  color: #374151;
+}
+
+/* ── Success card ───────────────────────────────────────────────────────── */
+
+.fjb-success {
+  background: #ECFDF5;
+  border: 1.5px solid #A7F3D0;
+  border-radius: 16px;
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  animation: fjbSlideUp 0.3s cubic-bezier(0.22,1,0.36,1);
+}
+
+.fjb-success-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #059669;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fjb-success-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #065F46;
+  margin: 0;
+}
+
+.fjb-success-sub {
+  font-size: 13px;
+  color: #047857;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 320px;
+}
+
+.fjb-success-portal-btn {
+  display: inline-block;
+  background: #059669;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 11px 24px;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.fjb-success-portal-btn:hover { opacity: 0.88; }
+
+.fjb-success-copy-btn {
+  background: transparent;
+  color: #047857;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1.5px solid #6EE7B7;
+  border-radius: 8px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.fjb-success-copy-btn:hover { background: #D1FAE5; }
+
+/* ── Input row ──────────────────────────────────────────────────────────── */
+
+.fjb-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: #FAF8F5;
+  padding: 12px 0 0;
+}
+
+.fjb-input-row .fjb-upload-zone {
+  font-size: 12px;
+  padding: 8px 14px;
+}
+
+.fjb-input-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 1.5px solid #E5E7EB;
+  border-radius: 14px;
+  padding: 10px 10px 10px 14px;
+  transition: border-color 0.15s;
+}
+.fjb-input-wrap:focus-within { border-color: #9CA3AF; }
+
+.fjb-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: #1C1917;
+  line-height: 1.5;
+  resize: none;
+  font-family: inherit;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.fjb-input::placeholder { color: #9CA3AF; }
+
+.fjb-send-btn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #1C1917;
+  color: #FFFFFF;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.fjb-send-btn:hover:not(:disabled) { opacity: 0.82; }
+.fjb-send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ── Spinner (shared with fpc-spinner) ──────────────────────────────────── */
+
+.fjb-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(255,255,255,.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: fpcSpin .7s linear infinite;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .fjb-topbar { padding: 0 16px; }
+  .fjb-main   { padding: 16px 12px 32px; }
+  .fjb-preview { padding: 14px; }
+  .fjb-preview-actions { flex-direction: column; }
+  .fjb-preview-post-btn { flex: none; }
+}
