@@ -29,10 +29,10 @@ class Settings(BaseSettings):
 
     # ── LLM ──────────────────────────────────────────────────────────────────
     mitra_llm_provider: Literal["openai", "anthropic"] = Field(
-        default="anthropic",
+        default="openai",
         validation_alias="MITRA_LLM_PROVIDER",
     )
-    mitra_llm_model: str    = Field(default="claude-sonnet-4-20250514", validation_alias="MITRA_LLM_MODEL")
+    mitra_llm_model: str    = Field(default="gpt-4o-mini", validation_alias="MITRA_LLM_MODEL")
     mitra_llm_max_tokens: int   = Field(default=2048, validation_alias="MITRA_LLM_MAX_TOKENS")
     mitra_llm_temperature: float = Field(default=0.2, validation_alias="MITRA_LLM_TEMPERATURE")
 

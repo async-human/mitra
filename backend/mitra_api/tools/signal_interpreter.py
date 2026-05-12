@@ -9,7 +9,7 @@ Two layers:
      salary_mention, timing_signals, hesitation_signals, ownership_signals
      Run before every LLM call; results merged into session signals instantly.
 
-  2. Deep LLM interpreter (async background task, Claude Haiku)
+  2. Deep LLM interpreter (async background task, uses MITRA_LLM_MODEL)
      Interprets the full conversational context for implicit signals.
      Result stored as _last_interpretation and injected into the NEXT turn.
 """
@@ -115,12 +115,11 @@ async def interpret_candidate_message(
     NOT a live reference to the msgs list.
     """
     from mitra_api.config import get_settings
-    import httpx
+    from mitra_api.llm.factory import get_llm_adapter
+    from mitra_api.llm.types import ChatMessage
 
-    s = get_settings()
-    api_key = s.anthropic_api_key.strip()
-    if not api_key:
-        return None
+    s       = get_settings()
+    adapter = get_llm_adapter(s)
 
     history_text = "\n".join(
         f"{m.get('role', 'unknown').upper()}: {m.get('content', '')}"
@@ -140,34 +139,28 @@ async def interpret_candidate_message(
     )
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                json={
-                    "model":       "claude-haiku-4-5-20251001",
-                    "max_tokens":  1024,
-                    "temperature": 0.1,
-                    "system":      _CANDIDATE_INTERPRETER_SYSTEM,
-                    "messages":    [{"role": "user", "content": user_content}],
-                },
-                headers={
-                    "x-api-key":         api_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type":      "application/json",
-                },
-            )
-            resp.raise_for_status()
-            raw = resp.json()["content"][0]["text"].strip()
-            # Strip optional markdown fence
-            if raw.startswith("```"):
-                raw = raw.split("```")[1].lstrip("json\n").strip()
-            result = json.loads(raw)
-            log.debug(
-                "candidate interpretation complete: %d signals, read=%.60r",
-                len(result.get("signals", [])),
-                result.get("overall_read", ""),
-            )
-            return result
+        result = await adapter.complete(
+            model=s.mitra_llm_model,
+            messages=[
+                ChatMessage(role="system", content=_CANDIDATE_INTERPRETER_SYSTEM),
+                ChatMessage(role="user",   content=user_content),
+            ],
+            tools=[],
+            max_tokens=1024,
+            temperature=0.1,
+        )
+        raw = (result.content or "").strip()
+        if not raw:
+            return None
+        if raw.startswith("```"):
+            raw = raw.split("```")[1].lstrip("json\n").strip()
+        parsed = json.loads(raw)
+        log.info(
+            "candidate interpretation complete: %d signals, read=%.60r",
+            len(parsed.get("signals", [])),
+            parsed.get("overall_read", ""),
+        )
+        return parsed
     except Exception:
         log.debug("candidate message interpretation failed (non-critical)", exc_info=True)
         return None
@@ -178,14 +171,13 @@ async def interpret_founder_message(
     conversation_history: list[dict[str, str]],
     existing_signals: dict[str, Any],
 ) -> dict[str, Any] | None:
-    """Deep-interpret a founder's message using Claude Haiku."""
+    """Deep-interpret a founder's message using the configured LLM."""
     from mitra_api.config import get_settings
-    import httpx
+    from mitra_api.llm.factory import get_llm_adapter
+    from mitra_api.llm.types import ChatMessage
 
-    s = get_settings()
-    api_key = s.anthropic_api_key.strip()
-    if not api_key:
-        return None
+    s       = get_settings()
+    adapter = get_llm_adapter(s)
 
     history_text = "\n".join(
         f"{m.get('role', 'unknown').upper()}: {m.get('content', '')}"
@@ -205,27 +197,22 @@ async def interpret_founder_message(
     )
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                "https://api.anthropic.com/v1/messages",
-                json={
-                    "model":       "claude-haiku-4-5-20251001",
-                    "max_tokens":  1024,
-                    "temperature": 0.1,
-                    "system":      _FOUNDER_INTERPRETER_SYSTEM,
-                    "messages":    [{"role": "user", "content": user_content}],
-                },
-                headers={
-                    "x-api-key":         api_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type":      "application/json",
-                },
-            )
-            resp.raise_for_status()
-            raw = resp.json()["content"][0]["text"].strip()
-            if raw.startswith("```"):
-                raw = raw.split("```")[1].lstrip("json\n").strip()
-            return json.loads(raw)
+        result = await adapter.complete(
+            model=s.mitra_llm_model,
+            messages=[
+                ChatMessage(role="system", content=_FOUNDER_INTERPRETER_SYSTEM),
+                ChatMessage(role="user",   content=user_content),
+            ],
+            tools=[],
+            max_tokens=1024,
+            temperature=0.1,
+        )
+        raw = (result.content or "").strip()
+        if not raw:
+            return None
+        if raw.startswith("```"):
+            raw = raw.split("```")[1].lstrip("json\n").strip()
+        return json.loads(raw)
     except Exception:
         log.debug("founder message interpretation failed (non-critical)", exc_info=True)
         return None
