@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, Fragment } from "react
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-interface JobCard { id: string; title: string; description: string; why?: string; }
+interface JobCard { id: string; title: string; description: string; why?: string; recommended_at?: string; }
 
 function parseJobCard(card: JobCard): { company: string; fit: string; tags: string[] } {
   const parts = card.description.split(" · ").map(s => s.trim()).filter(Boolean);
@@ -92,7 +92,9 @@ export function MitraChat({
         jobCards: cards.length ? cards : undefined,
       }]);
       if (cards.length > 0) {
-        localStorage.setItem(matchesKey(userEmail), JSON.stringify(cards));
+        const now = new Date().toISOString();
+        const stamped = cards.map(c => ({ ...c, recommended_at: now }));
+        localStorage.setItem(matchesKey(userEmail), JSON.stringify(stamped));
         const ids = cards.map(c => c.id.replace(/^job_/, "")).join(",");
         setStoredMatchIds(ids);
         setExiting(true);

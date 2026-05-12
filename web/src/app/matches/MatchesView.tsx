@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Fragment } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-interface BasicCard { id: string; title: string; description: string; why?: string; }
+interface BasicCard { id: string; title: string; description: string; why?: string; recommended_at?: string; }
 interface FullJob {
   id: number; external_id: string | null;
   title: string; company: string;
@@ -18,8 +18,42 @@ interface FullJob {
   signals: Record<string, string>;
 }
 interface MergedJob extends FullJob {
-  external_id: string;  // real DB external_id — used for intro API calls
+  external_id: string;
   fit: string; fit_pct: number; why: string;
+  recommended_at?: string;
+}
+
+// ── Date grouping ─────────────────────────────────────────────────────────────
+
+type DateGroup = "Today" | "Yesterday" | "This week" | "Earlier";
+
+function dateGroupLabel(iso: string | undefined): DateGroup {
+  if (!iso) return "Earlier";
+  const d    = new Date(iso);
+  const now  = new Date();
+  const diff = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
+  if (d.toDateString() === now.toDateString()) return "Today";
+  if (diff === 1)  return "Yesterday";
+  if (diff <= 6)   return "This week";
+  return "Earlier";
+}
+
+const GROUP_ORDER: DateGroup[] = ["Today", "Yesterday", "This week", "Earlier"];
+
+function groupAndSort(jobs: MergedJob[]): { label: DateGroup; jobs: MergedJob[] }[] {
+  // Sort each group by fit_pct descending (best fit first)
+  const buckets: Record<DateGroup, MergedJob[]> = {
+    "Today": [], "Yesterday": [], "This week": [], "Earlier": [],
+  };
+  for (const job of jobs) {
+    buckets[dateGroupLabel(job.recommended_at)].push(job);
+  }
+  for (const label of GROUP_ORDER) {
+    buckets[label].sort((a, b) => b.fit_pct - a.fit_pct);
+  }
+  return GROUP_ORDER
+    .filter(label => buckets[label].length > 0)
+    .map(label => ({ label, jobs: buckets[label] }));
 }
 
 type IntroStatus = "idle" | "loading" | "sent" | "already_sent" | "error";
@@ -40,13 +74,14 @@ function basicToMerged(cards: BasicCard[]): MergedJob[] {
     const extra = parts.filter((_, j) => j !== 0 && j !== fitIdx);
     return {
       id: i + 1,
-      external_id: b.id,  // real DB external_id — preserved for intro API calls
+      external_id: b.id,
       title: b.title, company,
       stage: null, sector: null, location: null, remote_policy: null,
       employment: null, salary_min_lpa: null, salary_max_lpa: null,
       stack: extra, summary: null, signals: {},
       fit, fit_pct,
       why: b.why ?? "",
+      recommended_at: b.recommended_at,
     };
   });
 }
@@ -357,6 +392,7 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
               external_id: f.external_id ?? String(f.id),
               fit, fit_pct,
               why: b?.why ?? "",
+              recommended_at: b?.recommended_at,
             };
           });
           setJobs(merged);
@@ -447,21 +483,41 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
             </p>
             <Link href="/chat" className="match-btn match-btn--primary">Start the conversation →</Link>
           </div>
-        ) : (
-          <div className="match-grid">
-            {jobs.map((job, i) => (
-              <JobCard
-                key={`${job.id}-${i}`}
-                job={job}
-                idx={i}
-                userEmail={userEmail}
-                introStatus={introStatuses[job.id] ?? "idle"}
-                introError={introErrors[job.id] ?? ""}
-                onRequestIntro={handleRequestIntro}
-              />
-            ))}
-          </div>
-        )}
+        ) : (() => {
+          const groups = groupAndSort(jobs);
+          const showHeaders = groups.length > 1 || groups[0]?.label !== "Today";
+          let globalIdx = 0;
+          return (
+            <div className="match-grid">
+              {groups.map(({ label, jobs: groupJobs }) => (
+                <Fragment key={label}>
+                  {showHeaders && (
+                    <div className="match-date-header">
+                      <span className="match-date-header-label">{label}</span>
+                      <span className="match-date-header-count">
+                        {groupJobs.length} role{groupJobs.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  )}
+                  {groupJobs.map((job) => {
+                    const idx = globalIdx++;
+                    return (
+                      <JobCard
+                        key={`${job.id}-${idx}`}
+                        job={job}
+                        idx={idx}
+                        userEmail={userEmail}
+                        introStatus={introStatuses[job.id] ?? "idle"}
+                        introError={introErrors[job.id] ?? ""}
+                        onRequestIntro={handleRequestIntro}
+                      />
+                    );
+                  })}
+                </Fragment>
+              ))}
+            </div>
+          );
+        })()}
       </main>
     </div>
   );

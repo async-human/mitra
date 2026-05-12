@@ -4845,6 +4845,28 @@ img.wchat-av--user { border-radius: 50%; }
   margin: 0 auto;
 }
 
+/* ── date section headers ── */
+.match-date-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0 4px;
+  border-bottom: 1.5px solid rgba(0,0,0,0.07);
+  margin-bottom: 4px;
+}
+.match-date-header-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #6B7280;
+}
+.match-date-header-count {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
 /* ── individual card ── */
 @keyframes matchCardIn {
   from { opacity: 0; transform: translateY(18px); }
