@@ -1,22 +1,27 @@
+"use client";
+
+import { useState } from "react";
 import { NavV2 } from "./NavV2";
 import { HeroV2 } from "./HeroV2";
 import { HowItWorksV2 } from "./HowItWorksV2";
 import { ProofV2 } from "./ProofV2";
-import { ForCompaniesV2 } from "./ForCompaniesV2";
 import { FAQV2 } from "./FAQV2";
 import { FooterV2 } from "./FooterV2";
 import s from "./landing-v2.module.css";
 
+export type V2Audience = "candidate" | "company";
+
 export function LandingV2() {
+  const [audience, setAudience] = useState<V2Audience>("candidate");
+
   return (
-    <div className={s.root}>
-      <NavV2 />
+    <div className={s.root} data-audience={audience}>
+      <NavV2 audience={audience} onAudienceChange={setAudience} />
       <main>
-        <HeroV2 />
-        <HowItWorksV2 />
-        <ProofV2 />
-        <ForCompaniesV2 />
-        <FAQV2 />
+        <HeroV2 audience={audience} />
+        <HowItWorksV2 audience={audience} />
+        <ProofV2 audience={audience} />
+        <FAQV2 audience={audience} />
       </main>
       <FooterV2 />
     </div>

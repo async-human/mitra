@@ -1,4 +1,5 @@
 import { whatsAppHrefFor } from "@/lib/whatsapp";
+import type { V2Audience } from "./LandingV2";
 import s from "./landing-v2.module.css";
 
 function WhatsAppIcon() {
@@ -9,7 +10,54 @@ function WhatsAppIcon() {
   );
 }
 
-export function HeroV2() {
+const CONTENT = {
+  candidate: {
+    chip: "Now live · Engineers placed at Setu, CRED & Razorpay",
+    headline: <>The right introduction<br />changes everything.</>,
+    sub: (
+      <>
+        Brief Mitra on what actually matters. We search hundreds of funded startups
+        to find your genuine fit — then introduce you{" "}
+        <strong>directly to the founder.</strong>{" "}
+        No cold applications. No ghosting. Ever.
+      </>
+    ),
+    ctaLabel: "Start on WhatsApp — free",
+    ctaHref: whatsAppHrefFor("candidate"),
+    ctaIcon: true,
+    proof: [
+      "Free for candidates, always",
+      "Avg. 8 days to first interview",
+      "Zero ghosting — guaranteed",
+      "Pan-India · remote & hybrid",
+    ],
+  },
+  company: {
+    chip: "Now live · First 2 hires completely free",
+    headline: <>Hire the engineers<br />others can&apos;t reach.</>,
+    sub: (
+      <>
+        Mitra speaks with engineers every day and understands them beyond their CV.
+        Brief us on the role and get a shortlist of candidates who are{" "}
+        <strong>genuinely interested, already qualified,</strong>{" "}
+        and ready for a direct introduction — not a pipeline to manage.
+      </>
+    ),
+    ctaLabel: "List a role — first 2 hires free",
+    ctaHref: whatsAppHrefFor("founder"),
+    ctaIcon: false,
+    proof: [
+      "First 2 hires free",
+      "3–5 pre-qualified intros / week",
+      "8% — half the agency rate",
+      "90-day replacement guarantee",
+    ],
+  },
+};
+
+export function HeroV2({ audience }: { audience: V2Audience }) {
+  const c = CONTENT[audience];
+
   return (
     <section className={s.hero}>
       <div className={s.heroInner}>
@@ -18,31 +66,26 @@ export function HeroV2() {
           <div className={s.heroChip}>
             <span className={s.chip}>
               <span className={s.chipDot} />
-              Now live &middot; Engineers placed at Setu, CRED &amp; Razorpay
+              {c.chip}
             </span>
           </div>
 
           <h1 className={s.heroHeadline}>
-            The right introduction<br />changes everything.
+            {c.headline}
             <span className={s.heroCursor} aria-hidden="true" />
           </h1>
 
-          <p className={s.heroSub}>
-            Brief Mitra on what actually matters. We search hundreds of funded startups
-            to find your genuine fit — then introduce you{" "}
-            <strong>directly to the founder.</strong>{" "}
-            No cold applications. No ghosting. Ever.
-          </p>
+          <p className={s.heroSub}>{c.sub}</p>
 
           <div className={s.heroCtaRow}>
             <a
-              href={whatsAppHrefFor("candidate")}
+              href={c.ctaHref}
               target="_blank"
               rel="noopener noreferrer"
               className={s.heroPrimaryCta}
             >
-              <WhatsAppIcon />
-              Start on WhatsApp — free
+              {c.ctaIcon && <WhatsAppIcon />}
+              {c.ctaLabel}
             </a>
             <a href="#how-it-works" className={s.heroSecondaryCta}>
               See how it works →
@@ -50,25 +93,15 @@ export function HeroV2() {
           </div>
 
           <div className={s.heroProof}>
-            <div className={s.heroProofItem}>
-              <span className={s.heroProofDot} />
-              Free for candidates, always
-            </div>
-            <span className={s.heroProofSep} />
-            <div className={s.heroProofItem}>
-              <span className={s.heroProofDot} />
-              Avg. 8 days to first interview
-            </div>
-            <span className={s.heroProofSep} />
-            <div className={s.heroProofItem}>
-              <span className={s.heroProofDot} />
-              Zero ghosting — guaranteed
-            </div>
-            <span className={s.heroProofSep} />
-            <div className={s.heroProofItem}>
-              <span className={s.heroProofDot} />
-              Pan-India &middot; remote &amp; hybrid
-            </div>
+            {c.proof.map((item, i) => (
+              <>
+                {i > 0 && <span key={`sep-${i}`} className={s.heroProofSep} />}
+                <div key={item} className={s.heroProofItem}>
+                  <span className={s.heroProofDot} />
+                  {item}
+                </div>
+              </>
+            ))}
           </div>
 
         </div>
