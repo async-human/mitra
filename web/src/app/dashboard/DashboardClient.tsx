@@ -52,6 +52,15 @@ function IntroIcon() {
   );
 }
 
+function CalendarIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="3" y="4.5" width="14" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M3 8h14M7 2.8v3M13 2.8v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
 interface StoredCard { id: string; title: string; description: string; }
@@ -61,17 +70,98 @@ interface IntroSummary {
 }
 type StepState = "done" | "current" | "locked";
 
+type DashboardUpdateKind = "offer" | "interview" | "intros" | "shortlist" | "default";
+
+interface DashboardUpdate {
+  kind: DashboardUpdateKind;
+  label: string;
+  headline: string;
+  detail?: string;
+}
+
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 
-function smartSubtitle(matches: StoredCard[], intros: IntroSummary[]): string {
-  const offer = intros.find(i => i.status === "offer");
-  if (offer) return `You have an offer from ${offer.company} — review your introductions below.`;
-  const interviews = intros.filter(i => i.status === "interview");
-  if (interviews.length === 1) return `An interview is booked with ${interviews[0].company} — your pipeline is moving.`;
-  if (interviews.length > 1) return `${interviews.length} interviews booked — things are moving fast.`;
-  if (intros.length > 0) return `${intros.length} introduction${intros.length !== 1 ? "s" : ""} in flight — check your pipeline below.`;
-  if (matches.length > 0) return "Your shortlist is ready. Mitra is making introductions on your behalf.";
-  return "Your next move starts with one honest conversation.";
+function getDashboardUpdate(matches: StoredCard[], intros: IntroSummary[]): DashboardUpdate {
+  const offers = intros.filter((i) => i.status === "offer");
+  if (offers.length > 0) {
+    const company = offers[0].company;
+    const headline =
+      offers.length === 1
+        ? `You have an offer from ${company}`
+        : `${offers.length} offers received — including ${company}`;
+    return {
+      kind: "offer",
+      label: offers.length === 1 ? "Latest update" : "Latest updates",
+      headline,
+      detail: "Review your introductions below.",
+    };
+  }
+  const interviews = intros.filter((i) => i.status === "interview");
+  if (interviews.length === 1) {
+    return {
+      kind: "interview",
+      label: "Interview booked",
+      headline: `Up next with ${interviews[0].company}`,
+      detail: "Your pipeline is moving — details are in introductions.",
+    };
+  }
+  if (interviews.length > 1) {
+    return {
+      kind: "interview",
+      label: "Interviews booked",
+      headline: `${interviews.length} interviews on your calendar`,
+      detail: "Things are moving fast — keep an eye on your introductions.",
+    };
+  }
+  if (intros.length > 0) {
+    return {
+      kind: "intros",
+      label: "Pipeline",
+      headline: `${intros.length} introduction${intros.length !== 1 ? "s" : ""} in flight`,
+      detail: "Track status below.",
+    };
+  }
+  if (matches.length > 0) {
+    return {
+      kind: "shortlist",
+      label: "Shortlist",
+      headline: "Your shortlist is ready",
+      detail: "Mitra is making introductions on your behalf.",
+    };
+  }
+  return {
+    kind: "default",
+    label: "",
+    headline: "Your next move starts with one honest conversation.",
+  };
+}
+
+function DashboardUpdateNotice({ update }: { update: DashboardUpdate }) {
+  if (update.kind === "default") {
+    return <p className="dash-greeting-sub">{update.headline}</p>;
+  }
+
+  const icon =
+    update.kind === "offer" ? (
+      <CheckIcon />
+    ) : update.kind === "interview" ? (
+      <CalendarIcon />
+    ) : (
+      <IntroIcon />
+    );
+
+  return (
+    <div className={`dash-update dash-update--${update.kind}`} role="status">
+      <div className="dash-update-icon" aria-hidden="true">
+        {icon}
+      </div>
+      <div className="dash-update-body">
+        <p className="dash-update-label">{update.label}</p>
+        <p className="dash-update-headline">{update.headline}</p>
+        {update.detail ? <p className="dash-update-detail">{update.detail}</p> : null}
+      </div>
+    </div>
+  );
 }
 
 /* ── Main component ─────────────────────────────────────────────────────── */
@@ -115,13 +205,15 @@ export function DashboardClient({
   const step2: StepState = hasMatches ? "done" : "current";
   const step3: StepState = hasIntros ? "done" : hasMatches ? "current" : "locked";
 
+  const dashboardUpdate = getDashboardUpdate(matches, intros);
+
   return (
     <>
       {/* ── Greeting ─────────────────────────────────────────────────────── */}
       <section className="dash-greeting">
         <p className="dash-greeting-eyebrow">{greeting}</p>
         <h1 className="dash-greeting-h1">{firstName}.</h1>
-        <p className="dash-greeting-sub">{smartSubtitle(matches, intros)}</p>
+        <DashboardUpdateNotice update={dashboardUpdate} />
 
         {loaded && (hasMatches || hasIntros) && (
           <div className="dash-stats-row">
