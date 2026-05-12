@@ -903,6 +903,7 @@ class PortalJob(BaseModel):
     responsibilities: list[str] = []
     requirements: list[str] = []
     nice_to_have: list[str] = []
+    company_info: dict = {}
 
 
 class PortalStats(BaseModel):
@@ -1270,6 +1271,7 @@ async def founder_portal(
         responsibilities=_str_list(sigs.get("responsibilities")),
         requirements=_str_list(sigs.get("requirements")),
         nice_to_have=_str_list(sigs.get("nice_to_have")),
+        company_info=sigs.get("company_info") if isinstance(sigs.get("company_info"), dict) else {},
     )
 
     return PortalResponse(job=job_out, candidates=candidates_out, stats=stats)

@@ -27,6 +27,18 @@ interface PortalCandidate {
   signals: PortalSignals;
 }
 
+interface CompanyInfo {
+  website_url?: string;
+  linkedin_url?: string;
+  founded_year?: number;
+  employee_range?: string;
+  funding_stage?: string;
+  total_funding?: string;
+  hq_location?: string;
+  investors?: string[];
+  description?: string;
+}
+
 interface PortalJob {
   id: number;
   title: string;
@@ -45,6 +57,7 @@ interface PortalJob {
   responsibilities: string[];
   requirements: string[];
   nice_to_have: string[];
+  company_info: CompanyInfo;
 }
 
 interface PortalStats {
@@ -731,6 +744,102 @@ export function FounderPortalClient({ token }: { token: string }) {
               <ul className="fp2-job-block-list fp2-job-block-list--muted">
                 {job.nice_to_have.map((r, i) => <li key={i}>{r}</li>)}
               </ul>
+            </div>
+          )}
+
+          {/* Block 7: About the Company */}
+          {(job.company_info.description || job.company_info.founded_year || job.company_info.employee_range || job.company_info.investors?.length) && (
+            <div className="fp2-job-block">
+              <p className="fp2-job-block-title">About {job.company}</p>
+              {job.company_info.description && (
+                <p className="fp2-job-block-text">{job.company_info.description}</p>
+              )}
+              {(job.company_info.founded_year || job.company_info.employee_range || job.company_info.total_funding || job.company_info.funding_stage || job.company_info.hq_location) && (
+                <div className="fp2-company-facts">
+                  {job.company_info.founded_year && (
+                    <span className="fp2-company-fact">
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                        <rect x="1" y="2" width="11" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+                        <path d="M1 5h11M4.5 1v2M8.5 1v2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                      </svg>
+                      Founded {job.company_info.founded_year}
+                    </span>
+                  )}
+                  {job.company_info.employee_range && (
+                    <span className="fp2-company-fact">
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                        <circle cx="6.5" cy="4" r="2" stroke="currentColor" strokeWidth="1.3"/>
+                        <path d="M2 11c0-2.21 2.015-4 4.5-4S11 8.79 11 11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                      </svg>
+                      {job.company_info.employee_range}
+                    </span>
+                  )}
+                  {job.company_info.total_funding && (
+                    <span className="fp2-company-fact">
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                        <path d="M2 9l3-3 2 2 4-5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      {job.company_info.total_funding} raised
+                    </span>
+                  )}
+                  {job.company_info.funding_stage && (
+                    <span className="fp2-company-fact">
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                        <rect x="2" y="6" width="2" height="5" rx=".5" fill="currentColor"/>
+                        <rect x="5.5" y="4" width="2" height="7" rx=".5" fill="currentColor"/>
+                        <rect x="9" y="2" width="2" height="9" rx=".5" fill="currentColor"/>
+                      </svg>
+                      {job.company_info.funding_stage}
+                    </span>
+                  )}
+                  {job.company_info.hq_location && (
+                    <span className="fp2-company-fact">
+                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                        <path d="M6.5 1C4.567 1 3 2.567 3 4.5 3 7.375 6.5 12 6.5 12S10 7.375 10 4.5C10 2.567 8.433 1 6.5 1Z" stroke="currentColor" strokeWidth="1.3"/>
+                        <circle cx="6.5" cy="4.5" r="1.2" stroke="currentColor" strokeWidth="1.1"/>
+                      </svg>
+                      {job.company_info.hq_location}
+                    </span>
+                  )}
+                </div>
+              )}
+              {job.company_info.investors && job.company_info.investors.length > 0 && (
+                <div>
+                  <p className="fp2-company-investors-label">Investors</p>
+                  <div className="fp2-company-investors">
+                    {job.company_info.investors.map((inv, i) => (
+                      <span key={i} className="fp2-company-investor-tag">{inv}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Block 8: Company Links */}
+          {(job.company_info.website_url || job.company_info.linkedin_url) && (
+            <div className="fp2-job-block">
+              <p className="fp2-job-block-title">Company Links</p>
+              <div className="fp2-company-links">
+                {job.company_info.website_url && (
+                  <a href={job.company_info.website_url} target="_blank" rel="noopener noreferrer" className="fp2-company-link-btn">
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                      <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.3"/>
+                      <path d="M6.5 1C5 3 4 4.7 4 6.5s1 3.5 2.5 5.5M6.5 1C8 3 9 4.7 9 6.5S8 10 6.5 12M1 6.5h11" stroke="currentColor" strokeWidth="1.1"/>
+                    </svg>
+                    Website
+                  </a>
+                )}
+                {job.company_info.linkedin_url && (
+                  <a href={job.company_info.linkedin_url} target="_blank" rel="noopener noreferrer" className="fp2-company-link-btn">
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                      <rect x="1" y="1" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.3"/>
+                      <path d="M4 5.5v4M4 4v-.5M6.5 9.5V7c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    </svg>
+                    LinkedIn
+                  </a>
+                )}
+              </div>
             </div>
           )}
         </div>

@@ -233,6 +233,19 @@ async def _create_job(job: dict, auth_email: str | None, session_id: str) -> tup
         except Exception:
             log.warning("job_builder: notify_matching_candidates_bg failed (non-critical)")
 
+        # Fire company enrichment in the background (never blocks job creation)
+        try:
+            import asyncio
+            from mitra_api.founder.company_enricher import enrich_company
+            asyncio.create_task(enrich_company(
+                company_name=company,
+                sector=job.get("sector"),
+                location=job.get("location"),
+                job_id=new_job.id,
+            ))
+        except Exception:
+            log.warning("job_builder: could not schedule company enrichment for job_id=%d", new_job.id)
+
         settings = get_settings()
         portal_url = f"{settings.mitra_web_base_url.rstrip('/')}/founder/portal?token={new_job.founder_access_token}"
         return new_job.id, portal_url
