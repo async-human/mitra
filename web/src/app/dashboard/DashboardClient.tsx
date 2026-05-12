@@ -214,35 +214,6 @@ export function DashboardClient({
         <p className="dash-greeting-eyebrow">{greeting}</p>
         <h1 className="dash-greeting-h1">{firstName}.</h1>
         <DashboardUpdateNotice update={dashboardUpdate} />
-
-        {loaded && (hasMatches || hasIntros) && (
-          <div className="dash-stats-row">
-            {hasMatches && (
-              <span className="dash-stat-pill">
-                <span className="dash-stat-dot dash-stat-dot--teal" />
-                {matches.length} match{matches.length !== 1 ? "es" : ""}
-              </span>
-            )}
-            {hasIntros && (
-              <span className="dash-stat-pill">
-                <span className="dash-stat-dot dash-stat-dot--ink" />
-                {intros.length} intro{intros.length !== 1 ? "s" : ""} sent
-              </span>
-            )}
-            {interviewCount > 0 && (
-              <span className="dash-stat-pill dash-stat-pill--amber">
-                <span className="dash-stat-dot dash-stat-dot--amber" />
-                {interviewCount} interview{interviewCount !== 1 ? "s" : ""} booked
-              </span>
-            )}
-            {offerCount > 0 && (
-              <span className="dash-stat-pill dash-stat-pill--green">
-                <span className="dash-stat-dot dash-stat-dot--green" />
-                {offerCount} offer{offerCount !== 1 ? "s" : ""} received
-              </span>
-            )}
-          </div>
-        )}
       </section>
 
       {/* ── Journey strip (only before chatting) ─────────────────────────── */}
@@ -289,19 +260,11 @@ export function DashboardClient({
         </section>
       )}
 
-      {/* ── Compact completion badge (after chatting) ──────────────────────── */}
-      {hasMatches && loaded && (
-        <div className="dash-onboarding-badge">
+      {/* ── One-time reassurance (matches ready, intros not started — avoids repeating counts shown in columns) ─ */}
+      {hasMatches && loaded && !hasIntros && (
+        <div className="dash-onboarding-badge dash-onboarding-badge--solo">
           <span className="dash-onboarding-icon"><CheckIcon /></span>
-          <span>Onboarding complete</span>
-          <span className="dash-onboarding-sep" />
-          <span>{matches.length} match{matches.length !== 1 ? "es" : ""} found</span>
-          {hasIntros && (
-            <>
-              <span className="dash-onboarding-sep" />
-              <span>{intros.length} intro{intros.length !== 1 ? "s" : ""} sent</span>
-            </>
-          )}
+          <span>You&apos;re set — introductions will appear in the column on the right as we reach out.</span>
         </div>
       )}
 
@@ -331,7 +294,11 @@ export function DashboardClient({
         </section>
       ) : (
         /* Post-chat: pipeline status card */
-        <div className="dash-pipeline-card">
+        <div
+          className={`dash-pipeline-card${
+            offerCount > 0 || interviewCount > 0 ? " dash-pipeline-card--quiet" : ""
+          }`}
+        >
           <div className="dash-pipeline-left">
             <div className="dash-pipeline-icon">
               <ActivityIcon />
@@ -339,21 +306,28 @@ export function DashboardClient({
             <div>
               <p className="dash-pipeline-title">
                 {offerCount > 0
-                  ? "Action needed"
+                  ? "Your search"
                   : interviewCount > 0
-                  ? "Interviews booked"
+                  ? "Your search"
                   : hasIntros
                   ? "Pipeline active"
                   : "Introductions in progress"}
               </p>
               <p className="dash-pipeline-sub">
-                {offerCount > 0
-                  ? `You have ${offerCount} offer${offerCount !== 1 ? "s" : ""} — scroll down to review`
-                  : interviewCount > 0
-                  ? `${interviewCount} interview${interviewCount !== 1 ? "s" : ""} booked${intros.length > interviewCount ? ` · ${intros.length - interviewCount} more in progress` : ""}`
-                  : hasIntros
-                  ? `${intros.length} introduction${intros.length !== 1 ? "s" : ""} sent and tracked`
-                  : "Mitra is reaching out to companies on your behalf — check back soon"}
+                {offerCount > 0 ? (
+                  <>Update preferences if your situation changes — details stay in Introductions.</>
+                ) : interviewCount > 0 ? (
+                  <>
+                    {intros.length > interviewCount
+                      ? `${intros.length - interviewCount} more intro${intros.length - interviewCount !== 1 ? "s" : ""} still in motion · `
+                      : ""}
+                    Full schedule lives in Introductions.
+                  </>
+                ) : hasIntros ? (
+                  `${intros.length} introduction${intros.length !== 1 ? "s" : ""} tracked below.`
+                ) : (
+                  "Mitra is reaching out to companies on your behalf — check back soon."
+                )}
               </p>
             </div>
           </div>

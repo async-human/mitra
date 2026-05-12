@@ -2697,7 +2697,7 @@ body {
 }
 .dash-greeting-h1 {
   font-family: var(--font-lora), 'Lora', serif;
-  font-size: clamp(44px, 6vw, 72px);
+  font-size: clamp(40px, 5.2vw, 60px);
   font-weight: 600;
   color: var(--foreground);
   letter-spacing: -0.03em;
@@ -2897,6 +2897,11 @@ body {
   background: rgba(6,95,70,0.25);
   border-radius: 1px;
 }
+.dash-onboarding-badge--solo {
+  font-weight: 400;
+  color: rgba(6, 78, 59, 0.92);
+  line-height: 1.5;
+}
 
 /* Pipeline status card */
 .dash-pipeline-card {
@@ -2910,6 +2915,20 @@ body {
   border-radius: 18px;
   box-shadow: 0 1px 6px rgba(0,0,0,0.04);
   flex-wrap: wrap;
+}
+.dash-pipeline-card--quiet {
+  padding: 16px 22px;
+  border-color: rgba(28, 25, 23, 0.06);
+  box-shadow: none;
+}
+.dash-pipeline-card--quiet .dash-pipeline-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(28, 25, 23, 0.72);
+}
+.dash-pipeline-card--quiet .dash-pipeline-sub {
+  font-size: 13px;
+  color: rgba(28, 25, 23, 0.48);
 }
 .dash-pipeline-left {
   display: flex;
