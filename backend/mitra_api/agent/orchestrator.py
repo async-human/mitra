@@ -566,8 +566,38 @@ async def run_agent_turn(
         sessions=sessions,
     )
 
-    # Separate the persisted memory portrait (never exposed as a raw signal)
-    candidate_memory = known_signals.pop("_memory", None) if known_signals else None
+    # Separate internal meta-keys — never exposed in the raw signals dump
+    candidate_memory     = known_signals.pop("_memory", None)
+    last_interpretation  = known_signals.pop("_last_interpretation", None)
+    # Remove all _implicit_* and other _-prefixed keys from the raw dump;
+    # they are surfaced via the formatted [SIGNAL INTELLIGENCE: ...] block instead
+    implicit_signals = {k: v for k, v in list(known_signals.items()) if k.startswith("_")}
+    for k in implicit_signals:
+        known_signals.pop(k, None)
+
+    # ── Rule-based signal extraction (fast, free, synchronous) ───────────────
+    from mitra_api.tools.signal_interpreter import (
+        build_interpretation_context_injection,
+        interpret_hesitation_signals,
+        interpret_ownership_signals,
+        interpret_salary_mention,
+        interpret_timing_signals,
+    )
+
+    rule_signals: dict[str, Any] = {}
+    rule_signals.update(interpret_salary_mention(user_text, known_signals))
+    rule_signals.update(interpret_timing_signals(user_text))
+    rule_signals.update(interpret_hesitation_signals(user_text))
+    rule_signals.update(interpret_ownership_signals(user_text))
+
+    if rule_signals:
+        await sessions.merge_signals(whatsapp_sender_id, rule_signals)
+        known_signals.update(rule_signals)
+        log.debug("rule-based signals: %s", list(rule_signals.keys()))
+
+    # Pull framing_hint out before the signals dump — it's an agent instruction,
+    # not a profile fact, and it gets its own formatted [FRAMING: ...] block later.
+    framing_hint = known_signals.pop("framing_hint", None)
 
     # ── Build message list with cache-optimised ordering ──────────────────────
     #
@@ -669,6 +699,20 @@ async def run_agent_turn(
         ))
         log.info("[agent:%s] returning candidate — signals present, transcript expired", whatsapp_sender_id)
 
+    # ── Inject interpretation intelligence from previous turn ─────────────────
+    # last_interpretation is the Haiku output from the previous message.
+    # build_interpretation_context_injection formats it as a readable block.
+    interp_block = build_interpretation_context_injection(last_interpretation)
+    if interp_block:
+        msgs.append(ChatMessage(role="system", content=interp_block))
+
+    # Framing hints from rule-based extraction (e.g. "Emphasise funded status, runway")
+    if framing_hint:
+        msgs.append(ChatMessage(
+            role="system",
+            content=f"[FRAMING: {framing_hint}]",
+        ))
+
     # Inject weak-intro nudge — drives proactive strengthening without candidate having to ask.
     # Suppressed on fresh_start so the agent doesn't immediately re-fire old intros.
     if not fresh_start:
@@ -733,6 +777,41 @@ async def run_agent_turn(
 
     msgs.append(ChatMessage(role="user", content=user_content))
     persist_from = len(msgs) - 1
+
+    # ── Background deep interpretation (Haiku, async) ─────────────────────────
+    # Snapshot the conversation *now* so the background coroutine gets a stable
+    # copy — not a live reference to msgs which continues to grow during the loop.
+    _history_snapshot = [
+        {"role": m.role, "content": m.content or ""}
+        for m in msgs
+        if m.role in ("user", "assistant") and m.content
+    ][-8:]
+    _signals_snapshot = {k: v for k, v in known_signals.items() if not k.startswith("_")}
+    _session_id_snap  = whatsapp_sender_id
+
+    async def _run_interpretation() -> None:
+        try:
+            from mitra_api.tools.signal_interpreter import (
+                extract_implicit_signals,
+                interpret_candidate_message,
+            )
+            interp = await interpret_candidate_message(
+                user_text, _history_snapshot, _signals_snapshot
+            )
+            if not interp:
+                return
+            implicit = extract_implicit_signals(interp)
+            implicit["_last_interpretation"] = interp
+            await sessions.merge_signals(_session_id_snap, implicit)
+            try:
+                async with db_factory() as db:
+                    await persist_signals(_session_id_snap, implicit, session=db)
+            except Exception:
+                log.debug("implicit signal persist failed (non-critical)")
+        except Exception:
+            log.debug("background interpretation failed (non-critical)", exc_info=True)
+
+    asyncio.create_task(_run_interpretation(), name=f"interp-{whatsapp_sender_id}")
 
     last_search_jobs_payload: dict[str, Any] | None = None
     final_text: str | None = None
