@@ -509,12 +509,22 @@ async def job_builder_upload(
     current_job = json.loads(signals["_job"]) if signals.get("_job") else {}
     merged_job  = _merge_job(current_job, extracted)
 
-    extracted_summary = json.dumps({k: v for k, v in extracted.items() if v}, ensure_ascii=False)
+    # Truncate JD text conservatively to keep the prompt within token budget
+    jd_snippet = text[:7000] if len(text) > 7000 else text
+    pre_meta   = json.dumps({k: v for k, v in extracted.items() if v}, ensure_ascii=False)
+
     user_content = (
-        f"[Founder uploaded JD: '{filename}'. Auto-extracted: {extracted_summary}. "
-        "Acknowledge what was parsed (mention role + company), improve the summary if needed, "
-        "infer any fields you can, and ask for the single most important missing field — "
-        "or mark ready=true if you have enough.]"
+        f"[Founder uploaded JD file: '{filename}'.\n\n"
+        f"FULL JD TEXT:\n{jd_snippet}\n\n"
+        f"Pre-extracted metadata (use as a seed, verify against full text above): {pre_meta}\n\n"
+        "Using the full JD text, extract EVERY available field into build_job: "
+        "title, company, location, remote_policy, employment (default full_time), "
+        "exp_min_yrs, exp_max_yrs, stack (array of technical skills), sector, "
+        "summary (2-3 sentences candidate-facing), "
+        "responsibilities (array — ALL bullets from Key Responsibilities / What You'll Do), "
+        "requirements (array — ALL bullets from Required Skills / Qualifications / Experience), "
+        "nice_to_have (array — ALL bullets from Preferred / Nice to Have / Bonus). "
+        "Set ready=true when you have title + company + 3 or more fields.]"
     )
 
     msgs: list[ChatMessage] = [ChatMessage(role="system", content=_SYSTEM_PROMPT)]
