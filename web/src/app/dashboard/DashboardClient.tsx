@@ -265,7 +265,7 @@ export function DashboardClient({
               </p>
             </div>
           </div>
-          <Link href="/chat" className="dash-pipeline-update">
+          <Link href="/chat?intent=update" className="dash-pipeline-update">
             Update preferences →
           </Link>
         </div>

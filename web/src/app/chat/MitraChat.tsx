@@ -50,8 +50,8 @@ function matchesKey(email: string) {
 }
 
 export function MitraChat({
-  userName, userEmail, userImage,
-}: { userName?: string; userEmail: string; userImage?: string }) {
+  userName, userEmail, userImage, intent,
+}: { userName?: string; userEmail: string; userImage?: string; intent?: string }) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -110,8 +110,14 @@ export function MitraChat({
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    callApi("");
-  }, [callApi]);
+    if (intent === "update") {
+      const msg = "I want to update my job search preferences";
+      setMessages([{ role: "user", text: msg }]);
+      callApi(msg);
+    } else {
+      callApi("");
+    }
+  }, [callApi, intent]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

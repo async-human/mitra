@@ -7,8 +7,10 @@ export const metadata: Metadata = {
   title: "Chat with Mitra",
 };
 
-export default async function ChatPage() {
-  const session = await auth();
+type Props = { searchParams: Promise<{ intent?: string }> };
+
+export default async function ChatPage({ searchParams }: Props) {
+  const [session, params] = await Promise.all([auth(), searchParams]);
   if (!session?.user) redirect("/sign-in");
 
   return (
@@ -16,6 +18,7 @@ export default async function ChatPage() {
       userName={session.user.name ?? undefined}
       userEmail={session.user.email!}
       userImage={session.user.image ?? undefined}
+      intent={params.intent}
     />
   );
 }
