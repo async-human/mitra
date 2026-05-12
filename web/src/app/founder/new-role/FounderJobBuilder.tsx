@@ -79,6 +79,74 @@ const EMP_LABEL: Record<string, string> = {
   full_time: "Full-time", contract: "Contract", part_time: "Part-time",
 };
 
+// ── JD Extraction Loader ──────────────────────────────────────────────────────
+
+const EXTRACT_STEPS = [
+  "Parsing document structure",
+  "Reading role title & company",
+  "Extracting location & work type",
+  "Identifying experience range",
+  "Parsing tech stack & skills",
+  "Reading key responsibilities",
+  "Extracting qualifications",
+  "Writing candidate summary",
+];
+
+// Cumulative delays (ms) — starts fast, slows for later steps
+const STEP_DELAYS = [300, 950, 1700, 2600, 3600, 4700, 5900, 7200];
+
+function JDExtractionLoader() {
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    const timers = STEP_DELAYS.map((delay, i) =>
+      setTimeout(() => setPhase(i + 1), delay)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div className="fjb-extractor">
+      <div className="fjb-extractor-icon">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+          <rect x="4" y="2" width="15" height="20" rx="2.5" stroke="#1C1917" strokeWidth="1.4" />
+          <path d="M8 7h8M8 11h8M8 15h5" stroke="#1C1917" strokeWidth="1.3" strokeLinecap="round" />
+          <circle cx="20" cy="20" r="4" fill="#FAF8F5" stroke="#1C1917" strokeWidth="1.2" />
+          <path d="M18.5 20h3M20 18.5v3" stroke="#16A34A" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+        <div className="fjb-extractor-scan" />
+      </div>
+
+      <p className="fjb-extractor-title">Reading your JD</p>
+      <p className="fjb-extractor-sub">Extracting all sections & requirements</p>
+
+      <ol className="fjb-extractor-steps">
+        {EXTRACT_STEPS.map((label, i) => {
+          const isDone   = i < phase;
+          const isActive = i === phase && phase < EXTRACT_STEPS.length;
+          const status   = isDone ? "done" : isActive ? "active" : "pending";
+          return (
+            <li key={i} className={`fjb-extractor-step fjb-extractor-step--${status}`}>
+              <span className="fjb-extractor-step-icon">
+                {isDone ? (
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                    <path d="M2 5l2.5 2.5L8 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : isActive ? (
+                  <span className="fjb-extractor-spinner" />
+                ) : (
+                  <span className="fjb-extractor-dot" />
+                )}
+              </span>
+              {label}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
 // ── Job preview card ──────────────────────────────────────────────────────────
 
 function JobPreviewCard({ job, onPost, onEdit, posting }: {
@@ -490,11 +558,11 @@ export function FounderJobBuilder({ authEmail, founderName }: {
                         </svg>
                         {msg.text}
                       </div>
-                    ) : (
+                    ) : !msg.jobPreview && !msg.portalUrl ? (
                       <div className="fjb-bubble">{renderText(msg.text)}</div>
-                    )}
+                    ) : null}
 
-                    {/* Preview card */}
+                    {/* Preview card — rendered alone, no duplicate text bubble */}
                     {msg.jobPreview && stage === "confirming" && (
                       <JobPreviewCard
                         job={msg.jobPreview}
@@ -513,15 +581,19 @@ export function FounderJobBuilder({ authEmail, founderName }: {
               ))}
 
               {loading && (
-                <div className="fjb-msg fjb-msg--mitra">
-                  <div className="fjb-av">M</div>
-                  <div className="fjb-msg-body">
-                    <div className="fjb-bubble fjb-bubble--typing">
-                      <span /><span /><span />
-                      {loadingHint && <span className="fjb-typing-hint">{loadingHint}</span>}
+                loadingHint === "Reading your JD…" ? (
+                  <JDExtractionLoader />
+                ) : (
+                  <div className="fjb-msg fjb-msg--mitra">
+                    <div className="fjb-av">M</div>
+                    <div className="fjb-msg-body">
+                      <div className="fjb-bubble fjb-bubble--typing">
+                        <span /><span /><span />
+                        {loadingHint && <span className="fjb-typing-hint">{loadingHint}</span>}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )
               )}
 
               <div ref={bottomRef} />
