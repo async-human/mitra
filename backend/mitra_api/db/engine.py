@@ -75,6 +75,34 @@ async def run_schema_migrations() -> None:
         # Job.founder_access_token — persistent no-login founder portal token
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS founder_access_token VARCHAR(64)",
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_jobs_founder_access_token ON jobs(founder_access_token) WHERE founder_access_token IS NOT NULL",
+        # Intro.decline_reason — founder's reason when passing on a candidate
+        "ALTER TABLE intros ADD COLUMN IF NOT EXISTS decline_reason TEXT",
+        # Intro.updated_at — last-modified timestamp
+        "ALTER TABLE intros ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ",
+        # matches table — dimensional fit scores + founder outcome tracking
+        """CREATE TABLE IF NOT EXISTS matches (
+            id SERIAL PRIMARY KEY,
+            candidate_id INTEGER NOT NULL REFERENCES candidates(id),
+            job_id INTEGER NOT NULL REFERENCES jobs(id),
+            intro_id INTEGER REFERENCES intros(id),
+            salary_fit FLOAT,
+            location_fit FLOAT,
+            skill_fit FLOAT,
+            overall_fit FLOAT,
+            reranker_rank INTEGER,
+            reranker_fit_pct INTEGER,
+            reranker_why TEXT,
+            intro_sent BOOLEAN NOT NULL DEFAULT FALSE,
+            gate_blocked BOOLEAN NOT NULL DEFAULT FALSE,
+            gate_missing JSONB,
+            founder_action VARCHAR(30),
+            founder_feedback TEXT,
+            matched_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            decided_at TIMESTAMPTZ
+        )""",
+        "CREATE INDEX IF NOT EXISTS matches_candidate_idx ON matches(candidate_id)",
+        "CREATE INDEX IF NOT EXISTS matches_job_idx ON matches(job_id)",
+        "CREATE INDEX IF NOT EXISTS matches_intro_idx ON matches(intro_id)",
     ]
     engine = _engine()
     async with engine.begin() as conn:
