@@ -95,19 +95,22 @@ function JobPreviewCard({ job, onPost, onEdit, posting }: {
 
   return (
     <div className="fjb-preview">
+
+      {/* Eyebrow */}
       <p className="fjb-preview-eyebrow">
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" style={{ display:"inline",verticalAlign:"middle",marginRight:5 }}>
           <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.3" />
           <path d="M6 4v3M6 8.5v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
         </svg>
-        Preview — how this role appears to candidates
+        Preview — how candidates will see this role
       </p>
 
-      <div className="fjb-preview-header">
+      {/* Block 1: Header */}
+      <div className="fjb-preview-block fjb-preview-block--header">
         <div className="fjb-preview-av">
           {(job.company || "??").slice(0, 2).toUpperCase()}
         </div>
-        <div className="fjb-preview-header-text">
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h3 className="fjb-preview-title">{job.title || "Untitled role"}</h3>
           <p className="fjb-preview-company">{job.company}</p>
         </div>
@@ -117,47 +120,61 @@ function JobPreviewCard({ job, onPost, onEdit, posting }: {
         </div>
       </div>
 
-      {badges.length > 0 && (
-        <div className="fjb-preview-badges">
-          {badges.map((b, i) => <span key={i} className="fjb-preview-badge">{b}</span>)}
+      {/* Block 2: Meta strip — badges + stack */}
+      {(badges.length > 0 || (job.stack && job.stack.length > 0)) && (
+        <div className="fjb-preview-block fjb-preview-block--meta">
+          {badges.length > 0 && (
+            <div className="fjb-preview-badges">
+              {badges.map((b, i) => <span key={i} className="fjb-preview-badge">{b}</span>)}
+            </div>
+          )}
+          {job.stack && job.stack.length > 0 && (
+            <div className="fjb-preview-stack">
+              {job.stack.map((t, i) => <span key={i} className="fjb-preview-tag">{t}</span>)}
+            </div>
+          )}
         </div>
       )}
 
-      {job.stack && job.stack.length > 0 && (
-        <div className="fjb-preview-stack">
-          {job.stack.map((t, i) => <span key={i} className="fjb-preview-tag">{t}</span>)}
+      {/* Block 3: About the Role */}
+      {job.summary && (
+        <div className="fjb-preview-block">
+          <p className="fjb-preview-block-title">About the Role</p>
+          <p className="fjb-preview-block-text">{job.summary}</p>
         </div>
       )}
 
-      {job.summary && <p className="fjb-preview-summary">{job.summary}</p>}
-
+      {/* Block 4: Key Responsibilities */}
       {job.responsibilities && job.responsibilities.length > 0 && (
-        <div className="fjb-preview-section">
-          <p className="fjb-preview-section-title">Key Responsibilities</p>
-          <ul className="fjb-preview-list">
+        <div className="fjb-preview-block">
+          <p className="fjb-preview-block-title">Key Responsibilities</p>
+          <ul className="fjb-preview-block-list">
             {job.responsibilities.map((r, i) => <li key={i}>{r}</li>)}
           </ul>
         </div>
       )}
 
+      {/* Block 5: Required Skills & Experience */}
       {job.requirements && job.requirements.length > 0 && (
-        <div className="fjb-preview-section">
-          <p className="fjb-preview-section-title">Required Skills & Experience</p>
-          <ul className="fjb-preview-list">
+        <div className="fjb-preview-block">
+          <p className="fjb-preview-block-title">Required Skills & Experience</p>
+          <ul className="fjb-preview-block-list">
             {job.requirements.map((r, i) => <li key={i}>{r}</li>)}
           </ul>
         </div>
       )}
 
+      {/* Block 6: Preferred Qualifications */}
       {job.nice_to_have && job.nice_to_have.length > 0 && (
-        <div className="fjb-preview-section">
-          <p className="fjb-preview-section-title">Nice to Have</p>
-          <ul className="fjb-preview-list fjb-preview-list--muted">
+        <div className="fjb-preview-block">
+          <p className="fjb-preview-block-title">Preferred Qualifications</p>
+          <ul className="fjb-preview-block-list fjb-preview-block-list--muted">
             {job.nice_to_have.map((r, i) => <li key={i}>{r}</li>)}
           </ul>
         </div>
       )}
 
+      {/* Actions */}
       <div className="fjb-preview-actions">
         <button className="fjb-preview-post-btn" onClick={onPost} disabled={posting}>
           {posting

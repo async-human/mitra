@@ -630,9 +630,11 @@ export function FounderPortalClient({ token }: { token: string }) {
       </header>
 
       <main className="fp2-main">
-        {/* Job card */}
-        <section className="fp2-job-card">
-          <div className="fp2-job-header">
+        {/* Job — Dex-style stacked section blocks */}
+        <div className="fp2-job-pane">
+
+          {/* Block 1: Header — avatar + title + company + stage + delete */}
+          <div className="fp2-job-block fp2-job-block--header">
             <div className="fp2-job-av">
               {job.company.slice(0, 2).toUpperCase()}
             </div>
@@ -655,78 +657,83 @@ export function FounderPortalClient({ token }: { token: string }) {
             </div>
           </div>
 
-          {/* Badges row */}
-          <div className="fp2-job-badges">
-            {job.location && job.location.toLowerCase() !== (job.remote_policy ?? "") && (
-              <span className="fp2-job-badge">
-                <svg width="11" height="13" viewBox="0 0 11 13" fill="none" aria-hidden="true">
-                  <path d="M5.5 1C3.015 1 1 3.015 1 5.5c0 3.375 4.5 7 4.5 7s4.5-3.625 4.5-7C10 3.015 7.985 1 5.5 1Z" stroke="currentColor" strokeWidth="1.3" />
-                  <circle cx="5.5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1.2" />
-                </svg>
-                {job.location}
-              </span>
+          {/* Block 2: Meta strip — badges + stack (frameless) */}
+          <div className="fp2-job-block fp2-job-block--meta">
+            <div className="fp2-job-badges">
+              {job.location && job.location.toLowerCase() !== (job.remote_policy ?? "") && (
+                <span className="fp2-job-badge">
+                  <svg width="11" height="13" viewBox="0 0 11 13" fill="none" aria-hidden="true">
+                    <path d="M5.5 1C3.015 1 1 3.015 1 5.5c0 3.375 4.5 7 4.5 7s4.5-3.625 4.5-7C10 3.015 7.985 1 5.5 1Z" stroke="currentColor" strokeWidth="1.3" />
+                    <circle cx="5.5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+                  </svg>
+                  {job.location}
+                </span>
+              )}
+              {job.remote_policy && (
+                <span className="fp2-job-badge">
+                  {job.remote_policy.charAt(0).toUpperCase() + job.remote_policy.slice(1)}
+                </span>
+              )}
+              {job.employment && job.employment !== "full_time" && (
+                <span className="fp2-job-badge">
+                  {job.employment === "contract" ? "Contract" : job.employment === "part_time" ? "Part-time" : job.employment}
+                </span>
+              )}
+              {salaryStr && <span className="fp2-job-badge fp2-job-badge--salary">{salaryStr} / yr</span>}
+              {(job.exp_min_yrs || job.exp_max_yrs) && (
+                <span className="fp2-job-badge fp2-job-badge--exp">
+                  {job.exp_min_yrs && job.exp_max_yrs && job.exp_min_yrs !== job.exp_max_yrs
+                    ? `${job.exp_min_yrs}–${job.exp_max_yrs} yrs exp`
+                    : `${job.exp_min_yrs ?? job.exp_max_yrs}+ yrs exp`}
+                </span>
+              )}
+              {job.sector && <span className="fp2-job-badge">{job.sector}</span>}
+            </div>
+            {job.stack.length > 0 && (
+              <div className="fp2-job-stack">
+                {job.stack.map((t, i) => <span key={i} className="fp2-job-tag">{t}</span>)}
+              </div>
             )}
-            {job.remote_policy && (
-              <span className="fp2-job-badge">
-                {job.remote_policy.charAt(0).toUpperCase() + job.remote_policy.slice(1)}
-              </span>
-            )}
-            {job.employment && job.employment !== "full_time" && (
-              <span className="fp2-job-badge">
-                {job.employment === "contract" ? "Contract" : job.employment === "part_time" ? "Part-time" : job.employment}
-              </span>
-            )}
-            {salaryStr && <span className="fp2-job-badge fp2-job-badge--salary">{salaryStr} / yr</span>}
-            {(job.exp_min_yrs || job.exp_max_yrs) && (
-              <span className="fp2-job-badge fp2-job-badge--exp">
-                {job.exp_min_yrs && job.exp_max_yrs && job.exp_min_yrs !== job.exp_max_yrs
-                  ? `${job.exp_min_yrs}–${job.exp_max_yrs} yrs exp`
-                  : `${job.exp_min_yrs ?? job.exp_max_yrs}+ yrs exp`}
-              </span>
-            )}
-            {job.sector && <span className="fp2-job-badge">{job.sector}</span>}
           </div>
 
-          {/* Stack tags */}
-          {job.stack.length > 0 && (
-            <div className="fp2-job-stack">
-              {job.stack.map((t, i) => <span key={i} className="fp2-job-tag">{t}</span>)}
+          {/* Block 3: About the Role */}
+          {job.summary && (
+            <div className="fp2-job-block">
+              <p className="fp2-job-block-title">About the Role</p>
+              <p className="fp2-job-block-text">{job.summary}</p>
             </div>
           )}
 
-          {/* Summary */}
-          {job.summary && <p className="fp2-job-summary-text">{job.summary}</p>}
-
-          {/* Responsibilities */}
+          {/* Block 4: Key Responsibilities */}
           {job.responsibilities.length > 0 && (
-            <div className="fp2-job-section">
-              <p className="fp2-job-section-title">Key Responsibilities</p>
-              <ul className="fp2-job-list">
+            <div className="fp2-job-block">
+              <p className="fp2-job-block-title">Key Responsibilities</p>
+              <ul className="fp2-job-block-list">
                 {job.responsibilities.map((r, i) => <li key={i}>{r}</li>)}
               </ul>
             </div>
           )}
 
-          {/* Requirements */}
+          {/* Block 5: Required Skills & Experience */}
           {job.requirements.length > 0 && (
-            <div className="fp2-job-section">
-              <p className="fp2-job-section-title">Required Skills & Experience</p>
-              <ul className="fp2-job-list">
+            <div className="fp2-job-block">
+              <p className="fp2-job-block-title">Required Skills & Experience</p>
+              <ul className="fp2-job-block-list">
                 {job.requirements.map((r, i) => <li key={i}>{r}</li>)}
               </ul>
             </div>
           )}
 
-          {/* Nice to have */}
+          {/* Block 6: Preferred Qualifications */}
           {job.nice_to_have.length > 0 && (
-            <div className="fp2-job-section">
-              <p className="fp2-job-section-title">Nice to Have</p>
-              <ul className="fp2-job-list fp2-job-list--muted">
+            <div className="fp2-job-block">
+              <p className="fp2-job-block-title">Preferred Qualifications</p>
+              <ul className="fp2-job-block-list fp2-job-block-list--muted">
                 {job.nice_to_have.map((r, i) => <li key={i}>{r}</li>)}
               </ul>
             </div>
           )}
-        </section>
+        </div>
 
         {/* Delete confirmation modal */}
         {showDeleteConfirm && (
