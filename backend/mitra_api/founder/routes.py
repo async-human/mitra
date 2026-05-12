@@ -893,10 +893,16 @@ class PortalJob(BaseModel):
     sector: str | None
     location: str | None
     remote_policy: str | None
+    employment: str | None
     salary_min_lpa: int | None
     salary_max_lpa: int | None
+    exp_min_yrs: int | None = None
+    exp_max_yrs: int | None = None
     stack: list[str]
     summary: str | None
+    responsibilities: list[str] = []
+    requirements: list[str] = []
+    nice_to_have: list[str] = []
 
 
 class PortalStats(BaseModel):
@@ -1239,6 +1245,13 @@ async def founder_portal(
         declined=sum(1 for c in candidates_out if c.status == "declined"),
     )
 
+    # Pull extra fields stored in signals JSONB by the job builder
+    sigs: dict = job.signals if isinstance(job.signals, dict) else {}
+
+    def _str_list(v: Any) -> list[str]:
+        if isinstance(v, list): return [str(x) for x in v if x]
+        return []
+
     job_out = PortalJob(
         id=job.id,
         title=job.title,
@@ -1247,10 +1260,16 @@ async def founder_portal(
         sector=job.sector,
         location=job.location,
         remote_policy=job.remote_policy,
+        employment=job.employment,
         salary_min_lpa=job.salary_min_lpa,
         salary_max_lpa=job.salary_max_lpa,
+        exp_min_yrs=sigs.get("exp_min_yrs"),
+        exp_max_yrs=sigs.get("exp_max_yrs"),
         stack=[str(s) for s in job.stack] if isinstance(job.stack, list) else [],
         summary=job.summary,
+        responsibilities=_str_list(sigs.get("responsibilities")),
+        requirements=_str_list(sigs.get("requirements")),
+        nice_to_have=_str_list(sigs.get("nice_to_have")),
     )
 
     return PortalResponse(job=job_out, candidates=candidates_out, stats=stats)

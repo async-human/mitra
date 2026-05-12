@@ -6368,19 +6368,34 @@ img.wchat-av--user { border-radius: 50%; }
   background: var(--fp2-surface);
   border: 1px solid var(--fp2-border);
   border-radius: var(--fp2-radius-l);
-  padding: 24px 24px 16px;
+  padding: 22px 24px 20px;
   display: flex;
-  gap: 18px;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 14px;
   box-shadow: var(--fp2-shadow);
-  position: relative;
+}
+
+/* Header row: avatar + identity + right controls */
+.fp2-job-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.fp2-job-identity { flex: 1; min-width: 0; }
+
+.fp2-job-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .fp2-delete-role-btn {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 14px;
   padding: 6px 10px;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -6390,8 +6405,6 @@ img.wchat-av--user { border-radius: 50%; }
   font-weight: 500;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
-  align-self: flex-end;
-  flex-shrink: 0;
 }
 .fp2-delete-role-btn:hover {
   color: #E85B4A;
@@ -6507,20 +6520,68 @@ img.wchat-av--user { border-radius: 50%; }
   letter-spacing: -0.5px;
 }
 
-.fp2-job-body {
-  flex: 1;
-  min-width: 0;
+/* Stack tags */
+.fp2-job-stack {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.fp2-job-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+.fp2-job-tag {
+  font-size: 12px;
+  font-weight: 500;
+  color: #1E40AF;
+  background: #EFF6FF;
+  border-radius: 6px;
+  padding: 3px 8px;
 }
+
+/* Summary plain text */
+.fp2-job-summary-text {
+  font-size: 14px;
+  color: var(--fp2-text-2);
+  line-height: 1.65;
+  margin: 0;
+  padding: 12px 14px;
+  background: #F9FAFB;
+  border-radius: 10px;
+  border-left: 3px solid var(--fp2-border);
+}
+
+/* Section (responsibilities / requirements / nice-to-have) */
+.fp2-job-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 2px;
+  border-top: 1px solid var(--fp2-border);
+}
+
+.fp2-job-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--fp2-text-3);
+  margin: 0;
+  padding-top: 2px;
+}
+
+.fp2-job-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fp2-job-list li {
+  font-size: 13.5px;
+  color: var(--fp2-text-2);
+  line-height: 1.55;
+}
+
+.fp2-job-list--muted li { color: var(--fp2-text-3); }
 
 .fp2-job-title {
   font-size: 20px;
@@ -6555,6 +6616,18 @@ img.wchat-av--user { border-radius: 50%; }
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.fp2-job-badge--salary {
+  color: #065F46;
+  background: #D1FAE5;
+  border-color: #A7F3D0;
+}
+
+.fp2-job-badge--exp {
+  color: #1E40AF;
+  background: #EFF6FF;
+  border-color: #BFDBFE;
 }
 
 .fp2-job-badge {

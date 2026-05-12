@@ -35,10 +35,16 @@ interface PortalJob {
   sector: string | null;
   location: string | null;
   remote_policy: string | null;
+  employment: string | null;
   salary_min_lpa: number | null;
   salary_max_lpa: number | null;
+  exp_min_yrs: number | null;
+  exp_max_yrs: number | null;
   stack: string[];
   summary: string | null;
+  responsibilities: string[];
+  requirements: string[];
+  nice_to_have: string[];
 }
 
 interface PortalStats {
@@ -626,59 +632,100 @@ export function FounderPortalClient({ token }: { token: string }) {
       <main className="fp2-main">
         {/* Job card */}
         <section className="fp2-job-card">
-          <div className="fp2-job-av">
-            {job.company.slice(0, 2).toUpperCase()}
-          </div>
-          <div className="fp2-job-body">
-            <div className="fp2-job-top">
-              <div>
-                <h1 className="fp2-job-title">{job.title}</h1>
-                <p className="fp2-job-company">{job.company}</p>
-              </div>
+          <div className="fp2-job-header">
+            <div className="fp2-job-av">
+              {job.company.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="fp2-job-identity">
+              <h1 className="fp2-job-title">{job.title}</h1>
+              <p className="fp2-job-company">{job.company}</p>
+            </div>
+            <div className="fp2-job-header-right">
               {job.stage && <span className="fp2-job-stage">{job.stage}</span>}
+              <button
+                className="fp2-delete-role-btn"
+                onClick={() => setShowDeleteConfirm(true)}
+                title="Delete this role"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                  <path d="M2 3.5h10M5.5 3.5V2.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v1M5 3.5l.5 7M9 3.5l-.5 7M3.5 3.5l.5 8h6l.5-8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Delete role
+              </button>
             </div>
-
-            <div className="fp2-job-badges">
-              {/* Show location only when it's not just a repeat of remote_policy */}
-              {job.location && job.location.toLowerCase() !== (job.remote_policy ?? "") && (
-                <span className="fp2-job-badge">
-                  <svg width="11" height="13" viewBox="0 0 11 13" fill="none" aria-hidden="true">
-                    <path d="M5.5 1C3.015 1 1 3.015 1 5.5c0 3.375 4.5 7 4.5 7s4.5-3.625 4.5-7C10 3.015 7.985 1 5.5 1Z" stroke="currentColor" strokeWidth="1.3" />
-                    <circle cx="5.5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1.2" />
-                  </svg>
-                  {job.location}
-                </span>
-              )}
-              {job.remote_policy && (
-                <span className="fp2-job-badge">
-                  {job.remote_policy === "remote" && (
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                      <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.2" />
-                      <ellipse cx="6" cy="6" rx="2" ry="4.5" stroke="currentColor" strokeWidth="1.2" />
-                      <path d="M1.5 6h9" stroke="currentColor" strokeWidth="1.2" />
-                    </svg>
-                  )}
-                  {job.remote_policy.charAt(0).toUpperCase() + job.remote_policy.slice(1)}
-                </span>
-              )}
-              {salaryStr && <span className="fp2-job-badge">{salaryStr} / yr</span>}
-              {job.sector  && <span className="fp2-job-badge">{job.sector}</span>}
-            </div>
-
-            {job.summary && <JobSummary text={job.summary} />}
           </div>
 
-          {/* Delete role button */}
-          <button
-            className="fp2-delete-role-btn"
-            onClick={() => setShowDeleteConfirm(true)}
-            title="Delete this role"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-              <path d="M2 3.5h10M5.5 3.5V2.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v1M5 3.5l.5 7M9 3.5l-.5 7M3.5 3.5l.5 8h6l.5-8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            Delete role
-          </button>
+          {/* Badges row */}
+          <div className="fp2-job-badges">
+            {job.location && job.location.toLowerCase() !== (job.remote_policy ?? "") && (
+              <span className="fp2-job-badge">
+                <svg width="11" height="13" viewBox="0 0 11 13" fill="none" aria-hidden="true">
+                  <path d="M5.5 1C3.015 1 1 3.015 1 5.5c0 3.375 4.5 7 4.5 7s4.5-3.625 4.5-7C10 3.015 7.985 1 5.5 1Z" stroke="currentColor" strokeWidth="1.3" />
+                  <circle cx="5.5" cy="5.5" r="1.5" stroke="currentColor" strokeWidth="1.2" />
+                </svg>
+                {job.location}
+              </span>
+            )}
+            {job.remote_policy && (
+              <span className="fp2-job-badge">
+                {job.remote_policy.charAt(0).toUpperCase() + job.remote_policy.slice(1)}
+              </span>
+            )}
+            {job.employment && job.employment !== "full_time" && (
+              <span className="fp2-job-badge">
+                {job.employment === "contract" ? "Contract" : job.employment === "part_time" ? "Part-time" : job.employment}
+              </span>
+            )}
+            {salaryStr && <span className="fp2-job-badge fp2-job-badge--salary">{salaryStr} / yr</span>}
+            {(job.exp_min_yrs || job.exp_max_yrs) && (
+              <span className="fp2-job-badge fp2-job-badge--exp">
+                {job.exp_min_yrs && job.exp_max_yrs && job.exp_min_yrs !== job.exp_max_yrs
+                  ? `${job.exp_min_yrs}–${job.exp_max_yrs} yrs exp`
+                  : `${job.exp_min_yrs ?? job.exp_max_yrs}+ yrs exp`}
+              </span>
+            )}
+            {job.sector && <span className="fp2-job-badge">{job.sector}</span>}
+          </div>
+
+          {/* Stack tags */}
+          {job.stack.length > 0 && (
+            <div className="fp2-job-stack">
+              {job.stack.map((t, i) => <span key={i} className="fp2-job-tag">{t}</span>)}
+            </div>
+          )}
+
+          {/* Summary */}
+          {job.summary && <p className="fp2-job-summary-text">{job.summary}</p>}
+
+          {/* Responsibilities */}
+          {job.responsibilities.length > 0 && (
+            <div className="fp2-job-section">
+              <p className="fp2-job-section-title">Key Responsibilities</p>
+              <ul className="fp2-job-list">
+                {job.responsibilities.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {/* Requirements */}
+          {job.requirements.length > 0 && (
+            <div className="fp2-job-section">
+              <p className="fp2-job-section-title">Required Skills & Experience</p>
+              <ul className="fp2-job-list">
+                {job.requirements.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {/* Nice to have */}
+          {job.nice_to_have.length > 0 && (
+            <div className="fp2-job-section">
+              <p className="fp2-job-section-title">Nice to Have</p>
+              <ul className="fp2-job-list fp2-job-list--muted">
+                {job.nice_to_have.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
+          )}
         </section>
 
         {/* Delete confirmation modal */}
