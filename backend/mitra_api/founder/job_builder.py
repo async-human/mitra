@@ -62,13 +62,17 @@ _SYSTEM_PROMPT = """You are Mitra's autonomous job-posting assistant. Help found
 
 ## EXTRACTION RULES
 
-- `stack`: ALWAYS return as an array of strings e.g. ["Python", "FastAPI", "PostgreSQL"]. Never a comma string.
+- `stack`: ALWAYS return as an array of strings e.g. ["Python", "FastAPI", "PostgreSQL"]. Never a comma string. These are the primary technical skills.
 - `salary_min_lpa` / `salary_max_lpa`: integers only. "25–35 LPA" → min=25, max=35. Single value → set both equal.
+- `exp_min_yrs` / `exp_max_yrs`: integer years. "6-11 Yrs" → min=6, max=11. "5+ years" → min=5, max=null.
 - `remote_policy`: ONLY "remote", "hybrid", or "onsite". Infer from location text if not explicit.
 - `employment`: ONLY "full_time", "contract", or "part_time". Default to "full_time" when unspecified.
 - `sector`: infer if not stated — e.g. "Fintech", "B2B SaaS", "HealthTech", "Developer Tools", "EdTech", "Logistics", "Deep Tech", "Ecommerce".
 - `stage`: keep exactly as written — "Seed", "Series A", "Pre-seed", "Bootstrapped", "Series B+".
 - `summary`: mandatory — 2-3 sentences on what the engineer will build, the impact, and why it's worth joining.
+- `responsibilities`: extract each bullet from the "Key Responsibilities" section as a clean string array. Max 8 items.
+- `requirements`: extract each bullet from "Required Skills / Experience" section as a clean string array. Max 10 items.
+- `nice_to_have`: extract bullets from "Preferred Qualifications / Nice to have" section as a string array. Max 6 items.
 
 ## TONE
 
@@ -97,10 +101,15 @@ _BUILD_TOOL = ToolDefinition(
                     "location":       {"type": "string",  "description": "City or 'Remote'"},
                     "remote_policy":  {"type": "string",  "enum": ["remote", "hybrid", "onsite"]},
                     "employment":     {"type": "string",  "enum": ["full_time", "contract", "part_time"]},
-                    "salary_min_lpa": {"type": "integer", "description": "Min salary in LPA"},
-                    "salary_max_lpa": {"type": "integer", "description": "Max salary in LPA"},
-                    "stack":          {"type": "array",   "items": {"type": "string"}},
-                    "summary":        {"type": "string",  "description": "2-3 sentence candidate-facing role summary"},
+                    "salary_min_lpa":    {"type": "integer", "description": "Min salary in LPA"},
+                    "salary_max_lpa":    {"type": "integer", "description": "Max salary in LPA"},
+                    "exp_min_yrs":       {"type": "integer", "description": "Min years of experience required"},
+                    "exp_max_yrs":       {"type": "integer", "description": "Max years of experience"},
+                    "stack":             {"type": "array",   "items": {"type": "string"}, "description": "Primary technical skills as array"},
+                    "summary":           {"type": "string",  "description": "2-3 sentence candidate-facing role summary"},
+                    "responsibilities":  {"type": "array",   "items": {"type": "string"}, "description": "Key responsibilities bullet points, max 8"},
+                    "requirements":      {"type": "array",   "items": {"type": "string"}, "description": "Required skills and experience bullets, max 10"},
+                    "nice_to_have":      {"type": "array",   "items": {"type": "string"}, "description": "Preferred/nice-to-have qualifications, max 6"},
                 },
             },
             "ready": {
@@ -186,6 +195,13 @@ async def _create_job(job: dict, auth_email: str | None, session_id: str) -> tup
         if isinstance(stack, str):
             stack = [s.strip() for s in stack.split(",") if s.strip()]
 
+        # Structured fields stored in signals JSONB
+        extra_signals: dict = {}
+        for key in ("exp_min_yrs", "exp_max_yrs", "responsibilities", "requirements", "nice_to_have"):
+            val = job.get(key)
+            if val is not None and val != [] and val != "":
+                extra_signals[key] = val
+
         new_job = JobModel(
             external_id=external_id,
             status=JobStatus.active,
@@ -199,6 +215,7 @@ async def _create_job(job: dict, auth_email: str | None, session_id: str) -> tup
             salary_min_lpa=int(sal_min) if sal_min is not None else None,
             salary_max_lpa=int(sal_max) if sal_max is not None else None,
             stack=stack or None,
+            signals=extra_signals or None,
             summary=job.get("summary"),
             founder_email=auth_email,
             founder_access_token=_secrets.token_urlsafe(32),

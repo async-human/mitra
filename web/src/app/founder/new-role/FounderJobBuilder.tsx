@@ -19,8 +19,13 @@ interface JobPreview {
   employment?: string;
   salary_min_lpa?: number;
   salary_max_lpa?: number;
+  exp_min_yrs?: number;
+  exp_max_yrs?: number;
   stack?: string[];
   summary?: string;
+  responsibilities?: string[];
+  requirements?: string[];
+  nice_to_have?: string[];
 }
 
 interface ChatMsg {
@@ -61,6 +66,12 @@ function salaryLabel(min?: number, max?: number) {
   return `₹${min || max}L / yr`;
 }
 
+function expLabel(min?: number, max?: number) {
+  if (!min && !max) return null;
+  if (min && max && min !== max) return `${min}–${max} yrs exp`;
+  return `${min || max}+ yrs exp`;
+}
+
 const REMOTE_LABEL: Record<string, string> = {
   remote: "Remote", hybrid: "Hybrid", onsite: "In-office",
 };
@@ -74,6 +85,7 @@ function JobPreviewCard({ job, onPost, onEdit, posting }: {
   job: JobPreview; onPost: () => void; onEdit: () => void; posting: boolean;
 }) {
   const salary = salaryLabel(job.salary_min_lpa, job.salary_max_lpa);
+  const exp    = expLabel(job.exp_min_yrs, job.exp_max_yrs);
   const badges = [
     job.stage, job.sector,
     job.location,
@@ -95,11 +107,14 @@ function JobPreviewCard({ job, onPost, onEdit, posting }: {
         <div className="fjb-preview-av">
           {(job.company || "??").slice(0, 2).toUpperCase()}
         </div>
-        <div>
+        <div className="fjb-preview-header-text">
           <h3 className="fjb-preview-title">{job.title || "Untitled role"}</h3>
           <p className="fjb-preview-company">{job.company}</p>
         </div>
-        {salary && <span className="fjb-preview-salary">{salary}</span>}
+        <div className="fjb-preview-meta-pills">
+          {salary && <span className="fjb-preview-salary">{salary}</span>}
+          {exp    && <span className="fjb-preview-exp">{exp}</span>}
+        </div>
       </div>
 
       {badges.length > 0 && (
@@ -115,6 +130,33 @@ function JobPreviewCard({ job, onPost, onEdit, posting }: {
       )}
 
       {job.summary && <p className="fjb-preview-summary">{job.summary}</p>}
+
+      {job.responsibilities && job.responsibilities.length > 0 && (
+        <div className="fjb-preview-section">
+          <p className="fjb-preview-section-title">Key Responsibilities</p>
+          <ul className="fjb-preview-list">
+            {job.responsibilities.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {job.requirements && job.requirements.length > 0 && (
+        <div className="fjb-preview-section">
+          <p className="fjb-preview-section-title">Required Skills & Experience</p>
+          <ul className="fjb-preview-list">
+            {job.requirements.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </div>
+      )}
+
+      {job.nice_to_have && job.nice_to_have.length > 0 && (
+        <div className="fjb-preview-section">
+          <p className="fjb-preview-section-title">Nice to Have</p>
+          <ul className="fjb-preview-list fjb-preview-list--muted">
+            {job.nice_to_have.map((r, i) => <li key={i}>{r}</li>)}
+          </ul>
+        </div>
+      )}
 
       <div className="fjb-preview-actions">
         <button className="fjb-preview-post-btn" onClick={onPost} disabled={posting}>
