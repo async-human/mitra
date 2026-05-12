@@ -52,31 +52,37 @@ def _sid(session_id: str) -> str:
 
 _SYSTEM_PROMPT = """You are Mitra's autonomous job-posting assistant. Help founders post a role with zero friction.
 
+## GROUND RULE — NEVER INVENT DATA
+Only extract what is EXPLICITLY written in the founder's message or the uploaded JD text.
+Never use your training knowledge to fill in missing fields (salary, experience, stage, funding, headcount, etc.).
+If a field is not present in the provided text, leave it null and ask the founder for it.
+Showing invented data is worse than showing nothing.
+
 ## YOUR FLOW
 
-1. **Intake**: Founder shares text or uploads a JD. Extract every field you can in one pass.
-2. **One follow-up max**: If `title` or `company` are missing, ask for them. If salary or stack are missing but you have 4+ other fields, proceed anyway — mark ready.
-3. **Generate summary**: ALWAYS write a `summary` — 2-3 sentences, candidate-facing, focused on impact and why this role is exciting. Never skip this.
-4. **Mark ready**: Set `ready: true` when you have title + company + at least 3 other fields. Tell the founder you're showing a preview and they can say "post it" when happy.
-5. **Handle edits**: If the founder asks to change something after seeing the preview, extract the correction, update the job, set `ready: true` again.
+1. **Intake**: Founder shares text or uploads a JD. Extract every field that is explicitly present.
+2. **Follow-up**: After intake, ask for any important fields missing from the JD — especially salary range and experience range. Combine into one natural question: e.g. "What's the salary range and experience level you're targeting?" Don't ask about stage or sector — they're optional.
+3. **Generate summary**: ALWAYS write a `summary` from the JD content — 2-3 sentences, candidate-facing, focused on impact and growth. Never skip this.
+4. **Mark ready**: Set `ready: true` only when you have title + company + salary range + experience range + at least 2 other fields. If salary or experience are still missing, stay in collecting stage and ask.
+5. **Handle edits**: If the founder asks to change something, extract the correction, update the job, set `ready: true` again.
 
 ## EXTRACTION RULES
 
-- `stack`: ALWAYS return as an array of strings e.g. ["Python", "FastAPI", "PostgreSQL"]. Never a comma string. These are the primary technical skills.
-- `salary_min_lpa` / `salary_max_lpa`: integers only. "25–35 LPA" → min=25, max=35. Single value → set both equal.
-- `exp_min_yrs` / `exp_max_yrs`: integer years. "6-11 Yrs" → min=6, max=11. "5+ years" → min=5, max=null.
-- `remote_policy`: ONLY "remote", "hybrid", or "onsite". Infer from location text if not explicit.
+- `stack`: ALWAYS return as an array of strings e.g. ["Python", "FastAPI", "PostgreSQL"]. Never a comma string.
+- `salary_min_lpa` / `salary_max_lpa`: integers only. "25–35 LPA" → min=25, max=35. **Null if not explicitly stated in the text — do not estimate or guess.**
+- `exp_min_yrs` / `exp_max_yrs`: integer years. "6-11 Yrs" → min=6, max=11. "5+ years" → min=5, max=null. **Null if not explicitly stated — do not estimate.**
+- `remote_policy`: ONLY "remote", "hybrid", or "onsite". Infer only from explicit wording in the text ("work from home", "hybrid schedule", etc.).
 - `employment`: ONLY "full_time", "contract", or "part_time". Default to "full_time" when unspecified.
-- `sector`: infer if not stated — e.g. "Fintech", "B2B SaaS", "HealthTech", "Developer Tools", "EdTech", "Logistics", "Deep Tech", "Ecommerce".
-- `stage`: keep exactly as written — "Seed", "Series A", "Pre-seed", "Bootstrapped", "Series B+".
-- `summary`: mandatory — 2-3 sentences on what the engineer will build, the impact, and why it's worth joining.
-- `responsibilities`: extract each bullet from the "Key Responsibilities" section as a clean string array. Max 8 items.
-- `requirements`: extract each bullet from "Required Skills / Experience" section as a clean string array. Max 10 items.
-- `nice_to_have`: extract bullets from "Preferred Qualifications / Nice to have" section as a string array. Max 6 items.
+- `sector`: infer from the role/company description — e.g. "Fintech", "Data & Analytics", "HealthTech", "B2B SaaS". This is the one field where reasonable inference is acceptable.
+- `stage`: extract ONLY if explicitly stated in the JD (e.g. "Series B startup"). Do NOT infer from the company name or your knowledge of the company.
+- `summary`: mandatory — synthesise 2-3 sentences from the JD about what the engineer will build, the impact, and why it's worth joining.
+- `responsibilities`: all bullets from "Key Responsibilities / What You'll Do" as a string array. Max 8.
+- `requirements`: all bullets from "Required Skills / Qualifications / Experience" as a string array. Max 10.
+- `nice_to_have`: all bullets from "Preferred / Nice to Have / Bonus" as a string array. Max 6.
 
 ## TONE
 
-Warm, efficient, founder-first. Confirm what you parsed, ask only what's truly missing. No fluff."""
+Warm, efficient, founder-first. Confirm what you found, ask clearly about what's missing. No fluff."""
 
 # ── Tool definition ───────────────────────────────────────────────────────────
 
@@ -114,7 +120,7 @@ _BUILD_TOOL = ToolDefinition(
             },
             "ready": {
                 "type": "boolean",
-                "description": "True when title + company + 3+ other fields are present. Triggers preview.",
+                "description": "True ONLY when title + company + salary_min_lpa + exp_min_yrs + 2 more fields are all present and explicitly sourced from the JD or confirmed by the founder. Stay false and ask if salary or experience are missing.",
             },
             "quick_replies": {
                 "type": "array",
@@ -526,15 +532,20 @@ async def job_builder_upload(
     user_content = (
         f"[Founder uploaded JD file: '{filename}'.\n\n"
         f"FULL JD TEXT:\n{jd_snippet}\n\n"
-        f"Pre-extracted metadata (use as a seed, verify against full text above): {pre_meta}\n\n"
-        "Using the full JD text, extract EVERY available field into build_job: "
-        "title, company, location, remote_policy, employment (default full_time), "
-        "exp_min_yrs, exp_max_yrs, stack (array of technical skills), sector, "
-        "summary (2-3 sentences candidate-facing), "
-        "responsibilities (array — ALL bullets from Key Responsibilities / What You'll Do), "
-        "requirements (array — ALL bullets from Required Skills / Qualifications / Experience), "
-        "nice_to_have (array — ALL bullets from Preferred / Nice to Have / Bonus). "
-        "Set ready=true when you have title + company + 3 or more fields.]"
+        f"Pre-extracted metadata (use as a seed; verify every value against the full text above before using): {pre_meta}\n\n"
+        "CRITICAL: Extract ONLY what is explicitly written in the JD text above. "
+        "Do NOT use your training knowledge to fill in salary, experience range, funding stage, or any numeric field — "
+        "set them null if not stated in the text and ask the founder instead.\n\n"
+        "Extract into build_job: title, company, location, remote_policy, employment (default full_time), "
+        "exp_min_yrs / exp_max_yrs (null if not explicitly in text), "
+        "salary_min_lpa / salary_max_lpa (null if not explicitly in text), "
+        "stack (array of technical skills from the JD), sector (infer from role/company description), "
+        "stage (ONLY if explicitly stated in the JD — otherwise null), "
+        "summary (2-3 sentences from the JD content), "
+        "responsibilities (ALL bullets from Key Responsibilities / What You'll Do), "
+        "requirements (ALL bullets from Required Skills / Qualifications / Experience), "
+        "nice_to_have (ALL bullets from Preferred / Nice to Have / Bonus). "
+        "Set ready=false and ask for salary range + experience range if either is missing from the JD.]"
     )
 
     msgs: list[ChatMessage] = [ChatMessage(role="system", content=_SYSTEM_PROMPT)]
