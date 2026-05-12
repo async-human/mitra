@@ -699,6 +699,29 @@ async def run_agent_turn(
         ))
         log.info("[agent:%s] returning candidate — signals present, transcript expired", whatsapp_sender_id)
 
+    elif not user_text.strip() and transcript and known_signals:
+        # New web chat session — returning candidate who has an active conversation history.
+        # The web app fires callApi("") on mount; we detect this and generate a proper
+        # welcome-back summary instead of continuing mid-conversation.
+        name = known_signals.get("candidate_name", "")
+        first = name.split()[0] if name else ""
+        msgs.append(ChatMessage(
+            role="system",
+            content=(
+                f"NEW SESSION OPEN — the candidate has re-opened the web chat after a previous session. "
+                f"Their full conversation history is in the transcript above. "
+                f"Write a warm welcome-back message (3–4 sentences maximum): "
+                + (f"Address them as {first}. " if first else "")
+                + f"Briefly reference the single most concrete thing from the last session — "
+                f"their target role, a specific company they mentioned, their stack, or a concern they raised. "
+                f"Then ask ONE question about how they'd like to continue: "
+                f"see fresh role recommendations, pick up where they left off, or update something. "
+                f"Do NOT re-ask anything already in their profile. "
+                f"Do NOT continue mid-conversation as if no time has passed."
+            ),
+        ))
+        log.info("[agent:%s] new web session — returning candidate, transcript present", whatsapp_sender_id)
+
     # ── Inject interpretation intelligence from previous turn ─────────────────
     # last_interpretation is the Haiku output from the previous message.
     # build_interpretation_context_injection formats it as a readable block.
@@ -722,7 +745,8 @@ async def run_agent_turn(
 
     # Auto-parse PDF resume before the LLM turn so the agent gets structured data,
     # not a raw URL it has to figure out what to do with.
-    user_content = user_text.strip()
+    # Use a sentinel for the session-open ping so the LLM doesn't receive empty content.
+    user_content = user_text.strip() or "[session opened]"
     if media_url and media_type and "pdf" in media_type.lower():
         try:
             from mitra_api.tools.resume_parser import (
