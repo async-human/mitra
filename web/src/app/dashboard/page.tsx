@@ -1,4 +1,4 @@
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
@@ -7,6 +7,7 @@ import { WhatsAppIcon } from "@/components/icons";
 import type { Metadata } from "next";
 import { MatchesPanelClient } from "./MatchesPanelClient";
 import { IntrosPanelClient } from "./IntrosPanelClient";
+import { UserMenu } from "./UserMenu";
 
 function ChatIcon() {
   return (
@@ -63,20 +64,7 @@ export default async function DashboardPage() {
         <Logo />
         <div className="dash-topbar-right">
           <Link href="/" className="dash-topbar-back">← Back to site</Link>
-          <div className="dash-topbar-user">
-            {user.image ? (
-              <img src={user.image} alt={user.name ?? ""} className="dash-topbar-av" referrerPolicy="no-referrer" />
-            ) : (
-              <span className="dash-topbar-av dash-topbar-av--fallback">{user.name?.[0] ?? "U"}</span>
-            )}
-            <span className="dash-topbar-name">{user.name}</span>
-            <form action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/" });
-            }}>
-              <button type="submit" className="dash-signout-btn">Sign out</button>
-            </form>
-          </div>
+          <UserMenu name={user.name} email={user.email} image={user.image} />
         </div>
       </header>
 
