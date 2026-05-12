@@ -569,9 +569,40 @@ async def run_agent_turn(
     # Separate the persisted memory portrait (never exposed as a raw signal)
     candidate_memory = known_signals.pop("_memory", None) if known_signals else None
 
-    # Build message history — inject memory portrait into system prompt if available
-    effective_prompt = inject_memory_into_context(SYSTEM_PROMPT, candidate_memory, "candidate")
-    msgs: list[ChatMessage] = [ChatMessage(role="system", content=effective_prompt)]
+    # ── Build message list with cache-optimised ordering ──────────────────────
+    #
+    # Cache breakpoints (cache_control=ephemeral) must appear on content that is
+    # stable across turns so the prefix before each breakpoint is byte-identical.
+    # Ordering from most-stable to least-stable maximises hit rate:
+    #
+    #   1. SYSTEM_PROMPT      — static, never changes             → ephemeral cache
+    #   2. Memory portrait    — rebuilt rarely (hours/days)       → ephemeral cache
+    #   3. Known signals      — changes when new signals saved    → no cache
+    #   4. Transcript prefix  — all but last 2 turns are stable   → ephemeral cache on boundary
+    #   5. Last 2 turns       — always fresh                      → no cache
+    #   6. Per-turn ephemeral context (fresh_start / returning / weak_intros / resume)
+    #   7. Current user message
+    #
+    msgs: list[ChatMessage] = [
+        ChatMessage(
+            role="system",
+            content=SYSTEM_PROMPT,
+            cache_control={"type": "ephemeral"},
+        )
+    ]
+
+    # Memory portrait — separate message so SYSTEM_PROMPT stays byte-identical
+    if candidate_memory:
+        memory_text = inject_memory_into_context("", candidate_memory, "candidate").strip()
+        if memory_text:
+            msgs.append(
+                ChatMessage(
+                    role="system",
+                    content=memory_text,
+                    cache_control={"type": "ephemeral"},
+                )
+            )
+
     transcript: list[ChatMessage] = []
 
     if fresh_start:
@@ -581,6 +612,17 @@ async def run_agent_turn(
     else:
         try:
             transcript = await sessions.get_transcript(whatsapp_sender_id)
+            # Put a cache breakpoint on the last stable user message in the transcript
+            # (everything before the final two turns is stable and can be cached).
+            if len(transcript) > 4:
+                stable_boundary = len(transcript) - 4
+                # Find the last user message at or before the stable boundary
+                for i in range(stable_boundary, -1, -1):
+                    if transcript[i].role == "user" and not transcript[i].cache_control:
+                        transcript[i] = transcript[i].model_copy(
+                            update={"cache_control": {"type": "ephemeral"}}
+                        )
+                        break
             msgs.extend(transcript)
         except Exception:
             log.warning("Redis get_transcript failed for %s — starting with empty history", whatsapp_sender_id)

@@ -21,6 +21,7 @@ class ChatMessage(BaseModel):
     tool_calls: list[ToolCall] | None = None
     tool_call_id: str | None = None
     name: str | None = None
+    cache_control: dict | None = None  # {"type": "ephemeral"} to mark an Anthropic cache breakpoint
 
 
 class LLMResult(BaseModel):
