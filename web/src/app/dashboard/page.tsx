@@ -5,9 +5,11 @@ import { whatsAppHrefFor } from "@/lib/whatsapp";
 import { Logo } from "@/components/Logo";
 import { WhatsAppIcon } from "@/components/icons";
 import type { Metadata } from "next";
+
 import { MatchesPanelClient } from "./MatchesPanelClient";
 import { IntrosPanelClient } from "./IntrosPanelClient";
 import { UserMenu } from "./UserMenu";
+import { JourneyStrip } from "./JourneyStrip";
 
 function ChatIcon() {
   return (
@@ -26,23 +28,6 @@ function getGreeting() {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
-}
-
-function CheckIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function LockIcon() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
-      <rect x="2" y="6" width="9" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M4 6V4.5a2.5 2.5 0 1 1 5 0V6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 
@@ -81,48 +66,7 @@ export default async function DashboardPage() {
         </section>
 
         {/* Journey strip */}
-        <section className="dash-journey">
-          <div className="dash-journey-inner">
-
-            <div className="dash-step dash-step--done">
-              <div className="dash-step-icon dash-step-icon--done"><CheckIcon /></div>
-              <div className="dash-step-body">
-                <div className="dash-step-label">Step 1</div>
-                <div className="dash-step-title">Signed in</div>
-                <div className="dash-step-desc">You&apos;re here. That&apos;s the start.</div>
-              </div>
-            </div>
-
-            <div className="dash-step-line" />
-
-            <div className="dash-step dash-step--current">
-              <div className="dash-step-icon dash-step-icon--current">
-                <WhatsAppIcon size={16} />
-              </div>
-              <div className="dash-step-body">
-                <div className="dash-step-label">Step 2 — Now</div>
-                <div className="dash-step-title">Chat with Mitra</div>
-                <div className="dash-step-desc">
-                  A 2-minute conversation — your experience, what you want, what you won&apos;t compromise on.
-                </div>
-              </div>
-            </div>
-
-            <div className="dash-step-line" />
-
-            <div className="dash-step dash-step--locked">
-              <div className="dash-step-icon dash-step-icon--locked"><LockIcon /></div>
-              <div className="dash-step-body">
-                <div className="dash-step-label">Step 3</div>
-                <div className="dash-step-title">Receive your matches</div>
-                <div className="dash-step-desc">
-                  3–5 curated introductions, each with a clear reason why. No ghosting, ever.
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </section>
+        <JourneyStrip userEmail={user.email ?? ""} />
 
         {/* Primary CTA */}
         <section className="dash-cta-section">
