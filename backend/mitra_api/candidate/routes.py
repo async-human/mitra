@@ -251,17 +251,18 @@ async def candidate_chat(
             except Exception:
                 log.warning("could not warm signals from DB for %s (non-critical)", sid, exc_info=True)
 
-        # Return last assistant message if session exists, else trigger greeting
-        transcript = await store.get_transcript(sid)
-        if transcript:
-            for msg in reversed(transcript):
+        # If a transcript exists, let the orchestrator generate a proper welcome-back
+        # message (name + recap + follow-up question) instead of replaying the last
+        # assistant message verbatim.
+        transcript_check = await store.get_transcript(sid)
+        if transcript_check:
+            # Special case: last message is a raw WhatsApp shortlist — return a clean
+            # web-friendly version directly (no LLM call needed).
+            from mitra_api.whatsapp.job_cards import WHATSAPP_SHORTLIST_MARKER
+            _WA_NOISE = (WHATSAPP_SHORTLIST_MARKER, "―――――――――――", "1 of ", "2 of ", "3 of ")
+            for msg in reversed(transcript_check):
                 if msg.role == "assistant":
                     content = msg.content or ""
-                    # If the last message is a raw WhatsApp-formatted shortlist, replace it with
-                    # a clean web-friendly welcome-back line. The web UI shows a dedicated
-                    # "matches ready" banner, so the raw card text isn't needed here.
-                    from mitra_api.whatsapp.job_cards import WHATSAPP_SHORTLIST_MARKER
-                    _WA_NOISE = (WHATSAPP_SHORTLIST_MARKER, "―――――――――――", "1 of ", "2 of ", "3 of ")
                     if any(marker in content for marker in _WA_NOISE):
                         first = body.user_name.split()[0] if body.user_name else None
                         greeting = (
@@ -270,12 +271,16 @@ async def candidate_chat(
                             "Tap \"View shortlist\" to review them, or keep chatting if you'd like to adjust anything."
                         )
                         return CandidateChatResponse(reply=greeting, job_cards=[])
-                    return CandidateChatResponse(reply=content, job_cards=[])
-        name_part = f" The candidate's name is {body.user_name}." if body.user_name else ""
-        user_text = (
-            f"[CONVERSATION START on the Mitra web app.{name_part} "
-            "Greet them warmly by name if you have it, and ask what brings them here.]"
-        )
+                    break
+            # Returning candidate — pass empty user_text so the orchestrator detects
+            # is_new_web_session=True and generates a personalized welcome-back message.
+            user_text = ""
+        else:
+            name_part = f" The candidate's name is {body.user_name}." if body.user_name else ""
+            user_text = (
+                f"[CONVERSATION START on the Mitra web app.{name_part} "
+                "Greet them warmly by name if you have it, and ask what brings them here.]"
+            )
     else:
         user_text = body.message.strip()
 
