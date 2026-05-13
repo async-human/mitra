@@ -341,51 +341,65 @@ function WeakIntroModal({
           ×
         </button>
         <div className="match-modal-body">
-          <div className="match-intro-gate match-intro-gate--modal" role="status">
-            <div className="match-intro-gate-top">
-              <div className="match-intro-gate-icon" aria-hidden>✦</div>
-              <div className="match-intro-gate-body">
-                <p className="match-intro-gate-title" id="weak-intro-modal-title">
-                  Almost there — a fuller intro gets more replies
-                </p>
-                <p className="match-intro-gate-lead">
-                  Your match is saved. Add the missing pieces in chat, then retry and we’ll intro you to {job.company}.
+          <div className="match-weak-modal" role="status">
+            <div className="match-weak-modal__hero">
+              <div className="match-weak-modal__icon" aria-hidden>
+                <span className="match-weak-modal__icon-inner">✦</span>
+              </div>
+              <div className="match-weak-modal__intro">
+                <p className="match-weak-modal__eyebrow">One quick step</p>
+                <h2 id="weak-intro-modal-title" className="match-weak-modal__title">
+                  Almost there
+                </h2>
+                <p className="match-weak-modal__lead">
+                  Your match is saved. Spend a minute in chat to fill in what&apos;s missing, then retry — we&apos;ll send a strong intro to{" "}
+                  <span className="match-weak-modal__company">{job.company}</span>.
                 </p>
               </div>
             </div>
-            <details className="match-intro-gate-details">
-              <summary className="match-intro-gate-summary">
-                What&apos;s missing
+
+            <details className="match-weak-modal__details">
+              <summary className="match-weak-modal__summary">
+                <span className="match-weak-modal__summary-label">What&apos;s missing</span>
                 {showBadge ? (
-                  <span className="match-intro-gate-summary-badge">{displayMissing.length}</span>
+                  <span className="match-weak-modal__pill">{displayMissing.length}</span>
                 ) : null}
+                <span className="match-weak-modal__chev" aria-hidden />
               </summary>
-              <ul className="match-intro-gate-list">
+              <ul className="match-weak-modal__list">
                 {displayMissing.map((item, i) => (
                   <li key={`${item}-${i}`}>{item}</li>
                 ))}
               </ul>
             </details>
-            <div className="match-intro-gate-row">
-              <Link href={chatHref} className="match-btn match-btn--primary match-intro-gate-primary" onClick={onClose}>
-                Continue with Mitra →
+
+            <div className="match-weak-modal__actions">
+              <Link
+                href={chatHref}
+                className="match-weak-modal__btn match-weak-modal__btn--primary"
+                onClick={onClose}
+              >
+                Continue with Mitra
               </Link>
               <button
                 type="button"
-                className={`match-btn match-btn--secondary match-intro-gate-secondary${isLoading ? " match-btn--loading" : ""}`}
+                className={`match-weak-modal__btn match-weak-modal__btn--secondary${isLoading ? " match-weak-modal__btn--busy" : ""}`}
                 disabled={!userEmail || isLoading}
                 onClick={() => onRetry(job)}
               >
-                {isLoading ? <span className="match-btn-spinner" /> : "I’ve added this — retry intro"}
+                {isLoading ? <span className="match-btn-spinner" aria-label="Loading" /> : "Retry intro"}
               </button>
             </div>
-            <Link
-              href={`/chat?about=${encodeURIComponent(job.title)}`}
-              className="match-intro-gate-muted"
-              onClick={onClose}
-            >
-              Ask something else →
-            </Link>
+
+            <div className="match-weak-modal__footer">
+              <Link
+                href={`/chat?about=${encodeURIComponent(job.title)}`}
+                className="match-weak-modal__tertiary"
+                onClick={onClose}
+              >
+                Ask about something else
+              </Link>
+            </div>
           </div>
         </div>
       </div>
