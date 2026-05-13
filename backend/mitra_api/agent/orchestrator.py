@@ -692,6 +692,16 @@ async def run_agent_turn(
         except Exception:
             log.warning("Redis get_transcript failed for %s — starting with empty history", whatsapp_sender_id)
 
+    # Detect a returning candidate re-opening the web chat.
+    # The web app fires callApi("") on mount; this flag suppresses intake/signal
+    # injections that would override the welcome-back instruction below.
+    is_new_web_session = (
+        not fresh_start
+        and not user_text.strip()
+        and bool(transcript)
+        and bool(known_signals)
+    )
+
     if known_signals:
         msgs.append(
             ChatMessage(
@@ -703,8 +713,9 @@ async def run_agent_turn(
             )
         )
 
-    # Profile readiness hint — tells the agent what to collect next without an LLM call
-    if known_signals and not fresh_start:
+    # Profile readiness hint — suppressed on new web sessions so it doesn't
+    # compete with the welcome-back instruction and cause repeated intake questions.
+    if known_signals and not fresh_start and not is_new_web_session:
         try:
             from mitra_api.tools.intelligence import score_conversation_quality
             quality = score_conversation_quality(known_signals)
@@ -758,33 +769,47 @@ async def run_agent_turn(
         # welcome-back summary instead of continuing mid-conversation.
         name = known_signals.get("candidate_name", "")
         first = name.split()[0] if name else ""
+
+        # Pull the most concrete signal available for the recap line
+        role_hint    = known_signals.get("current_role") or known_signals.get("what_they_want") or ""
+        stack_hint   = known_signals.get("primary_stack", "")
+        motivation   = known_signals.get("motivation", "")
+        recap_parts  = [p for p in [role_hint, stack_hint, motivation] if p]
+        recap_hint   = f"Known context to reference: {'; '.join(recap_parts[:2])}. " if recap_parts else ""
+
         msgs.append(ChatMessage(
             role="system",
             content=(
-                f"NEW SESSION OPEN — the candidate has re-opened the web chat after a previous session. "
-                f"Their full conversation history is in the transcript above. "
-                f"Write a warm welcome-back message (3–4 sentences maximum): "
-                + (f"Address them as {first}. " if first else "")
-                + f"Briefly reference the single most concrete thing from the last session — "
-                f"their target role, a specific company they mentioned, their stack, or a concern they raised. "
-                f"Then ask ONE question about how they'd like to continue: "
-                f"see fresh role recommendations, pick up where they left off, or update something. "
-                f"Do NOT re-ask anything already in their profile. "
-                f"Do NOT continue mid-conversation as if no time has passed."
+                "◆ NEW SESSION — THIS OVERRIDES ALL OTHER INSTRUCTIONS FOR THIS TURN ◆\n\n"
+                "The candidate has re-opened the web chat after a previous session. "
+                "Generate the OPENING message of this new session — not a continuation.\n\n"
+                "EXACT STRUCTURE (3 sentences max):\n"
+                f"1. Greet them warmly{' by name (' + first + ')' if first else ''}.\n"
+                "2. In ONE sentence, recap the most specific thing from the last session — "
+                "their target role, stack, what they're looking for, or a concern they raised. "
+                f"{recap_hint}"
+                "Do NOT say 'last time we discussed' — just reference the fact naturally.\n"
+                "3. Ask ONE question: would they like to see fresh job matches, "
+                "continue from where they left off, or update their preferences?\n\n"
+                "HARD RULES FOR THIS TURN:\n"
+                "- Do NOT continue mid-conversation or respond to the last message in the transcript.\n"
+                "- Do NOT ask any intake questions (motivation, challenges, stack, salary).\n"
+                "- Do NOT use '[INTAKE READINESS]' or '[SIGNAL INTELLIGENCE]' suggestions.\n"
+                "- One question only, about how they'd like to proceed."
             ),
         ))
         log.info("[agent:%s] new web session — returning candidate, transcript present", whatsapp_sender_id)
 
     # ── Inject interpretation intelligence from previous turn ─────────────────
-    # last_interpretation is the Haiku output from the previous message.
-    # build_interpretation_context_injection formats it as a readable block.
+    # Suppressed on new web sessions — the "priority next question" from the last
+    # turn would override the welcome-back instruction and cause the agent to
+    # continue mid-conversation instead of greeting the returning candidate.
     interp_block = build_interpretation_context_injection(last_interpretation)
-    if interp_block:
+    if interp_block and not is_new_web_session:
         msgs.append(ChatMessage(role="system", content=interp_block))
 
     # ── Inject behavioral reflection from previous turn ────────────────────────
-    # last_reflection is the post-turn delta: phase, tone, what shifted.
-    if last_reflection and isinstance(last_reflection, dict):
+    if last_reflection and isinstance(last_reflection, dict) and not is_new_web_session:
         refl_parts: list[str] = []
         if last_reflection.get("phase"):
             refl_parts.append(f"Search phase: {last_reflection['phase']}")
@@ -800,8 +825,8 @@ async def run_agent_turn(
                 content="[BEHAVIORAL STATE: " + " · ".join(refl_parts) + "]",
             ))
 
-    # Framing hints from rule-based extraction (e.g. "Emphasise funded status, runway")
-    if framing_hint:
+    # Framing hints from rule-based extraction (suppressed on new web sessions)
+    if framing_hint and not is_new_web_session:
         msgs.append(ChatMessage(
             role="system",
             content=f"[FRAMING: {framing_hint}]",
@@ -906,7 +931,10 @@ async def run_agent_turn(
         except Exception:
             log.debug("background interpretation failed (non-critical)", exc_info=True)
 
-    asyncio.create_task(_run_interpretation(), name=f"interp-{whatsapp_sender_id}")
+    # Skip interpretation for the session-open ping — there's no real user message
+    # to interpret and we don't want to overwrite _last_interpretation with noise.
+    if not is_new_web_session:
+        asyncio.create_task(_run_interpretation(), name=f"interp-{whatsapp_sender_id}")
 
     # Reflection runs after the turn completes (final_text not yet known here).
     # We schedule it below once we have the assistant response.
