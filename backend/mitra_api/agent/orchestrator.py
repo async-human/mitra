@@ -487,18 +487,33 @@ async def _build_and_persist_memory(
     signals: dict[str, Any],
     db_factory: Any,
 ) -> None:
-    """Background task: build a candidate memory portrait and store it in Postgres."""
+    """Background task: build a candidate memory portrait and infer trajectory, then persist both."""
     try:
+        to_persist: dict[str, Any] = {}
+
         portrait_json = await build_candidate_memory(
             signals=signals,
             intro_history=[],
         )
-        if not portrait_json:
-            return
+        if portrait_json:
+            to_persist["_memory"] = portrait_json
 
-        async with db_factory() as db:
-            await persist_signals(session_id, {"_memory": portrait_json}, session=db)
-        log.info("memory: persisted candidate portrait for %s", session_id)
+        # Co-fire trajectory inference — no extra LLM round trip since it runs concurrently
+        try:
+            from mitra_api.tools.intelligence import infer_candidate_trajectory
+            trajectory = await infer_candidate_trajectory(signals)
+            if trajectory:
+                to_persist["_trajectory"] = trajectory
+        except Exception:
+            log.debug("trajectory inference skipped (non-critical)")
+
+        if to_persist:
+            async with db_factory() as db:
+                await persist_signals(session_id, to_persist, session=db)
+            log.info(
+                "memory: persisted %s for %s",
+                " + ".join(to_persist.keys()), session_id,
+            )
     except Exception:
         log.exception("_build_and_persist_memory failed for %s", session_id)
 
@@ -569,6 +584,7 @@ async def run_agent_turn(
     # Separate internal meta-keys — never exposed in the raw signals dump
     candidate_memory     = known_signals.pop("_memory", None)
     last_interpretation  = known_signals.pop("_last_interpretation", None)
+    trajectory_data      = known_signals.pop("_trajectory", None)
     # Remove all _implicit_* and other _-prefixed keys from the raw dump;
     # they are surfaced via the formatted [SIGNAL INTELLIGENCE: ...] block instead
     implicit_signals = {k: v for k, v in list(known_signals.items()) if k.startswith("_")}
@@ -633,6 +649,24 @@ async def run_agent_turn(
                 )
             )
 
+    # Trajectory intelligence — inferred async, rare updates → cache-friendly
+    if trajectory_data and isinstance(trajectory_data, dict):
+        traj_parts: list[str] = []
+        if trajectory_data.get("trajectory_label"):
+            traj_parts.append(f"Trajectory: {trajectory_data['trajectory_label']}")
+        if trajectory_data.get("real_stage_fit"):
+            traj_parts.append(f"Real stage fit: {trajectory_data['real_stage_fit']}")
+        if trajectory_data.get("engineer_type"):
+            traj_parts.append(f"Engineer type: {trajectory_data['engineer_type']}")
+        if trajectory_data.get("hidden_constraint"):
+            traj_parts.append(f"Hidden constraint: {trajectory_data['hidden_constraint']}")
+        if traj_parts:
+            msgs.append(ChatMessage(
+                role="system",
+                content="[CANDIDATE INTELLIGENCE: " + " · ".join(traj_parts) + "]",
+                cache_control={"type": "ephemeral"},
+            ))
+
     transcript: list[ChatMessage] = []
 
     if fresh_start:
@@ -667,6 +701,24 @@ async def run_agent_turn(
                 ),
             )
         )
+
+    # Profile readiness hint — tells the agent what to collect next without an LLM call
+    if known_signals and not fresh_start:
+        try:
+            from mitra_api.tools.intelligence import score_conversation_quality
+            quality = score_conversation_quality(known_signals)
+            if quality["readiness"] != "match_ready" and quality["top_missing"]:
+                top = quality["top_missing"].replace("_", " ")
+                msgs.append(ChatMessage(
+                    role="system",
+                    content=(
+                        f"[INTAKE READINESS: {quality['score']}% complete. "
+                        f"Most valuable missing signal: {top}. "
+                        f"Collect this naturally before offering to search jobs.]"
+                    ),
+                ))
+        except Exception:
+            log.debug("conversation quality scoring failed (non-critical)")
 
     if fresh_start and known_signals:
         name = known_signals.get("candidate_name", "")

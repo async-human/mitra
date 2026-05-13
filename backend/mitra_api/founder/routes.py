@@ -1352,6 +1352,43 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
             match_row.founder_feedback = body.decline_reason.strip() if body.decline_reason else None
             match_row.decided_at       = now
 
+        # Update founder behavioural profile — learns response velocity and candidate preferences
+        try:
+            from mitra_api.db.models import CandidateSignal
+            from mitra_api.tools.intelligence import update_founder_response_pattern
+            sig_rows = (await db.execute(
+                select(CandidateSignal).where(CandidateSignal.candidate_id == intro.candidate_id)
+            )).scalars().all()
+            candidate_signals_for_learning: dict = {r.key: r.value for r in sig_rows}
+
+            response_hours: float | None = None
+            if intro.sent_at:
+                delta = now - intro.sent_at
+                response_hours = delta.total_seconds() / 3600
+
+            responded = body.action in ("interested", "schedule", "offer", "hired")
+            existing_profile = (
+                job.signals.get("_founder_profile", {})
+                if isinstance(job.signals, dict) else {}
+            )
+            updated_profile = update_founder_response_pattern(
+                existing_profile,
+                responded=responded,
+                response_hours=response_hours if responded else None,
+                candidate_signals=candidate_signals_for_learning,
+                passed_reason=body.decline_reason if body.action == "not_a_fit" else None,
+            )
+            new_job_signals = dict(job.signals) if isinstance(job.signals, dict) else {}
+            new_job_signals["_founder_profile"] = updated_profile
+            job.signals = new_job_signals
+            log.info(
+                "founder profile updated: job=%d action=%s response_rate=%.0f%%",
+                job.id, body.action,
+                updated_profile.get("response_rate_pct", 0),
+            )
+        except Exception:
+            log.debug("founder pattern learning failed (non-critical)")
+
         await db.commit()
 
         # Notify candidate asynchronously

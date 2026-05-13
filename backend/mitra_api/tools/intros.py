@@ -423,8 +423,13 @@ async def request_intro(
     )
 
     # ── Score intro confidence (advisory) ────────────────────────────────────
+    confidence: dict | None = None
     try:
         from mitra_api.tools.intelligence import score_intro_confidence
+        founder_profile = (
+            job.signals.get("_founder_profile", {})
+            if isinstance(job.signals, dict) else {}
+        )
         confidence = score_intro_confidence(
             candidate_signals=signals,
             job={
@@ -434,7 +439,7 @@ async def request_intro(
                 "stack":          job.stack,
                 "salary_max_lpa": job.salary_max_lpa,
             },
-            founder_profile={},
+            founder_profile=founder_profile,
         )
         log.info(
             "intro confidence: candidate=%s job=%s score=%.2f recommendation=%s reasons=%s",
@@ -536,7 +541,7 @@ async def request_intro(
         except Exception:
             log.warning("candidate confirmation email failed for %s (non-critical)", candidate_email)
 
-    return {
+    result: dict[str, Any] = {
         "ok": True,
         "intro_id": intro.id,
         "message": (
@@ -546,6 +551,15 @@ async def request_intro(
         ),
         "founder_contacted": founder_contacted,
     }
+    if confidence:
+        result["intro_confidence"] = confidence["confidence"]
+        # Surface a confidence note to the agent only when the score is borderline
+        if confidence["send_recommendation"] == "collect_more_signals" and confidence["reasons"]:
+            result["confidence_note"] = (
+                f"Confidence score: {int(confidence['confidence'] * 100)}%. "
+                + " ".join(confidence["reasons"][:2])
+            )
+    return result
 
 
 async def get_intro_status(
