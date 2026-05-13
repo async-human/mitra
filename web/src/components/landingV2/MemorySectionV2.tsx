@@ -59,24 +59,21 @@ const CONTENT = {
 type ContentShape = (typeof CONTENT)["candidate"];
 
 /* ─────────────────────────────────────────────────────────────────
-   Animated card — remounts cleanly whenever `key` changes.
+   Animated card.
 
-   Typing engine design (crash-safe):
-   - charCountRef tracks chars typed without being a React dep
-   - setInterval only fires while it is active; clearInterval in
-     cleanup stops it immediately on unmount / item advance
-   - Effect only re-runs when `currentItem` changes (≤ N times),
-     NOT on every character — eliminates the rapid effect-chain
-     that was crashing the tab on audience toggle
+   Key insight: this component is mounted with key={audience} so it
+   always unmounts+remounts when audience changes — state is never
+   stale relative to the `c` prop. The `key` and `c` both derive
+   from `audience` in the same parent render, so they are always
+   in sync (fixes the "rightItems[i] is undefined" crash).
 ───────────────────────────────────────────────────────────────── */
 function MemoryCardContent({ c }: { c: ContentShape }) {
   const rightItems = c.right.items;
   const [currentItem, setCurrentItem] = useState(-1);
-  // charCounts drives display; updated via interval, not effect deps
   const [charCounts, setCharCounts] = useState<number[]>(() =>
     rightItems.map(() => 0)
   );
-  // Local char counter lives in a ref so it never triggers the effect
+  // Per-character counter lives in a ref — advances without triggering the effect
   const charCountRef = useRef(0);
 
   // Begin typing after left items have faded in
@@ -85,7 +82,7 @@ function MemoryCardContent({ c }: { c: ContentShape }) {
     return () => clearTimeout(t);
   }, []);
 
-  // Typing engine — deps are [currentItem, rightItems] only (NOT charCounts)
+  // Typing engine — only re-runs when currentItem advances, NOT on every char
   useEffect(() => {
     if (currentItem < 0 || currentItem >= rightItems.length) return;
     const item = rightItems[currentItem];
@@ -111,7 +108,11 @@ function MemoryCardContent({ c }: { c: ContentShape }) {
   }, [currentItem, rightItems]);
 
   const totalItems = rightItems.length;
-  const doneCount = charCounts.filter((n, i) => n >= rightItems[i].length).length;
+  // Guard: charCounts length always matches rightItems length since this
+  // component remounts (new key) whenever audience changes.
+  const doneCount = charCounts.filter(
+    (n, i) => i < rightItems.length && n >= rightItems[i].length
+  ).length;
   const allDone = doneCount === totalItems;
   const typingStarted = currentItem >= 0;
 
@@ -140,7 +141,7 @@ function MemoryCardContent({ c }: { c: ContentShape }) {
         </ul>
       </div>
 
-      {/* ── Divider with drifting accent glow ── */}
+      {/* ── Divider ── */}
       <div className={s.memoryDivider} aria-hidden="true">
         <span className={s.memoryDividerGlow} />
       </div>
@@ -163,7 +164,7 @@ function MemoryCardContent({ c }: { c: ContentShape }) {
 
         <ul className={s.memoryList}>
           {rightItems.map((item, i) => {
-            const typed = charCounts[i];
+            const typed = charCounts[i] ?? 0;
             const isDone = typed >= item.length;
             const isTyping = currentItem === i;
             const isVisible = isDone || isTyping;
@@ -198,16 +199,15 @@ function MemoryCardContent({ c }: { c: ContentShape }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   Outer section — scroll detection + audience replay
+   Outer section — scroll detection only.
+   key={audience} on MemoryCardContent ensures it remounts whenever
+   audience changes, keeping charCounts perfectly in sync with c.
 ───────────────────────────────────────────────────────────────── */
 export function MemorySectionV2({ audience }: { audience: V2Audience }) {
   const c = CONTENT[audience];
   const sectionRef = useRef<HTMLElement>(null);
   const [entered, setEntered] = useState(false);
-  const [cardKey, setCardKey] = useState(0);
-  const isFirstSwitch = useRef(true);
 
-  // Fire once when section scrolls into view
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
@@ -223,15 +223,6 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
-
-  // Audience toggle after first mount → remount card to replay
-  useEffect(() => {
-    if (isFirstSwitch.current) {
-      isFirstSwitch.current = false;
-      return;
-    }
-    if (entered) setCardKey((k) => k + 1);
-  }, [audience, entered]);
 
   return (
     <section
@@ -249,7 +240,12 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
           <span className={s.memoryTitleAccent}>{c.titleAccent}</span>
         </h2>
 
-        {entered && <MemoryCardContent key={cardKey} c={c} />}
+        {/*
+          key={audience}: when audience changes, this component unmounts and
+          remounts with fresh state — charCounts always matches rightItems.
+          No separate cardKey state needed.
+        */}
+        {entered && <MemoryCardContent key={audience} c={c} />}
       </div>
     </section>
   );
