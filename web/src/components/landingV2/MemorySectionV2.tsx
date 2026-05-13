@@ -54,16 +54,11 @@ const CONTENT = {
   },
 };
 
-interface MemorySectionV2Props {
-  audience: V2Audience;
-  onAudienceChange: (a: V2Audience) => void;
-}
-
-export function MemorySectionV2({ audience, onAudienceChange }: MemorySectionV2Props) {
+export function MemorySectionV2({ audience }: { audience: V2Audience }) {
   const c = CONTENT[audience];
   const titleLines = c.title.split("\n");
-  const isCompany = audience === "company";
   const sectionRef = useRef<HTMLElement>(null);
+  const audienceReplaySkip = useRef(true);
   const [inView, setInView] = useState(false);
 
   // Fire when section scrolls into viewport
@@ -71,15 +66,21 @@ export function MemorySectionV2({ audience, onAudienceChange }: MemorySectionV2P
     const el = sectionRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) setInView(true); },
-      { threshold: 0, rootMargin: "0px 0px -80px 0px" }
+      ([e]) => {
+        if (e.isIntersecting) setInView(true);
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -10% 0px" }
     );
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
 
-  // Re-run animation when audience switches (defer setState to satisfy react-hooks/set-state-in-effect)
+  // Re-run list/card entrance when global audience changes (skip first mount — that would cancel scroll-in motion)
   useEffect(() => {
+    if (audienceReplaySkip.current) {
+      audienceReplaySkip.current = false;
+      return;
+    }
     let cancelled = false;
     const raf = requestAnimationFrame(() => {
       if (!cancelled) setInView(false);
@@ -89,8 +90,8 @@ export function MemorySectionV2({ audience, onAudienceChange }: MemorySectionV2P
       const el = sectionRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      if (rect.top < window.innerHeight - 80) setInView(true);
-    }, 30);
+      if (rect.top < window.innerHeight && rect.bottom > 0) setInView(true);
+    }, 50);
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
@@ -108,36 +109,6 @@ export function MemorySectionV2({ audience, onAudienceChange }: MemorySectionV2P
           {titleLines[0]}
           {titleLines[1] && <><br /><span className={s.memoryTitleAccent}>{titleLines[1]}</span></>}
         </h2>
-
-        <div className={s.memoryToolbar}>
-          <span className={s.memoryToolbarHint} id="memory-compare-label">
-            Compare for
-          </span>
-          <div
-            className={s.memoryToggle}
-            role="tablist"
-            aria-labelledby="memory-compare-label"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={!isCompany}
-              className={`${s.memoryToggleBtn} ${!isCompany ? s.memoryToggleBtnActive : ""}`}
-              onClick={() => onAudienceChange("candidate")}
-            >
-              Candidates
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={isCompany}
-              className={`${s.memoryToggleBtn} ${isCompany ? s.memoryToggleBtnActive : ""}`}
-              onClick={() => onAudienceChange("company")}
-            >
-              Companies
-            </button>
-          </div>
-        </div>
 
         <div className={s.memoryCard}>
 

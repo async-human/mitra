@@ -396,10 +396,8 @@
 /* ── Memory Section ────────────────────────────────────────── */
 
 /*
-  Scroll-triggered reveal system.
-  All child elements start hidden via transitions (not keyframe animations,
-  which fire on mount regardless of scroll position).
-  When .memorySectionInView is added to the wrapper, transitions fire in sequence.
+  Scroll-triggered reveal: headings/card use transitions; list rows use keyframe
+  animations so entrances replay when .memorySectionInView is toggled (audience change).
 */
 
 .memorySectionBody .sectionLabel {
@@ -416,14 +414,6 @@
   transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: 80ms;
-}
-
-.memorySectionBody .memoryToolbar {
-  opacity: 0;
-  transform: translateY(12px);
-  transition: opacity 0.48s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.48s cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: 105ms;
 }
 
 .memorySectionBody .memoryCard {
@@ -443,48 +433,68 @@
   transition-delay: 240ms;
 }
 
-/* Left items: fade up — cold data being pulled from a system */
+/* List rows: hidden until in view; keyframes replay when .memorySectionInView is toggled */
 .memorySectionBody .memoryItemLeft {
   opacity: 0;
-  transform: translateY(10px);
-  transition:
-    opacity 0.38s ease,
-    transform 0.38s ease,
-    background 0.28s ease;
-  transition-delay: var(--item-delay, 260ms);
+  transform: translateY(18px);
 }
 
-/* Right items: slide in from right — insights arriving */
 .memorySectionBody .memoryItemRight {
   opacity: 0;
-  transform: translateX(22px);
-  transition:
-    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.42s cubic-bezier(0.16, 1, 0.3, 1),
-    background 0.28s ease;
-  transition-delay: var(--item-delay, 340ms);
+  transform: translateX(28px);
 }
 
-/* Revealed: all transitions fire to their end state */
+.memorySectionInView .memoryItemLeft {
+  animation: memoryRevealLeft 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--item-delay, 240ms);
+}
+
+.memorySectionInView .memoryItemRight {
+  animation: memoryRevealRight 0.78s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--item-delay, 320ms);
+}
+
+@keyframes memoryRevealLeft {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes memoryRevealRight {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Revealed: chrome + headings use transitions */
 .memorySectionInView .sectionLabel,
 .memorySectionInView .memoryTitle,
-.memorySectionInView .memoryToolbar,
 .memorySectionInView .memoryCard,
-.memorySectionInView .memoryColLabel,
-.memorySectionInView .memoryItemLeft,
-.memorySectionInView .memoryItemRight {
+.memorySectionInView .memoryColLabel {
   opacity: 1;
   transform: none;
 }
 
 .memorySectionInView .memoryItemLeft:hover {
-  transform: translateX(3px);
+  transform: translateX(4px);
   background: rgba(0, 0, 0, 0.028);
+  transition: transform 0.28s ease, background 0.28s ease;
 }
 
 .memorySectionInView .memoryItemRight:hover {
-  transform: translateX(5px);
+  transform: translateX(6px);
   background: rgba(0, 0, 0, 0.025);
+  transition: transform 0.28s ease, background 0.28s ease;
 }
 
 .root[data-audience="company"] .memorySectionInView .memoryItemLeft:hover,
@@ -500,59 +510,12 @@
   letter-spacing: -0.035em;
   line-height: 1.1;
   color: var(--ink);
-  margin: 0 0 1.15rem;
+  margin: 0 0 2.5rem;
   max-width: 600px;
 }
 
 .memoryTitleAccent {
   color: var(--accent);
-}
-
-.memoryToolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem 1.1rem;
-  margin: 0 0 2rem;
-}
-
-.memoryToolbarHint {
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--ink2);
-  letter-spacing: 0.01em;
-}
-
-.memoryToggle {
-  display: inline-flex;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.06);
-  border-radius: 99px;
-  padding: 3px;
-}
-
-.memoryToggleBtn {
-  font-size: 0.76rem;
-  font-weight: 600;
-  padding: 0.32rem 0.9rem;
-  border-radius: 99px;
-  border: none;
-  cursor: pointer;
-  background: transparent;
-  color: var(--ink2);
-  transition: background 0.2s, color 0.2s;
-  font-family: inherit;
-  white-space: nowrap;
-  line-height: 1;
-}
-
-.memoryToggleBtn:hover:not(.memoryToggleBtnActive) {
-  color: var(--ink);
-}
-
-.memoryToggleBtnActive {
-  background: var(--ink);
-  color: var(--bg);
 }
 
 .memoryCard {
@@ -606,6 +569,10 @@
     color-mix(in srgb, var(--accent) 60%, transparent),
     transparent
   );
+  opacity: 0;
+}
+
+.memorySectionInView .memoryDivider::after {
   opacity: 0.85;
   animation: memoryDividerDrift 5.5s ease-in-out infinite;
 }
@@ -748,6 +715,11 @@
       color-mix(in srgb, var(--accent) 55%, transparent),
       transparent
     );
+    opacity: 0;
+  }
+
+  .memorySectionInView .memoryDivider::after {
+    opacity: 0.85;
     animation: memoryDividerDriftH 5.5s ease-in-out infinite;
   }
   .memoryColLeft {
@@ -756,18 +728,22 @@
   .memoryColRight {
     padding: 1.75rem 1.5rem;
   }
-  .memoryToolbar {
-    margin-bottom: 1.65rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .memoryDivider::after {
+  .memoryDivider::after,
+  .memorySectionInView .memoryDivider::after {
     animation: none;
     opacity: 0;
   }
   .memoryItemDot {
     animation: none;
+  }
+  .memorySectionInView .memoryItemLeft,
+  .memorySectionInView .memoryItemRight {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
   .memorySectionInView .memoryCard:hover {
     transform: none;
@@ -964,8 +940,7 @@ details[open] .faqIcon {
 }
 
 /* Nav toggle in company mode */
-.root[data-audience="company"] .navToggle,
-.root[data-audience="company"] .memoryToggle {
+.root[data-audience="company"] .navToggle {
   background: rgba(255,255,255,0.1);
 }
 
