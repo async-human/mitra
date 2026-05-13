@@ -942,6 +942,38 @@ def _is_intro_profile_header_line(line: str) -> bool:
     return bool(s.startswith("*") and "'s profile:" in s)
 
 
+def _extract_profile_block_from_intro_note(intro_note: str | None) -> str | None:
+    """
+    Return the bullet block under *{name}'s profile:* from the intro email body.
+    This is the richest structured summary Mitra already sent the founder.
+    """
+    if not intro_note or not intro_note.strip():
+        return None
+    lines = intro_note.replace("\r\n", "\n").split("\n")
+    start = -1
+    for idx, line in enumerate(lines):
+        if _is_intro_profile_header_line(line):
+            start = idx + 1
+            break
+    if start < 0:
+        return None
+    collected: list[str] = []
+    for line in lines[start:]:
+        s = line.strip()
+        low = s.lower()
+        if s.startswith("I've spent time") or s.startswith("Would you have") or s.startswith("This isn't a spray"):
+            break
+        if low in {"— mitra", "- mitra"}:
+            break
+        if s.startswith("Quick reply") or "────────" in s:
+            break
+        if not s:
+            continue
+        collected.append(line.rstrip())
+    body = "\n".join(collected).strip()
+    return body or None
+
+
 def _extract_why_fit_from_intro_note(intro_note: str | None) -> str | None:
     """
     Parse the LLM-authored 'why fit' paragraph(s) from a stored intro email body.
@@ -1020,27 +1052,210 @@ def _fallback_why_paragraph_from_intro(t: str) -> str | None:
     return None
 
 
-def _format_portal_fit_bullets(signals: PortalCandidateSignals, job_stack: list[str]) -> str:
-    """Short bullets for founders: stack overlap, tenure, comp — complements the intro 'why' text."""
+def _format_portal_fit_bullets(
+    signals: PortalCandidateSignals,
+    raw_signals: dict[str, Any],
+    job_stack: list[str],
+) -> str:
+    """Structured candidate facts for founders — stack, comp, location, trajectory, etc."""
+    def _i(v: Any) -> int | None:
+        try:
+            return int(round(float(v)))
+        except (TypeError, ValueError):
+            return None
+
     js = {str(x).strip().lower() for x in job_stack if x}
     overlap = [s for s in signals.stack if str(s).strip().lower() in js]
     parts: list[str] = []
     if overlap:
         parts.append(
-            f"**Stack fit:** {', '.join(overlap)} — overlaps with skills called out on your JD."
+            f"**Stack overlap with your JD:** {', '.join(overlap)}."
         )
     elif signals.stack:
-        parts.append(f"**Their stack:** {', '.join(signals.stack[:8])}.")
+        parts.append(f"**Their stack:** {', '.join(signals.stack[:10])}.")
     if signals.years_exp is not None:
-        parts.append(f"**Tenure:** ~{signals.years_exp} years relevant experience.")
-    if signals.salary_target_lpa is not None:
+        parts.append(f"**Experience:** ~{signals.years_exp} years.")
+    smin, smax = _i(raw_signals.get("salary_min_lpa")), _i(raw_signals.get("salary_max_lpa"))
+    if smin and smax and smax != smin:
+        parts.append(f"**Stated comp band:** ₹{smin}–{smax}L (annual).")
+    elif signals.salary_target_lpa is not None:
         parts.append(f"**Comp expectation:** ₹{signals.salary_target_lpa}L target (annual).")
+    ctc = _i(raw_signals.get("current_ctc_lpa"))
+    if ctc:
+        parts.append(f"**Current CTC (as shared):** ~₹{ctc}L.")
     if signals.current_role:
-        cc = f" at {signals.current_company}" if signals.current_company else ""
-        parts.append(f"**Current title:** {signals.current_role}{cc}.")
+        cc = f" at *{signals.current_company}*" if signals.current_company else ""
+        parts.append(f"**Current role:** {signals.current_role}{cc}.")
+    if signals.notice_period_days is not None:
+        parts.append(f"**Notice period:** {signals.notice_period_days} days (as shared).")
+
+    loc = raw_signals.get("location_preference") or raw_signals.get("preferred_location") or raw_signals.get("location")
+    if isinstance(loc, list):
+        loc = ", ".join(str(x) for x in loc if x)
+    if loc and str(loc).strip():
+        parts.append(f"**Location preference:** {str(loc).strip()}.")
+    rel = raw_signals.get("open_to_relocate") or raw_signals.get("relocation")
+    if rel is not None and str(rel).strip() not in {"", "unknown", "Unknown"}:
+        parts.append(f"**Relocation:** {str(rel).strip()}.")
+
+    np = signals.notable_projects
+    if np is not None:
+        proj = str(np).strip()
+        if len(proj) > 12:
+            if len(proj) > 360:
+                proj = proj[:357] + "…"
+            parts.append(f"**Notable work / projects:** {proj}")
+    if signals.motivation and len(signals.motivation) > 12:
+        m = signals.motivation.strip()
+        if len(m) > 400:
+            m = m[:397] + "…"
+        parts.append(f"**What they want next:** {m}")
+    if signals.linkedin_url and str(signals.linkedin_url).strip():
+        parts.append(f"**LinkedIn:** {str(signals.linkedin_url).strip()}")
+
     if not parts:
         return ""
     return "\n".join(f"• {p}" for p in parts)
+
+
+def _format_jd_alignment_bullets(
+    signals: PortalCandidateSignals,
+    raw_signals: dict[str, Any],
+    job_stack: list[str],
+    requirements: list[str],
+    nice_to_have: list[str],
+    job_title: str,
+) -> str:
+    """Surface where the candidate lines up with this role's JD (keyword overlap)."""
+    cand_parts: list[str] = []
+    cand_parts.extend(str(s).lower() for s in signals.stack)
+    if signals.current_role:
+        cand_parts.append(str(signals.current_role).lower())
+    if signals.motivation:
+        cand_parts.append(signals.motivation.lower())
+    mot = raw_signals.get("motivation") or raw_signals.get("what_they_want")
+    if isinstance(mot, list):
+        cand_parts.extend(str(m).lower() for m in mot)
+    elif mot:
+        cand_parts.append(str(mot).lower())
+    for key in ("notable_projects", "proud_of", "built", "notable_project"):
+        v = raw_signals.get(key)
+        if v:
+            cand_parts.append(str(v).lower())
+    cand_blob = " ".join(cand_parts)
+
+    stop = frozenset({
+        "and", "the", "for", "with", "you", "our", "any", "yrs", "year", "years",
+        "strong", "good", "experience", "team", "work", "ability", "skills",
+    })
+
+    def _score_req(text: str) -> bool:
+        rlow = text.lower()
+        tokens = re.findall(r"[a-z0-9][a-z0-9+.\-]*", rlow)
+        meaningful = [w for w in tokens if len(w) > 2 and w not in stop]
+        if len(meaningful) < 2:
+            return any(w in cand_blob for w in meaningful)
+        hits = sum(1 for w in meaningful if w in cand_blob)
+        return hits >= max(1, min(2, len(meaningful) // 3))
+
+    hits = [r.strip() for r in requirements[:12] if r and len(r.strip()) > 5 and _score_req(r)]
+    parts: list[str] = []
+    if hits:
+        shown = hits[:3]
+        more = len(hits) - len(shown)
+        clips = []
+        for s in shown:
+            clips.append(s[:150] + ("…" if len(s) > 150 else ""))
+        tail = f" (+{more} more requirements also look aligned)" if more > 0 else ""
+        parts.append(f"**How they map to your requirements:** " + " · ".join(clips) + tail)
+
+    nhits = [r.strip() for r in nice_to_have[:8] if r and len(r.strip()) > 5 and _score_req(r)]
+    if nhits:
+        first = nhits[0]
+        parts.append(
+            "**Nice-to-have fit:** "
+            + (first[:130] + ("…" if len(first) > 130 else ""))
+            + (f" (+{len(nhits) - 1} more)" if len(nhits) > 1 else "")
+        )
+
+    if signals.current_role and job_title:
+        parts.append(f"**Trajectory:** *{signals.current_role}* → *{job_title}*.")
+
+    js = {str(x).strip().lower() for x in job_stack if x}
+    missing = [s for s in signals.stack if str(s).strip().lower() not in js][:4]
+    if missing and len(job_stack) > 0:
+        parts.append(
+            f"**Worth probing:** Stack includes **{', '.join(missing[:3])}** — not all listed on your JD; "
+            f"confirm depth in interview if critical."
+        )
+
+    if not parts:
+        return ""
+    return "\n".join(f"• {p}" for p in parts)
+
+
+def _format_job_context_footer(
+    job_title: str,
+    job_location: str | None,
+    job_remote_policy: str | None,
+    job_salary_min: int | None,
+    job_salary_max: int | None,
+) -> str | None:
+    bits: list[str] = []
+    if job_title:
+        bits.append(f"**Role:** {job_title}")
+    if job_location:
+        bits.append(f"**Location:** {job_location}")
+    if job_remote_policy:
+        pol = str(job_remote_policy).replace("_", "-")
+        bits.append(f"**Work style:** {pol}")
+    if job_salary_min and job_salary_max:
+        bits.append(f"**Posted band:** ₹{job_salary_min}–{job_salary_max}L")
+    elif job_salary_max:
+        bits.append(f"**Posted up to:** ₹{job_salary_max}L")
+    if not bits:
+        return None
+    return "**This opening (for reference):** " + " · ".join(bits) + "."
+
+
+def _compose_founders_match_dossier(
+    intro_note: str | None,
+    signals: PortalCandidateSignals,
+    raw_signals: dict[str, Any],
+    *,
+    job_stack: list[str],
+    job_requirements: list[str],
+    job_nice_to_have: list[str],
+    job_title: str,
+    job_location: str | None,
+    job_remote_policy: str | None,
+    job_salary_min: int | None,
+    job_salary_max: int | None,
+) -> str | None:
+    """Full founder-facing 'why matched' narrative + evidence."""
+    sections: list[str] = []
+    why = _extract_why_fit_from_intro_note(intro_note)
+    if why:
+        sections.append(why)
+    profile = _extract_profile_block_from_intro_note(intro_note)
+    if profile:
+        sections.append(
+            "**Snapshot from their profile** *(included in the intro email)*:\n" + profile
+        )
+    fit = _format_portal_fit_bullets(signals, raw_signals, job_stack)
+    jd = _format_jd_alignment_bullets(
+        signals, raw_signals, job_stack, job_requirements, job_nice_to_have, job_title
+    )
+    evidence = "\n".join(x for x in [fit, jd] if x)
+    if evidence:
+        sections.append("**Evidence for your decision**\n" + evidence)
+    footer = _format_job_context_footer(
+        job_title, job_location, job_remote_policy, job_salary_min, job_salary_max
+    )
+    if footer:
+        sections.append(footer)
+    out = "\n\n".join(s for s in sections if s).strip()
+    return out or None
 
 
 def _extract_portal_signals(candidate: Any, raw_signals: dict) -> PortalCandidateSignals:
@@ -1067,6 +1282,14 @@ def _extract_portal_signals(candidate: Any, raw_signals: dict) -> PortalCandidat
     if isinstance(motivation, list):
         motivation = "; ".join(str(m) for m in motivation)
 
+    _np_raw = raw_signals.get("notable_projects") or raw_signals.get("proud_of") or raw_signals.get("built")
+    if _np_raw is None:
+        _np = None
+    elif isinstance(_np_raw, str):
+        _np = _np_raw.strip() or None
+    else:
+        _np = str(_np_raw).strip() or None
+
     return PortalCandidateSignals(
         name=candidate.name or raw_signals.get("candidate_name"),
         current_role=candidate.current_role or raw_signals.get("current_role"),
@@ -1076,7 +1299,7 @@ def _extract_portal_signals(candidate: Any, raw_signals: dict) -> PortalCandidat
         salary_target_lpa=_int(raw_signals.get("salary_target_lpa") or raw_signals.get("salary_floor_lpa")),
         notice_period_days=_int(raw_signals.get("notice_period_days") or raw_signals.get("notice_period")),
         motivation=str(motivation).strip() if motivation else None,
-        notable_projects=raw_signals.get("notable_projects") or raw_signals.get("proud_of"),
+        notable_projects=_np,
         linkedin_url=raw_signals.get("linkedin_url") or raw_signals.get("linkedin"),
     )
 
@@ -1311,6 +1534,16 @@ async def founder_portal(
             await db.commit()
             log.info("auto-ghosted %d stale intro(s) for job=%d", len(stale), job.id)
 
+        job_sigs: dict = job.signals if isinstance(job.signals, dict) else {}
+
+        def _job_list(v: Any) -> list[str]:
+            if isinstance(v, list):
+                return [str(x) for x in v if x]
+            return []
+
+        job_requirements = _job_list(job_sigs.get("requirements"))
+        job_nice_to_have = _job_list(job_sigs.get("nice_to_have"))
+
         # Load all intros for this job with candidates
         rows = (await db.execute(
             select(Intro, Candidate)
@@ -1328,17 +1561,20 @@ async def founder_portal(
             raw_signals = {r.key: r.value for r in sig_rows}
             signals = _extract_portal_signals(candidate, raw_signals)
 
-            why_core = _extract_why_fit_from_intro_note(intro.intro_note)
             job_stack_list = [str(s) for s in job.stack] if isinstance(job.stack, list) else []
-            bullets = _format_portal_fit_bullets(signals, job_stack_list)
-            if why_core and bullets:
-                why_note = f"{why_core}\n\n{bullets}"
-            elif why_core:
-                why_note = why_core
-            elif bullets:
-                why_note = bullets
-            else:
-                why_note = None
+            why_note = _compose_founders_match_dossier(
+                intro.intro_note,
+                signals,
+                raw_signals,
+                job_stack=job_stack_list,
+                job_requirements=job_requirements,
+                job_nice_to_have=job_nice_to_have,
+                job_title=job.title or "",
+                job_location=job.location,
+                job_remote_policy=job.remote_policy,
+                job_salary_min=job.salary_min_lpa,
+                job_salary_max=job.salary_max_lpa,
+            )
 
             candidates_out.append(PortalCandidate(
                 intro_id=intro.id,

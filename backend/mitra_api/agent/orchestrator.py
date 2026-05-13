@@ -827,12 +827,19 @@ async def run_agent_turn(
         name = known_signals.get("candidate_name", "")
         first = name.split()[0] if name else ""
 
-        # Pull the most concrete signal available for the recap line
-        role_hint    = known_signals.get("current_role") or known_signals.get("what_they_want") or ""
-        stack_hint   = known_signals.get("primary_stack", "")
-        motivation   = known_signals.get("motivation", "")
-        recap_parts  = [p for p in [role_hint, stack_hint, motivation] if p]
-        recap_hint   = f"Known context to reference: {'; '.join(recap_parts[:2])}. " if recap_parts else ""
+        # Pull the most concrete signal available for the recap line (values may be str or list)
+        def _recap_line(v: Any) -> str:
+            if v is None or v == "":
+                return ""
+            if isinstance(v, list):
+                return ", ".join(str(x) for x in v if x is not None and str(x).strip() != "")
+            return str(v).strip()
+
+        role_hint   = _recap_line(known_signals.get("current_role") or known_signals.get("what_they_want"))
+        stack_hint  = _recap_line(known_signals.get("primary_stack"))
+        motivation  = _recap_line(known_signals.get("motivation"))
+        recap_parts = [p for p in [role_hint, stack_hint, motivation] if p]
+        recap_hint  = f"Known context to reference: {'; '.join(recap_parts[:2])}. " if recap_parts else ""
 
         msgs.append(ChatMessage(
             role="system",
