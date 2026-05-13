@@ -98,42 +98,42 @@ const STEPS = {
   candidate: [
     {
       num: "Step 01", Icon: IconChat,
-      title: "Brief Mitra in 2 minutes",
-      body: "Tell us what you actually want — not just your CV. A short WhatsApp conversation covers your motivation, what you want to own next, and what would make you say yes without sleeping on it.",
+      title: "Talk to Mitra — it listens and learns",
+      body: "A WhatsApp conversation that goes deeper than your CV. Mitra captures your motivation, risk appetite, what you want to own, and what would make you say yes. It remembers all of it — and builds on it every time you return.",
     },
     {
       num: "Step 02", Icon: IconSearch,
-      title: "We find roles with genuine fit",
-      body: "Mitra searches funded startups and ranks them against your real preferences, not keywords. You see only roles where there's a strong match — scored by how well they fit what you actually described.",
+      title: "Matches that improve over time",
+      body: "Mitra searches hundreds of funded startups ranked against your real preferences — not keywords. The more it knows about you, the sharper the matches get. Your profile is alive, not a static form.",
     },
     {
       num: "Step 03", Icon: IconArrow,
-      title: "You get introduced, not applied",
-      body: "A warm introduction from Mitra lands in the founder's inbox — not a cold application in a pile. They know who you are, why you fit, and why they should respond. Our intro response rate is over 90%.",
+      title: "A warm intro that genuinely lands",
+      body: "Mitra introduces you directly to the founder — not as a cold applicant, but as someone it already knows well. They get your full context: trajectory, stack, motivation, and exactly why you fit. Response rate: over 90%.",
     },
   ],
   company: [
     {
       num: "Step 01", Icon: IconDoc,
-      title: "Brief us on the role",
-      body: "Tell us what the role actually needs — not just the JD, but what good looks like in 90 days, what someone needs to thrive on your team, and what you won't compromise on.",
+      title: "Brief us on the role once",
+      body: "Tell us what good looks like in 90 days, what someone needs to thrive on your team, and what you won't compromise on. Mitra builds a hiring profile — not just a JD — and remembers it across every search.",
     },
     {
       num: "Step 02", Icon: IconUsers,
-      title: "We find candidates with intent",
-      body: "Mitra speaks with engineers daily and filters for people who are motivated to join a company like yours — not just 'open to opportunities'. Every candidate is screened for motivation, stage fit, and background.",
+      title: "We find candidates with genuine intent",
+      body: "Mitra speaks with engineers every day and filters for people motivated to join a company like yours — not just 'open to opportunities'. Every candidate is assessed for motivation, stage fit, and background match.",
     },
     {
       num: "Step 03", Icon: IconCheck,
-      title: "You get warm introductions",
-      body: "A shortlist of 3–5 pre-qualified candidates, each with full context: motivation, timeline, salary expectation, and why they want to join your company specifically. Not CVs — introductions.",
+      title: "Introductions, not CVs. And it gets sharper.",
+      body: "3–5 pre-qualified candidates with full context: motivation, timeline, salary expectation, and why they want your role specifically. Every action you take teaches Mitra your real bar — so the next shortlist is better.",
     },
   ],
 };
 
 const TITLE = {
-  candidate: "From conversation to introduction in under 48 hours.",
-  company: "From brief to shortlist in under a week.",
+  candidate: "A companion that gets smarter the more you talk.",
+  company: "From brief to shortlist. Sharper every time.",
 };
 
 /* ── Component ────────────────────────────────────────────── */

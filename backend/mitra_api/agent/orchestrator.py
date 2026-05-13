@@ -585,6 +585,7 @@ async def run_agent_turn(
     candidate_memory     = known_signals.pop("_memory", None)
     last_interpretation  = known_signals.pop("_last_interpretation", None)
     trajectory_data      = known_signals.pop("_trajectory", None)
+    last_reflection      = known_signals.pop("_reflection", None)
     # Remove all _implicit_* and other _-prefixed keys from the raw dump;
     # they are surfaced via the formatted [SIGNAL INTELLIGENCE: ...] block instead
     implicit_signals = {k: v for k, v in list(known_signals.items()) if k.startswith("_")}
@@ -781,6 +782,24 @@ async def run_agent_turn(
     if interp_block:
         msgs.append(ChatMessage(role="system", content=interp_block))
 
+    # ── Inject behavioral reflection from previous turn ────────────────────────
+    # last_reflection is the post-turn delta: phase, tone, what shifted.
+    if last_reflection and isinstance(last_reflection, dict):
+        refl_parts: list[str] = []
+        if last_reflection.get("phase"):
+            refl_parts.append(f"Search phase: {last_reflection['phase']}")
+        if last_reflection.get("emotional_tone"):
+            refl_parts.append(f"Tone: {last_reflection['emotional_tone']}")
+        if last_reflection.get("behavioral_shift"):
+            refl_parts.append(f"Shift: {last_reflection['behavioral_shift']}")
+        if last_reflection.get("remember"):
+            refl_parts.append(f"Remember: {last_reflection['remember']}")
+        if refl_parts:
+            msgs.append(ChatMessage(
+                role="system",
+                content="[BEHAVIORAL STATE: " + " · ".join(refl_parts) + "]",
+            ))
+
     # Framing hints from rule-based extraction (e.g. "Emphasise funded status, runway")
     if framing_hint:
         msgs.append(ChatMessage(
@@ -889,6 +908,16 @@ async def run_agent_turn(
 
     asyncio.create_task(_run_interpretation(), name=f"interp-{whatsapp_sender_id}")
 
+    # Reflection runs after the turn completes (final_text not yet known here).
+    # We schedule it below once we have the assistant response.
+    _reflection_args = {
+        "session_id":  whatsapp_sender_id,
+        "user_text":   user_content,
+        "signals":     _signals_snapshot,
+        "db_factory":  db_factory,
+        "sessions":    sessions,
+    }
+
     last_search_jobs_payload: dict[str, Any] | None = None
     final_text: str | None = None
     rounds = 0
@@ -987,6 +1016,35 @@ async def run_agent_turn(
         await sessions.append_messages(whatsapp_sender_id, msgs[persist_from:])
     except Exception:
         log.warning("Redis append_messages failed for %s — turn complete but history not saved", whatsapp_sender_id)
+
+    # Fire post-turn reflection now that we have the assistant's response
+    _final_text_snap = final_text
+    async def _run_reflection() -> None:
+        try:
+            from mitra_api.tools.intelligence import generate_turn_reflection
+            reflection = await generate_turn_reflection(
+                user_message=_reflection_args["user_text"],
+                known_signals=_reflection_args["signals"],
+                assistant_response=_final_text_snap,
+            )
+            if not reflection:
+                return
+            to_save: dict[str, Any] = {"_reflection": reflection}
+            # Promote phase to a first-class signal so other tools can use it
+            if reflection.get("phase"):
+                to_save["job_search_phase"] = reflection["phase"]
+            await _reflection_args["sessions"].merge_signals(
+                _reflection_args["session_id"], to_save
+            )
+            try:
+                async with _reflection_args["db_factory"]() as db:
+                    await persist_signals(_reflection_args["session_id"], to_save, session=db)
+            except Exception:
+                log.debug("reflection DB persist failed (non-critical)")
+        except Exception:
+            log.debug("post-turn reflection failed (non-critical)", exc_info=True)
+
+    asyncio.create_task(_run_reflection(), name=f"reflect-{whatsapp_sender_id}")
 
     # Build WhatsApp output structures (unchanged interface)
     footer_txt = ""

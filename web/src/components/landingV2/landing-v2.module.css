@@ -393,6 +393,118 @@
   margin: 0;
 }
 
+/* ── Memory Section ────────────────────────────────────────── */
+
+.memoryTitle {
+  font-size: clamp(1.7rem, 3.2vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  color: var(--ink);
+  margin: 0 0 2.5rem;
+  max-width: 600px;
+}
+
+.memoryTitleAccent {
+  color: var(--accent);
+}
+
+.memoryCard {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 0;
+  background: var(--bgCard);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.memoryCard.inView {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.memoryCol {
+  padding: 2.25rem 2.5rem;
+}
+
+.memoryDivider {
+  background: var(--border);
+  width: 1px;
+  align-self: stretch;
+}
+
+.memoryColLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink2);
+  margin: 0 0 1.4rem;
+}
+
+.memoryColLabelAccent {
+  color: var(--accent);
+}
+
+.memoryList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.memoryItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.875rem;
+  color: var(--ink);
+  line-height: 1.55;
+  font-weight: 450;
+}
+
+.memoryItemMuted {
+  color: var(--ink2);
+}
+
+.memoryItemDash {
+  flex-shrink: 0;
+  color: var(--border);
+  font-weight: 300;
+  margin-top: 0.05em;
+}
+
+.memoryItemDot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin-top: 0.45em;
+}
+
+@media (max-width: 680px) {
+  .memoryCard {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1px auto;
+  }
+  .memoryDivider {
+    width: auto;
+    height: 1px;
+  }
+  .memoryCol {
+    padding: 1.75rem 1.5rem;
+  }
+}
+
 /* ── Proof / Stats (dark strip) ────────────────────────────── */
 
 .proof {

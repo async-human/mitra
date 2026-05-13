@@ -255,7 +255,86 @@ def score_intro_confidence(
     }
 
 
-# ── 4. CONVERSATION QUALITY SCORER ───────────────────────────────────────────
+# ── 4. POST-TURN REFLECTION ───────────────────────────────────────────────────
+
+_REFLECTION_SYSTEM = """You are an internal analyst for an AI talent agent.
+
+After each candidate interaction, generate a compact behavioral delta.
+
+Return ONLY a JSON object (no markdown, no explanation):
+{
+  "behavioral_shift": "string or null — what changed in tone/urgency/openness this turn. Be specific.",
+  "hypothesis_update": "string or null — what this turn confirms or weakens about their trajectory",
+  "emotional_tone": "curious|enthusiastic|anxious|guarded|decisive|distracted|frustrated",
+  "phase": "exploring|active_search|interviewing|negotiating|placed",
+  "remember": "string or null — single most important new thing to carry forward"
+}
+
+Rules:
+- Be specific. "Seems interested" is useless. Name the exact signal.
+- If nothing changed, return null for that field. Don't fill fields with noise.
+- Phase: exploring=browsing options, active_search=ready to interview now,
+  interviewing=in process with a company, negotiating=has an offer, placed=accepted."""
+
+
+async def generate_turn_reflection(
+    user_message: str,
+    known_signals: dict[str, Any],
+    assistant_response: str,
+) -> dict[str, Any] | None:
+    """
+    Generate a behavioral delta after one agent turn.
+
+    Runs as a fire-and-forget background task — never blocks the agent response.
+    Result is persisted as _reflection and injected on the NEXT turn.
+    """
+    if not user_message.strip():
+        return None
+
+    from mitra_api.config import get_settings
+    from mitra_api.llm.factory import get_llm_adapter
+    from mitra_api.llm.types import ChatMessage
+
+    s = get_settings()
+
+    sig_summary = json.dumps(
+        {k: v for k, v in known_signals.items() if not k.startswith("_")},
+        ensure_ascii=False,
+    )
+    user_content = (
+        f"USER_MESSAGE:\n{user_message[:800]}\n\n"
+        f"KNOWN_SIGNALS:\n{sig_summary[:600]}\n\n"
+        f"ASSISTANT_RESPONSE:\n{assistant_response[:400]}"
+    )
+
+    try:
+        adapter = get_llm_adapter(s)
+        result = await adapter.complete(
+            model=s.mitra_llm_model,
+            messages=[
+                ChatMessage(role="system", content=_REFLECTION_SYSTEM),
+                ChatMessage(role="user",   content=user_content),
+            ],
+            tools=[],
+            max_tokens=256,
+            temperature=0.1,
+        )
+        raw = (result.content or "").strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1].lstrip("json").strip()
+        reflection = json.loads(raw)
+        log.info(
+            "reflection: phase=%s tone=%s shift=%s",
+            reflection.get("phase"), reflection.get("emotional_tone"),
+            bool(reflection.get("behavioral_shift")),
+        )
+        return reflection
+    except Exception:
+        log.debug("turn reflection failed (non-critical)")
+        return None
+
+
+# ── 5. CONVERSATION QUALITY SCORER ───────────────────────────────────────────
 
 def score_conversation_quality(signals: dict[str, Any]) -> dict[str, Any]:
     """
