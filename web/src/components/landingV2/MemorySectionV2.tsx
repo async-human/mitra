@@ -70,14 +70,18 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
 
         <div
           className={`${s.memoryCard} ${s.fadeUp}`}
-          style={{ "--anim-delay": "200ms" } as React.CSSProperties}
+          style={{ "--anim-delay": "180ms" } as React.CSSProperties}
         >
-          {/* Left — what they see */}
-          <div className={s.memoryCol}>
+          {/* Left — what a recruiter/tracker sees */}
+          <div className={s.memoryColLeft}>
             <p className={s.memoryColLabel}>{c.left.heading}</p>
             <ul className={s.memoryList}>
-              {c.left.items.map((item) => (
-                <li key={item} className={`${s.memoryItem} ${s.memoryItemMuted}`}>
+              {c.left.items.map((item, i) => (
+                <li
+                  key={item}
+                  className={`${s.memoryItem} ${s.memoryItemMuted} ${s.memoryItemStagger}`}
+                  style={{ "--item-delay": `${260 + i * 65}ms` } as React.CSSProperties}
+                >
                   <span className={s.memoryItemDash} aria-hidden="true">—</span>
                   {item}
                 </li>
@@ -85,14 +89,19 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
             </ul>
           </div>
 
-          <div className={s.memoryDivider} aria-hidden="true" />
-
-          {/* Right — what Mitra builds */}
-          <div className={s.memoryCol}>
+          {/* Right — what Mitra builds/learns */}
+          <div className={s.memoryColRight}>
             <p className={`${s.memoryColLabel} ${s.memoryColLabelAccent}`}>{c.right.heading}</p>
             <ul className={s.memoryList}>
-              {c.right.items.map((item) => (
-                <li key={item} className={s.memoryItem}>
+              {c.right.items.map((item, i) => (
+                <li
+                  key={item}
+                  className={`${s.memoryItem} ${s.memoryItemStagger}`}
+                  style={{
+                    "--item-delay": `${320 + i * 80}ms`,
+                    "--dot-delay": `${i * 350}ms`,
+                  } as React.CSSProperties}
+                >
                   <span className={s.memoryItemDot} aria-hidden="true" />
                   {item}
                 </li>

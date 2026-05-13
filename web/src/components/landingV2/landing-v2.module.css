@@ -411,22 +411,23 @@
 
 .memoryCard {
   display: grid;
-  grid-template-columns: 1fr 1px 1fr;
-  gap: 0;
+  grid-template-columns: 1fr 1fr;
   background: var(--bgCard);
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.06);
 }
 
-.memoryCol {
+/* Left column uses the page background — warm beige vs white creates natural contrast */
+.memoryColLeft {
   padding: 2.25rem 2.5rem;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
 }
 
-.memoryDivider {
-  background: var(--border);
-  width: 1px;
-  align-self: stretch;
+.memoryColRight {
+  padding: 2.25rem 2.5rem;
 }
 
 .memoryColLabel {
@@ -461,8 +462,12 @@
   font-weight: 450;
 }
 
+/* Left column items: monospace suggests "cold system data" */
 .memoryItemMuted {
   color: var(--ink2);
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Courier New', monospace;
+  font-size: 0.82rem;
+  font-weight: 400;
 }
 
 .memoryItemDash {
@@ -479,18 +484,27 @@
   border-radius: 50%;
   background: var(--accent);
   margin-top: 0.45em;
+  animation: chipPulse 3s ease-in-out infinite;
+  animation-delay: var(--dot-delay, 0ms);
+}
+
+/* Per-item stagger — driven by --item-delay inline style */
+.memoryItemStagger {
+  opacity: 0;
+  animation: v2FadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--item-delay, 250ms);
 }
 
 @media (max-width: 680px) {
   .memoryCard {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1px auto;
   }
-  .memoryDivider {
-    width: auto;
-    height: 1px;
+  .memoryColLeft {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 1.75rem 1.5rem;
   }
-  .memoryCol {
+  .memoryColRight {
     padding: 1.75rem 1.5rem;
   }
 }
@@ -722,6 +736,11 @@ details[open] .faqIcon {
 .root[data-audience="company"] .proofCta {
   background: #F2EDE7;
   color: #0F0A07;
+}
+
+/* Memory card in company mode — use a subtle glow instead of dark shadow */
+.root[data-audience="company"] .memoryCard {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.4);
 }
 
 /* How it works cards in company mode */
