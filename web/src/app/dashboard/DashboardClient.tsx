@@ -202,64 +202,47 @@ function DashboardQuickStats({
   const awaiting = intros.filter((i) => i.status === "sent" || i.status === "ghosted").length;
   const warm = intros.filter((i) => i.status === "acknowledged").length;
 
-  const pills: { key: string; className?: string; dot?: string; text: string }[] = [];
+  const cells: { key: string; value: number; label: string; tone?: "green" | "amber" }[] = [];
 
   if (matchesCount > 0) {
-    pills.push({
-      key: "m",
-      dot: "dash-stat-dot--teal",
-      text: `${matchesCount} role${matchesCount !== 1 ? "s" : ""} on your shortlist`,
-    });
+    cells.push({ key: "m", value: matchesCount, label: "Saved roles" });
   }
   if (introsLoaded && intros.length > 0) {
-    pills.push({
-      key: "a",
-      dot: "dash-stat-dot--ink",
-      text: `${active} active intro${active !== 1 ? "s" : ""}`,
-    });
+    cells.push({ key: "a", value: active, label: "Active intros" });
   }
   if (offers > 0) {
-    pills.push({
-      key: "o",
-      className: "dash-stat-pill--green",
-      dot: "dash-stat-dot--green",
-      text: `${offers} offer${offers !== 1 ? "s" : ""} to review`,
-    });
+    cells.push({ key: "o", value: offers, label: offers === 1 ? "Offer" : "Offers", tone: "green" });
   }
   if (interviews > 0) {
-    pills.push({
+    cells.push({
       key: "i",
-      className: "dash-stat-pill--amber",
-      dot: "dash-stat-dot--amber",
-      text: `${interviews} interview${interviews !== 1 ? "s" : ""} booked`,
+      value: interviews,
+      label: interviews === 1 ? "Interview" : "Interviews",
+      tone: "amber",
     });
   }
   if (warm > 0) {
-    pills.push({
-      key: "w",
-      dot: "dash-stat-dot--teal",
-      text: `${warm} founder${warm !== 1 ? "s" : ""} interested`,
-    });
+    cells.push({ key: "w", value: warm, label: "Founders keen" });
   }
   if (awaiting > 0 && introsLoaded) {
-    pills.push({
-      key: "g",
-      dot: "dash-stat-dot--ink",
-      text: `${awaiting} awaiting company reply`,
-    });
+    cells.push({ key: "g", value: awaiting, label: "Awaiting reply" });
   }
 
-  if (pills.length === 0) return null;
+  if (cells.length === 0) return null;
 
   return (
-    <div className="dash-quick-stats" aria-label="Pipeline snapshot">
-      <p className="dash-quick-stats-label">At a glance</p>
-      <div className="dash-stats-row">
-        {pills.map((p) => (
-          <span key={p.key} className={`dash-stat-pill${p.className ? ` ${p.className}` : ""}`}>
-            {p.dot ? <span className={`dash-stat-dot ${p.dot}`} aria-hidden /> : null}
-            {p.text}
-          </span>
+    <div className="dash-stat-panel" aria-label="Pipeline snapshot">
+      <p className="dash-stat-panel-label">Overview</p>
+      <div className="dash-stat-grid" role="list">
+        {cells.map((c) => (
+          <div
+            key={c.key}
+            className={`dash-stat-cell${c.tone ? ` dash-stat-cell--${c.tone}` : ""}`}
+            role="listitem"
+          >
+            <span className="dash-stat-cell-value">{c.value}</span>
+            <span className="dash-stat-cell-label">{c.label}</span>
+          </div>
         ))}
       </div>
     </div>
@@ -268,7 +251,7 @@ function DashboardQuickStats({
 
 function DashboardUpdateNotice({ update }: { update: DashboardUpdate }) {
   if (update.kind === "default") {
-    return <p className="dash-greeting-sub">{update.headline}</p>;
+    return <p className="dash-hero-lede">{update.headline}</p>;
   }
 
   const icon =
@@ -342,19 +325,75 @@ export function DashboardClient({
   const step3: StepState = hasIntros ? "done" : hasMatches ? "current" : "locked";
 
   const dashboardUpdate = getDashboardUpdate(matches, intros);
+  const showCommandCenter = loaded && (hasMatches || hasIntros);
+
+  const pipelineFooterBody = (
+    <>
+      <div className="dash-pipeline-left">
+        <div className="dash-pipeline-icon">
+          <ActivityIcon />
+        </div>
+        <div>
+          <p className="dash-pipeline-title">
+            {pipelineCardQuiet
+              ? "Your search"
+              : hasIntros
+              ? "Pipeline active"
+              : "Introductions in progress"}
+          </p>
+          <p className="dash-pipeline-sub">
+            {offerCount > 0 ? (
+              <>Update preferences if your situation changes — details stay in Introductions.</>
+            ) : interviewCount > 0 ? (
+              <>
+                {intros.length > interviewCount
+                  ? `${intros.length - interviewCount} more intro${intros.length - interviewCount !== 1 ? "s" : ""} still in motion · `
+                  : ""}
+                Full schedule lives in Introductions.
+              </>
+            ) : hiredCount > 0 && offerCount === 0 && interviewCount === 0 ? (
+              <>Update Mitra if your plans change — everything else lives in Introductions.</>
+            ) : hasIntros ? (
+              `${intros.length} introduction${intros.length !== 1 ? "s" : ""} tracked below.`
+            ) : (
+              "Mitra is reaching out to companies on your behalf — check back soon."
+            )}
+          </p>
+        </div>
+      </div>
+      <Link href="/chat?intent=update" className="dash-pipeline-update">
+        Update preferences →
+      </Link>
+    </>
+  );
 
   return (
     <>
-      {/* ── Overview: identity + status + snapshot ───────────────────────── */}
-      <section className="dash-overview">
-        <div className="dash-overview-primary">
-          <p className="dash-greeting-eyebrow">{greeting}</p>
-          <h1 className="dash-greeting-h1">{firstName}.</h1>
-          {dashboardUpdate.kind === "default" ? (
-            <p className="dash-greeting-sub">{dashboardUpdate.headline}</p>
+      <section className="dash-hero">
+        <div className="dash-hero-header">
+          <div className="dash-hero-ident">
+            <p className="dash-hero-eyebrow">{greeting}</p>
+            <h1 className="dash-hero-name">{firstName}.</h1>
+          </div>
+          {hasMatches ? (
+            <div className="dash-hero-actions">
+              <Link href="/chat" className="dash-hero-action dash-hero-action--solid">
+                <ChatIcon />
+                Chat
+              </Link>
+              <Link href="/matches" className="dash-hero-action">
+                Shortlist
+              </Link>
+            </div>
           ) : null}
         </div>
-        <div className="dash-overview-side">
+        {!showCommandCenter && dashboardUpdate.kind === "default" ? (
+          <p className="dash-hero-lede">{dashboardUpdate.headline}</p>
+        ) : null}
+      </section>
+
+      {showCommandCenter ? (
+        <div className="dash-command-card">
           {dashboardUpdate.kind !== "default" ? (
             <DashboardUpdateNotice update={dashboardUpdate} />
           ) : null}
@@ -364,20 +403,39 @@ export function DashboardClient({
             introsLoaded={loaded}
           />
           {hasMatches ? (
-            <div className="dash-overview-links">
-              <Link href="/chat" className="dash-overview-link">
-                Chat with Mitra
-              </Link>
-              <span className="dash-overview-links-sep" aria-hidden>
-                ·
-              </span>
-              <Link href="/matches" className="dash-overview-link">
-                Full shortlist
-              </Link>
+            <div
+              className={`dash-command-footer${pipelineCardQuiet ? " dash-command-footer--quiet" : ""}`}
+            >
+              {pipelineFooterBody}
+            </div>
+          ) : loaded && hasIntros ? (
+            <div className="dash-command-footer dash-command-footer--quiet">
+              <div className="dash-pipeline-left">
+                <div className="dash-pipeline-icon">
+                  <ActivityIcon />
+                </div>
+                <div>
+                  <p className="dash-pipeline-title">Your introductions</p>
+                  <p className="dash-pipeline-sub">
+                    <Link href="/chat" className="dash-command-inline-link">
+                      Chat with Mitra
+                    </Link>{" "}
+                    to tune what we pitch next.
+                  </p>
+                </div>
+              </div>
             </div>
           ) : null}
+          {hasMatches && loaded && !hasIntros ? (
+            <p className="dash-command-hint">
+              <span className="dash-command-hint-icon" aria-hidden>
+                <CheckIcon />
+              </span>
+              Introductions will show in the column below as soon as we reach out.
+            </p>
+          ) : null}
         </div>
-      </section>
+      ) : null}
 
       {/* ── Journey strip (only before chatting) ─────────────────────────── */}
       {!hasMatches && (
@@ -423,15 +481,6 @@ export function DashboardClient({
         </section>
       )}
 
-      {/* ── One-time reassurance (matches ready, intros not started — avoids repeating counts shown in columns) ─ */}
-      {hasMatches && loaded && !hasIntros && (
-        <div className="dash-onboarding-badge dash-onboarding-badge--solo">
-          <span className="dash-onboarding-icon"><CheckIcon /></span>
-          <span>You&apos;re set — introductions will appear in the column on the right as we reach out.</span>
-        </div>
-      )}
-
-      {/* ── Action section ───────────────────────────────────────────────── */}
       {!hasMatches ? (
         /* Pre-chat: prominent start CTA */
         <section className="dash-cta-section">
@@ -455,48 +504,7 @@ export function DashboardClient({
           </div>
           <p className="dash-cta-note">Free for candidates · Always</p>
         </section>
-      ) : (
-        /* Post-chat: pipeline status card */
-        <div
-          className={`dash-pipeline-card${pipelineCardQuiet ? " dash-pipeline-card--quiet" : ""}`}
-        >
-          <div className="dash-pipeline-left">
-            <div className="dash-pipeline-icon">
-              <ActivityIcon />
-            </div>
-            <div>
-              <p className="dash-pipeline-title">
-                {pipelineCardQuiet
-                  ? "Your search"
-                  : hasIntros
-                  ? "Pipeline active"
-                  : "Introductions in progress"}
-              </p>
-              <p className="dash-pipeline-sub">
-                {offerCount > 0 ? (
-                  <>Update preferences if your situation changes — details stay in Introductions.</>
-                ) : interviewCount > 0 ? (
-                  <>
-                    {intros.length > interviewCount
-                      ? `${intros.length - interviewCount} more intro${intros.length - interviewCount !== 1 ? "s" : ""} still in motion · `
-                      : ""}
-                    Full schedule lives in Introductions.
-                  </>
-                ) : hiredCount > 0 && offerCount === 0 && interviewCount === 0 ? (
-                  <>Update Mitra if your plans change — everything else lives in Introductions.</>
-                ) : hasIntros ? (
-                  `${intros.length} introduction${intros.length !== 1 ? "s" : ""} tracked below.`
-                ) : (
-                  "Mitra is reaching out to companies on your behalf — check back soon."
-                )}
-              </p>
-            </div>
-          </div>
-          <Link href="/chat?intent=update" className="dash-pipeline-update">
-            Update preferences →
-          </Link>
-        </div>
-      )}
+      ) : null}
 
       {/* ── Panels ───────────────────────────────────────────────────────── */}
       <section className="dash-panels">
