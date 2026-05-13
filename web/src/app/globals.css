@@ -5409,6 +5409,64 @@ img.wchat-av--user { border-radius: 50%; }
   color: #9CA3AF;
 }
 
+/* ── weak intro modal ── */
+.match-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 15, 18, 0.38);
+  backdrop-filter: blur(6px);
+  animation: matchModalBackdropIn 0.22s ease-out both;
+}
+@keyframes matchModalBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.match-modal {
+  position: relative;
+  width: min(100%, 440px);
+  max-height: min(88vh, 640px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(15, 15, 18, 0.18), 0 0 0 1px rgba(15, 15, 18, 0.06);
+  animation: matchModalPanelIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes matchModalPanelIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.match-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--ink-muted);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.match-modal-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--ink);
+}
+.match-modal-body {
+  padding: 28px 22px 22px;
+}
+
 /* ── individual card ── */
 @keyframes matchCardIn {
   from { opacity: 0; transform: translateY(18px); }
@@ -5427,15 +5485,9 @@ img.wchat-av--user { border-radius: 50%; }
   transition: box-shadow 0.2s, transform 0.2s;
   overflow: hidden;
 }
-.match-card--gate {
-  box-shadow: 0 2px 16px rgba(15,15,16,0.07), 0 0 0 1px rgba(99, 102, 241, 0.14), inset 3px 0 0 rgba(99, 102, 241, 0.35);
-}
 .match-card:hover {
   box-shadow: 0 10px 36px rgba(15,15,16,0.13), 0 0 0 1px rgba(15,15,16,0.07);
   transform: translateY(-3px);
-}
-.match-card--gate:hover {
-  box-shadow: 0 10px 36px rgba(15,15,16,0.13), 0 0 0 1px rgba(99, 102, 241, 0.2), inset 3px 0 0 rgba(99, 102, 241, 0.38);
 }
 
 /* ── rank strip ── */
@@ -5716,6 +5768,10 @@ img.wchat-av--user { border-radius: 50%; }
   border-radius: 50%;
   animation: matchSpin 0.6s linear infinite;
 }
+.match-btn--secondary .match-btn-spinner {
+  border-color: rgba(67, 56, 202, 0.2);
+  border-top-color: #4338CA;
+}
 
 /* ── intro request column ── */
 .match-intro-col {
@@ -5723,6 +5779,22 @@ img.wchat-av--user { border-radius: 50%; }
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.match-intro-weak-hint {
+  align-self: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6366F1;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.match-intro-weak-hint:hover {
+  color: #4338CA;
 }
 .match-intro-error {
   font-size: 11px;
@@ -5732,12 +5804,7 @@ img.wchat-av--user { border-radius: 50%; }
   text-align: center;
 }
 
-/* ── intro gate (profile incomplete) — calm, not error-red ── */
-.match-actions--gate {
-  flex-direction: column;
-  align-items: stretch;
-  margin-top: 4px;
-}
+/* ── intro gate (profile incomplete) — used inside weak-intro modal ── */
 .match-intro-gate {
   display: flex;
   flex-direction: column;
@@ -5748,6 +5815,10 @@ img.wchat-av--user { border-radius: 50%; }
   border: 1px solid rgba(99, 102, 241, 0.18);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
   animation: introFooterIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.match-intro-gate--modal {
+  animation: none;
+  padding: 12px 14px 14px;
 }
 .match-intro-gate-top {
   display: flex;
@@ -6073,11 +6144,26 @@ img.wchat-av--user { border-radius: 50%; }
 [data-theme="dark"] .match-card:hover {
   box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.09);
 }
-[data-theme="dark"] .match-card--gate:hover {
-  box-shadow: 0 8px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(129, 140, 248, 0.26), inset 3px 0 0 rgba(129, 140, 248, 0.48);
+[data-theme="dark"] .match-modal-backdrop {
+  background: rgba(0, 0, 0, 0.55);
 }
-[data-theme="dark"] .match-card--gate {
-  box-shadow: 0 2px 12px rgba(0,0,0,0.25), 0 0 0 1px rgba(129, 140, 248, 0.2), inset 3px 0 0 rgba(129, 140, 248, 0.45);
+[data-theme="dark"] .match-modal {
+  background: #211E1A;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .match-modal-close {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(245, 240, 234, 0.65);
+}
+[data-theme="dark"] .match-modal-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #F5F0EA;
+}
+[data-theme="dark"] .match-intro-weak-hint {
+  color: #A5B4FC;
+}
+[data-theme="dark"] .match-intro-weak-hint:hover {
+  color: #C7D2FE;
 }
 [data-theme="dark"] .match-role { color: #F5F0EA; }
 [data-theme="dark"] .match-company { color: rgba(245,240,234,0.5); }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, Fragment } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 
@@ -276,6 +277,123 @@ function MailIcon() {
   );
 }
 
+function weakIntroDisplayMissing(stored: string[]): string[] {
+  return stored.length > 0 ? stored : ["A few profile details still needed for this intro"];
+}
+
+function WeakIntroModal({
+  job,
+  missing,
+  userEmail,
+  introStatus,
+  onClose,
+  onRetry,
+}: {
+  job: MergedJob;
+  missing: string[];
+  userEmail?: string;
+  introStatus: IntroStatus;
+  onClose: () => void;
+  onRetry: (job: MergedJob) => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+  const displayMissing = weakIntroDisplayMissing(missing);
+  const showBadge = missing.length > 1;
+  const chatHref = buildStrengthenIntroHref(job, missing);
+  const isLoading = introStatus === "loading";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [mounted, onClose]);
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      className="match-modal-backdrop"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="match-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="weak-intro-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button type="button" className="match-modal-close" aria-label="Close dialog" onClick={onClose}>
+          ×
+        </button>
+        <div className="match-modal-body">
+          <div className="match-intro-gate match-intro-gate--modal" role="status">
+            <div className="match-intro-gate-top">
+              <div className="match-intro-gate-icon" aria-hidden>✦</div>
+              <div className="match-intro-gate-body">
+                <p className="match-intro-gate-title" id="weak-intro-modal-title">
+                  Almost there — a fuller intro gets more replies
+                </p>
+                <p className="match-intro-gate-lead">
+                  Your match is saved. Add the missing pieces in chat, then retry and we’ll intro you to {job.company}.
+                </p>
+              </div>
+            </div>
+            <details className="match-intro-gate-details">
+              <summary className="match-intro-gate-summary">
+                What&apos;s missing
+                {showBadge ? (
+                  <span className="match-intro-gate-summary-badge">{displayMissing.length}</span>
+                ) : null}
+              </summary>
+              <ul className="match-intro-gate-list">
+                {displayMissing.map((item, i) => (
+                  <li key={`${item}-${i}`}>{item}</li>
+                ))}
+              </ul>
+            </details>
+            <div className="match-intro-gate-row">
+              <Link href={chatHref} className="match-btn match-btn--primary match-intro-gate-primary" onClick={onClose}>
+                Continue with Mitra →
+              </Link>
+              <button
+                type="button"
+                className={`match-btn match-btn--secondary match-intro-gate-secondary${isLoading ? " match-btn--loading" : ""}`}
+                disabled={!userEmail || isLoading}
+                onClick={() => onRetry(job)}
+              >
+                {isLoading ? <span className="match-btn-spinner" /> : "I’ve added this — retry intro"}
+              </button>
+            </div>
+            <Link
+              href={`/chat?about=${encodeURIComponent(job.title)}`}
+              className="match-intro-gate-muted"
+              onClick={onClose}
+            >
+              Ask something else →
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function IntroSuccessFooter({ company, already }: { company: string; already?: boolean }) {
   return (
     <div className={`match-intro-footer${already ? " match-intro-footer--already" : ""}`}>
@@ -310,7 +428,7 @@ function IntroSuccessFooter({ company, already }: { company: string; already?: b
 }
 
 function JobCard({
-  job, idx, userEmail, introStatus, introError, introMissing, onRequestIntro,
+  job, idx, userEmail, introStatus, introError, introMissing, onRequestIntro, onShowWeakIntro,
 }: {
   job: MergedJob;
   idx: number;
@@ -319,6 +437,7 @@ function JobCard({
   introError: string;
   introMissing: string[];
   onRequestIntro: (job: MergedJob) => void;
+  onShowWeakIntro?: () => void;
 }) {
   const salary = salaryLabel(job.salary_min_lpa, job.salary_max_lpa);
   const remote = remoteLabel(job.remote_policy);
@@ -327,14 +446,10 @@ function JobCard({
   const rankLabel = RANK_LABELS[idx] ?? null;
   const isSent = introStatus === "sent" || introStatus === "already_sent";
   const needsProfile = introStatus === "needs_info";
-  const chatCompleteHref = buildStrengthenIntroHref(job, introMissing);
-  const gateMissingItems =
-    introMissing.length > 0 ? introMissing : ["A few profile details still needed for this intro"];
-  const gateMissingShowBadge = introMissing.length > 1;
 
   return (
     <div
-      className={`match-card${isSent ? " match-card--sent" : ""}${introStatus === "already_sent" ? " match-card--already" : ""}${needsProfile ? " match-card--gate" : ""}`}
+      className={`match-card${isSent ? " match-card--sent" : ""}${introStatus === "already_sent" ? " match-card--already" : ""}`}
       style={{ animationDelay: `${idx * 0.09}s` }}
     >
       {/* Rank strip */}
@@ -386,51 +501,8 @@ function JobCard({
       {/* Why this fits */}
       <WhyFits job={job} />
 
-      {/* Actions — hidden when intro is sent, Ask Mitra still accessible */}
-      {!isSent && needsProfile ? (
-        <div className="match-actions match-actions--gate">
-          <div className="match-intro-gate" role="status">
-            <div className="match-intro-gate-top">
-              <div className="match-intro-gate-icon" aria-hidden>✦</div>
-              <div className="match-intro-gate-body">
-                <p className="match-intro-gate-title">Almost there — a fuller intro gets more replies</p>
-                <p className="match-intro-gate-lead">
-                  Your match is saved. Add the missing pieces in chat, then retry and we’ll intro you to {job.company}.
-                </p>
-              </div>
-            </div>
-                <details className="match-intro-gate-details">
-                  <summary className="match-intro-gate-summary">
-                    What&apos;s missing
-                    {gateMissingShowBadge ? (
-                      <span className="match-intro-gate-summary-badge">{gateMissingItems.length}</span>
-                    ) : null}
-                  </summary>
-                  <ul className="match-intro-gate-list">
-                    {gateMissingItems.map((item, i) => (
-                      <li key={`${item}-${i}`}>{item}</li>
-                    ))}
-                  </ul>
-                </details>
-            <div className="match-intro-gate-row">
-              <Link href={chatCompleteHref} className="match-btn match-btn--primary match-intro-gate-primary">
-                Continue with Mitra →
-              </Link>
-              <button
-                type="button"
-                className="match-btn match-btn--secondary match-intro-gate-secondary"
-                disabled={!userEmail}
-                onClick={() => onRequestIntro(job)}
-              >
-                I’ve added this — retry intro
-              </button>
-            </div>
-            <Link href={`/chat?about=${encodeURIComponent(job.title)}`} className="match-intro-gate-muted">
-              Ask something else →
-            </Link>
-          </div>
-        </div>
-      ) : !isSent ? (
+      {/* Actions — weak intro uses same row + modal */}
+      {!isSent ? (
         <div className="match-actions">
           <Link href={`/chat?about=${encodeURIComponent(job.title)}`} className="match-btn match-btn--ghost">
             Ask Mitra →
@@ -445,10 +517,17 @@ function JobCard({
                 <span className="match-btn-spinner" />
               ) : introStatus === "error" ? (
                 "Try again"
+              ) : needsProfile ? (
+                "Retry intro"
               ) : (
                 "Request intro"
               )}
             </button>
+            {needsProfile && onShowWeakIntro && (
+              <button type="button" className="match-intro-weak-hint" onClick={onShowWeakIntro}>
+                What&apos;s missing?
+              </button>
+            )}
             {introStatus === "error" && introError && (
               <p className="match-intro-error">{introError}</p>
             )}
@@ -477,6 +556,7 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
   const [introStatuses, setIntroStatuses] = useState<Record<number, IntroStatus>>({});
   const [introErrors, setIntroErrors] = useState<Record<number, string>>({});
   const [introMissingByJob, setIntroMissingByJob] = useState<Record<number, string[]>>({});
+  const [weakIntroModal, setWeakIntroModal] = useState<null | { job: MergedJob; missing: string[] }>(null);
   const firstName = userName?.split(" ")[0];
 
   useEffect(() => {
@@ -538,7 +618,6 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
 
     setIntroStatuses(prev => ({ ...prev, [job.id]: "loading" }));
     setIntroErrors(prev => ({ ...prev, [job.id]: "" }));
-    setIntroMissingByJob(prev => ({ ...prev, [job.id]: [] }));
 
     try {
       const res = await fetch(`${API_URL}/candidate/intro`, {
@@ -565,17 +644,21 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
           p.missingSignals.length > 0
             ? p.missingSignals
             : parseMissingFromGateMessage(p.message);
+        const stored = missing.length > 0 ? missing : [];
         setIntroStatuses(prev => ({ ...prev, [job.id]: "needs_info" }));
         setIntroMissingByJob(prev => ({
           ...prev,
-          [job.id]: missing.length > 0 ? missing : [],
+          [job.id]: stored,
         }));
+        setWeakIntroModal({ job, missing: stored });
         return;
       }
 
       if (!res.ok) {
         throw new Error(p.message || `HTTP ${res.status}`);
       }
+
+      setWeakIntroModal(prev => (prev && prev.job.id === job.id ? null : prev));
 
       if (p.alreadySent) {
         setIntroStatuses(prev => ({ ...prev, [job.id]: "already_sent" }));
@@ -593,6 +676,16 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
 
   return (
     <div className="match-root">
+      {weakIntroModal && (
+        <WeakIntroModal
+          job={weakIntroModal.job}
+          missing={weakIntroModal.missing}
+          userEmail={userEmail}
+          introStatus={introStatuses[weakIntroModal.job.id] ?? "idle"}
+          onClose={() => setWeakIntroModal(null)}
+          onRetry={handleRequestIntro}
+        />
+      )}
       <header className="match-topbar">
         <Logo />
         <nav className="match-topbar-nav">
@@ -656,6 +749,9 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
                         introError={introErrors[job.id] ?? ""}
                         introMissing={introMissingByJob[job.id] ?? []}
                         onRequestIntro={handleRequestIntro}
+                        onShowWeakIntro={() =>
+                          setWeakIntroModal({ job, missing: introMissingByJob[job.id] ?? [] })
+                        }
                       />
                     );
                   })}
