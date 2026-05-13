@@ -70,6 +70,68 @@ function buildStrengthenIntroHref(job: MergedJob, missing: string[]): string {
   return `/chat?${q.toString()}`;
 }
 
+/** Parse checklist from gate message when API omits missing_signals (old servers / proxies). */
+function parseMissingFromGateMessage(message: string): string[] {
+  const startM = message.match(/details first:\s*/i);
+  if (!startM || startM.index === undefined) return [];
+  const from = startM.index + startM[0].length;
+  const tail = message.slice(from);
+  const endM = tail.match(/\.\s*(?:A complete intro|Can you share)/i);
+  const end = endM && endM.index !== undefined ? from + endM.index : message.length;
+  const chunk = message.slice(from, end).trim();
+  if (!chunk) return [];
+  const raw = chunk.split(", your ");
+  return raw.map((p, i) => (i === 0 ? p.trim() : `your ${p.trim()}`)).filter(Boolean);
+}
+
+function extractIntroApiPayload(data: unknown): {
+  ok: boolean;
+  message: string;
+  needsMoreInfo: boolean;
+  missingSignals: string[];
+  alreadySent: boolean;
+} {
+  if (!data || typeof data !== "object") {
+    return {
+      ok: false,
+      message: "",
+      needsMoreInfo: false,
+      missingSignals: [],
+      alreadySent: false,
+    };
+  }
+  const o = data as Record<string, unknown>;
+  const msg = typeof o.message === "string" ? o.message : "";
+  const ok = o.ok === true;
+  const rawNeeds =
+    o.needs_more_info === true ||
+    o.needs_more_info === "true" ||
+    o.needsMoreInfo === true ||
+    o.needsMoreInfo === "true";
+  let missing: string[] = [];
+  if (Array.isArray(o.missing_signals)) {
+    missing = o.missing_signals.filter((x): x is string => typeof x === "string");
+  } else if (Array.isArray(o.missingSignals)) {
+    missing = o.missingSignals.filter((x): x is string => typeof x === "string");
+  }
+  const already =
+    o.already_sent === true ||
+    o.alreadySent === true ||
+    (!ok && /already sent/i.test(msg));
+  return { ok, message: msg, needsMoreInfo: rawNeeds, missingSignals: missing, alreadySent: already };
+}
+
+function isIntroGateBlocked(payload: ReturnType<typeof extractIntroApiPayload>): boolean {
+  if (payload.needsMoreInfo) return true;
+  if (payload.ok || payload.alreadySent) return false;
+  const m = payload.message;
+  return (
+    /few more details first:/i.test(m) ||
+    /need a few more details/i.test(m) ||
+    /make it strong enough that/i.test(m)
+  );
+}
+
 function parseFit(description: string): { fit: string; fit_pct: number } {
   const parts = description.split(" · ");
   const fitPart = parts.find(p => p.includes("% fit") || p.includes("%fit")) ?? "";
@@ -476,28 +538,39 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
         }),
       });
 
-      const data = await res.json();
+      let data: unknown = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
+      }
 
-      if (data.needs_more_info) {
+      const p = extractIntroApiPayload(data);
+
+      if (isIntroGateBlocked(p)) {
+        const missing =
+          p.missingSignals.length > 0
+            ? p.missingSignals
+            : parseMissingFromGateMessage(p.message);
         setIntroStatuses(prev => ({ ...prev, [job.id]: "needs_info" }));
         setIntroMissingByJob(prev => ({
           ...prev,
-          [job.id]: Array.isArray(data.missing_signals) ? data.missing_signals : [],
+          [job.id]: missing.length > 0 ? missing : [],
         }));
         return;
       }
 
       if (!res.ok) {
-        throw new Error(data?.message || `HTTP ${res.status}`);
+        throw new Error(p.message || `HTTP ${res.status}`);
       }
 
-      if (data.already_sent) {
+      if (p.alreadySent) {
         setIntroStatuses(prev => ({ ...prev, [job.id]: "already_sent" }));
-      } else if (data.ok) {
+      } else if (p.ok) {
         setIntroStatuses(prev => ({ ...prev, [job.id]: "sent" }));
       } else {
         setIntroStatuses(prev => ({ ...prev, [job.id]: "error" }));
-        setIntroErrors(prev => ({ ...prev, [job.id]: data.message || "Something went wrong." }));
+        setIntroErrors(prev => ({ ...prev, [job.id]: p.message || "Something went wrong." }));
       }
     } catch (err) {
       setIntroStatuses(prev => ({ ...prev, [job.id]: "error" }));
