@@ -328,10 +328,13 @@ function JobCard({
   const isSent = introStatus === "sent" || introStatus === "already_sent";
   const needsProfile = introStatus === "needs_info";
   const chatCompleteHref = buildStrengthenIntroHref(job, introMissing);
+  const gateMissingItems =
+    introMissing.length > 0 ? introMissing : ["A few profile details still needed for this intro"];
+  const gateMissingShowBadge = introMissing.length > 1;
 
   return (
     <div
-      className={`match-card${isSent ? " match-card--sent" : ""}${introStatus === "already_sent" ? " match-card--already" : ""}`}
+      className={`match-card${isSent ? " match-card--sent" : ""}${introStatus === "already_sent" ? " match-card--already" : ""}${needsProfile ? " match-card--gate" : ""}`}
       style={{ animationDelay: `${idx * 0.09}s` }}
     >
       {/* Rank strip */}
@@ -387,34 +390,44 @@ function JobCard({
       {!isSent && needsProfile ? (
         <div className="match-actions match-actions--gate">
           <div className="match-intro-gate" role="status">
-            <div className="match-intro-gate-icon" aria-hidden>✦</div>
-            <div className="match-intro-gate-body">
-              <p className="match-intro-gate-title">Almost there — founders reply more often to complete intros</p>
-              <p className="match-intro-gate-lead">
-                Your match is saved. Chat with Mitra for a minute to add what’s missing — then tap retry and we’ll send a strong intro to {job.company}.
-              </p>
-              <ul className="match-intro-gate-list">
-                {(introMissing.length > 0 ? introMissing : ["A few profile details still needed for this intro"]).map((item, i) => (
-                  <li key={`${item}-${i}`}>{item}</li>
-                ))}
-              </ul>
-              <div className="match-intro-gate-row">
-                <Link href={chatCompleteHref} className="match-btn match-btn--primary match-intro-gate-primary">
-                  Continue with Mitra →
-                </Link>
-                <button
-                  type="button"
-                  className="match-btn match-btn--secondary match-intro-gate-secondary"
-                  disabled={!userEmail}
-                  onClick={() => onRequestIntro(job)}
-                >
-                  I’ve added this — retry intro
-                </button>
+            <div className="match-intro-gate-top">
+              <div className="match-intro-gate-icon" aria-hidden>✦</div>
+              <div className="match-intro-gate-body">
+                <p className="match-intro-gate-title">Almost there — a fuller intro gets more replies</p>
+                <p className="match-intro-gate-lead">
+                  Your match is saved. Add the missing pieces in chat, then retry and we’ll intro you to {job.company}.
+                </p>
               </div>
-              <Link href={`/chat?about=${encodeURIComponent(job.title)}`} className="match-intro-gate-muted">
-                Ask something else →
-              </Link>
             </div>
+                <details className="match-intro-gate-details">
+                  <summary className="match-intro-gate-summary">
+                    What&apos;s missing
+                    {gateMissingShowBadge ? (
+                      <span className="match-intro-gate-summary-badge">{gateMissingItems.length}</span>
+                    ) : null}
+                  </summary>
+                  <ul className="match-intro-gate-list">
+                    {gateMissingItems.map((item, i) => (
+                      <li key={`${item}-${i}`}>{item}</li>
+                    ))}
+                  </ul>
+                </details>
+            <div className="match-intro-gate-row">
+              <Link href={chatCompleteHref} className="match-btn match-btn--primary match-intro-gate-primary">
+                Continue with Mitra →
+              </Link>
+              <button
+                type="button"
+                className="match-btn match-btn--secondary match-intro-gate-secondary"
+                disabled={!userEmail}
+                onClick={() => onRequestIntro(job)}
+              >
+                I’ve added this — retry intro
+              </button>
+            </div>
+            <Link href={`/chat?about=${encodeURIComponent(job.title)}`} className="match-intro-gate-muted">
+              Ask something else →
+            </Link>
           </div>
         </div>
       ) : !isSent ? (
