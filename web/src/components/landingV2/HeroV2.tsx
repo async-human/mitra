@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Fragment } from "react";
 import Link from "next/link";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
+import { DotGrid } from "./DotGrid";
 import s from "./landing-v2.module.css";
 
 /* ── Typing hook ──────────────────────────────────────────── */
@@ -98,6 +99,8 @@ export function HeroV2({ audience }: { audience: V2Audience }) {
 
   return (
     <section className={s.hero}>
+      <DotGrid audience={audience} />
+      <div className={s.heroDotFade} aria-hidden="true" />
       <div className={s.heroInner}>
         {/*
           key=audience remounts this div on audience switch,

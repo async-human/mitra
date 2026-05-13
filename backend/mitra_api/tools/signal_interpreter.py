@@ -78,7 +78,7 @@ Return a JSON object:
     }
   ],
   "overall_read": "2-3 sentence synthesis of who this person really is and what they need",
-  "immediate_next_question": "the single most important question to ask next",
+  "immediate_next_question": "The single most important question to ask next — MUST be on a topic not yet raised or answered in the RECENT CONVERSATION above. Before suggesting, scan every agent question in the conversation. If motivation/why-they're-moving has been asked, do not suggest it again. If challenges/excitement has been asked, do not suggest it again. Only suggest questions that open genuinely new territory.",
   "red_flags": ["specific concerns, not generic"],
   "green_flags": ["specific positives, not generic"]
 }
@@ -136,7 +136,7 @@ async def interpret_candidate_message(
 
     history_text = "\n".join(
         f"{m.get('role', 'unknown').upper()}: {m.get('content', '')}"
-        for m in conversation_history[-6:]
+        for m in conversation_history[-14:]
     )
     existing_text = json.dumps(
         {k: v for k, v in existing_signals.items() if not k.startswith("_")},
@@ -146,7 +146,7 @@ async def interpret_candidate_message(
 
     user_content = (
         f"EXISTING SIGNALS:\n{existing_text}\n\n"
-        f"RECENT CONVERSATION:\n{history_text}\n\n"
+        f"RECENT CONVERSATION (read every ASSISTANT question before suggesting immediate_next_question):\n{history_text}\n\n"
         f"LATEST CANDIDATE MESSAGE:\n{message}\n\n"
         f"Interpret this. What does it really mean? What should the agent do next?"
     )
@@ -194,7 +194,7 @@ async def interpret_founder_message(
 
     history_text = "\n".join(
         f"{m.get('role', 'unknown').upper()}: {m.get('content', '')}"
-        for m in conversation_history[-6:]
+        for m in conversation_history[-14:]
     )
     existing_text = json.dumps(
         {k: v for k, v in existing_signals.items() if not k.startswith("_")},
