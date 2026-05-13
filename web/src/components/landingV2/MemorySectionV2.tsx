@@ -59,16 +59,25 @@ const CONTENT = {
 type ContentShape = (typeof CONTENT)["candidate"];
 
 /* ─────────────────────────────────────────────────────────────────
-   Inner card — remounts cleanly whenever `key` changes so the
-   typewriter always restarts from scratch.
+   Animated card — remounts cleanly whenever `key` changes.
+
+   Typing engine design (crash-safe):
+   - charCountRef tracks chars typed without being a React dep
+   - setInterval only fires while it is active; clearInterval in
+     cleanup stops it immediately on unmount / item advance
+   - Effect only re-runs when `currentItem` changes (≤ N times),
+     NOT on every character — eliminates the rapid effect-chain
+     that was crashing the tab on audience toggle
 ───────────────────────────────────────────────────────────────── */
 function MemoryCardContent({ c }: { c: ContentShape }) {
   const rightItems = c.right.items;
-  // -1 = waiting for left items to animate in before we start typing
   const [currentItem, setCurrentItem] = useState(-1);
+  // charCounts drives display; updated via interval, not effect deps
   const [charCounts, setCharCounts] = useState<number[]>(() =>
     rightItems.map(() => 0)
   );
+  // Local char counter lives in a ref so it never triggers the effect
+  const charCountRef = useRef(0);
 
   // Begin typing after left items have faded in
   useEffect(() => {
@@ -76,36 +85,35 @@ function MemoryCardContent({ c }: { c: ContentShape }) {
     return () => clearTimeout(t);
   }, []);
 
-  // Typewriter engine — drives one character at a time
+  // Typing engine — deps are [currentItem, rightItems] only (NOT charCounts)
   useEffect(() => {
     if (currentItem < 0 || currentItem >= rightItems.length) return;
     const item = rightItems[currentItem];
-    const typed = charCounts[currentItem];
+    charCountRef.current = 0;
 
-    if (typed >= item.length) {
-      // Item fully typed → short pause before next
-      const t = setTimeout(() => setCurrentItem((i) => i + 1), 170);
-      return () => clearTimeout(t);
-    }
+    const interval = setInterval(() => {
+      charCountRef.current += 1;
+      const n = charCountRef.current;
 
-    // Natural-feeling variable speed: base 7 ms + rare micro-pause
-    const speed = 7 + (Math.random() > 0.93 ? 70 : 0);
-    const t = setTimeout(() => {
       setCharCounts((prev) => {
         const next = [...prev];
-        next[currentItem] += 1;
+        next[currentItem] = n;
         return next;
       });
-    }, speed);
-    return () => clearTimeout(t);
-  }, [currentItem, charCounts, rightItems]);
+
+      if (n >= item.length) {
+        clearInterval(interval);
+        setTimeout(() => setCurrentItem((i) => i + 1), 160);
+      }
+    }, 8);
+
+    return () => clearInterval(interval);
+  }, [currentItem, rightItems]);
 
   const totalItems = rightItems.length;
-  const doneCount = charCounts.filter(
-    (n, i) => n >= rightItems[i].length
-  ).length;
+  const doneCount = charCounts.filter((n, i) => n >= rightItems[i].length).length;
   const allDone = doneCount === totalItems;
-  const typingHasStarted = currentItem >= 0;
+  const typingStarted = currentItem >= 0;
 
   return (
     <div className={s.memoryCard}>
@@ -146,7 +154,7 @@ function MemoryCardContent({ c }: { c: ContentShape }) {
           </span>
           <span
             className={`${s.memoryStatusPill} ${
-              !typingHasStarted ? s.memoryStatusPillHidden : ""
+              !typingStarted ? s.memoryStatusPillHidden : ""
             } ${allDone ? s.memoryStatusPillDone : ""}`}
           >
             {allDone ? "✓ Recorded" : `${doneCount} / ${totalItems}`}
@@ -168,7 +176,9 @@ function MemoryCardContent({ c }: { c: ContentShape }) {
                 } ${isDone ? s.memoryItemDone : ""}`}
               >
                 <span
-                  className={`${s.memoryItemDot} ${isDone ? s.memoryItemDotDone : ""}`}
+                  className={`${s.memoryItemDot} ${
+                    isDone ? s.memoryItemDotDone : ""
+                  }`}
                   aria-hidden="true"
                 />
                 <span className={s.memoryItemText}>
@@ -188,7 +198,7 @@ function MemoryCardContent({ c }: { c: ContentShape }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   Outer section — handles scroll detection and audience replays
+   Outer section — scroll detection + audience replay
 ───────────────────────────────────────────────────────────────── */
 export function MemorySectionV2({ audience }: { audience: V2Audience }) {
   const c = CONTENT[audience];
@@ -214,7 +224,7 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
     return () => obs.disconnect();
   }, []);
 
-  // Audience change after first mount → replay typewriter if section is visible
+  // Audience toggle after first mount → remount card to replay
   useEffect(() => {
     if (isFirstSwitch.current) {
       isFirstSwitch.current = false;
@@ -225,7 +235,9 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
 
   return (
     <section
-      className={`${s.sectionWrap} ${s.memorySectionBody} ${entered ? s.memorySectionInView : ""}`}
+      className={`${s.sectionWrap} ${s.memorySectionBody} ${
+        entered ? s.memorySectionInView : ""
+      }`}
       ref={sectionRef}
     >
       <div className={s.sectionInner}>
@@ -237,7 +249,6 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
           <span className={s.memoryTitleAccent}>{c.titleAccent}</span>
         </h2>
 
-        {/* Card only mounts after the section enters view so CSS animations always run fresh */}
         {entered && <MemoryCardContent key={cardKey} c={c} />}
       </div>
     </section>

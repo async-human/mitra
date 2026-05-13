@@ -686,6 +686,13 @@
   to   { top: 135%; opacity: 0; }
 }
 
+@keyframes memDividerDriftH {
+  from { left: -35%; opacity: 0; }
+  12%  { opacity: 0.8; }
+  85%  { opacity: 0.45; }
+  to   { left: 135%; opacity: 0; }
+}
+
 /* ── Mobile ── */
 @media (max-width: 680px) {
   .memoryCard {
@@ -702,12 +709,6 @@
     height: 3px;
     background: linear-gradient(to right, transparent, var(--accent), transparent);
     animation: memDividerDriftH 3.8s cubic-bezier(0.45, 0, 0.55, 1) 1s infinite;
-  }
-  @keyframes memDividerDriftH {
-    from { left: -35%; opacity: 0; }
-    12%  { opacity: 0.8; }
-    85%  { opacity: 0.45; }
-    to   { left: 135%; opacity: 0; }
   }
   .memoryColLeft,
   .memoryColRight {
