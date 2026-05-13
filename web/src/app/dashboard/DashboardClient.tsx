@@ -64,7 +64,12 @@ function CalendarIcon() {
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
-interface StoredCard { id: string; title: string; description: string; }
+interface StoredCard {
+  id: string;
+  title: string;
+  description: string;
+  why?: string;
+}
 type StepState = "done" | "current" | "locked";
 
 type DashboardUpdateKind = "offer" | "interview" | "hired" | "intros" | "shortlist" | "default";
@@ -82,24 +87,42 @@ function getDashboardUpdate(matches: StoredCard[], intros: CandidateIntro[]): Da
   const offers = intros.filter((i) => i.status === "offer");
   if (offers.length > 0) {
     const company = offers[0].company;
+    const salaryLpa = offers[0].offer_details?.salary_lpa;
     const headline =
       offers.length === 1
         ? `You have an offer from ${company}`
         : `${offers.length} offers received — including ${company}`;
+    const detailParts = ["Open Introductions for full terms, dates, and equity."];
+    if (salaryLpa != null) {
+      detailParts.unshift(`Compensation on file: ₹${salaryLpa}L / year.`);
+    }
     return {
       kind: "offer",
       label: offers.length === 1 ? "Latest update" : "Latest updates",
       headline,
-      detail: "Review your introductions below.",
+      detail: detailParts.join(" "),
     };
   }
   const interviews = intros.filter((i) => i.status === "interview");
   if (interviews.length === 1) {
+    const iv = interviews[0].interview_details;
+    const when =
+      iv?.scheduled_at &&
+      new Date(iv.scheduled_at).toLocaleString("en-IN", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
     return {
       kind: "interview",
       label: "Interview booked",
       headline: `Up next with ${interviews[0].company}`,
-      detail: "Your pipeline is moving — details are in introductions.",
+      detail: when
+        ? `Scheduled ${when}. Full details are in Introductions.`
+        : "Time is being confirmed — details will appear in Introductions.",
     };
   }
   if (interviews.length > 1) {
@@ -107,7 +130,7 @@ function getDashboardUpdate(matches: StoredCard[], intros: CandidateIntro[]): Da
       kind: "interview",
       label: "Interviews booked",
       headline: `${interviews.length} interviews on your calendar`,
-      detail: "Things are moving fast — keep an eye on your introductions.",
+      detail: "Open Introductions for times, links, and notes for each role.",
     };
   }
   const hiredList = intros.filter((i) => i.status === "hired");
@@ -160,6 +183,87 @@ function getDashboardUpdate(matches: StoredCard[], intros: CandidateIntro[]): Da
     label: "",
     headline: "Your next move starts with one honest conversation.",
   };
+}
+
+function DashboardQuickStats({
+  matchesCount,
+  intros,
+  introsLoaded,
+}: {
+  matchesCount: number;
+  intros: CandidateIntro[];
+  introsLoaded: boolean;
+}) {
+  if (!introsLoaded && matchesCount === 0) return null;
+
+  const active = intros.filter((i) => !["hired", "declined"].includes(i.status)).length;
+  const offers = intros.filter((i) => i.status === "offer").length;
+  const interviews = intros.filter((i) => i.status === "interview").length;
+  const awaiting = intros.filter((i) => i.status === "sent" || i.status === "ghosted").length;
+  const warm = intros.filter((i) => i.status === "acknowledged").length;
+
+  const pills: { key: string; className?: string; dot?: string; text: string }[] = [];
+
+  if (matchesCount > 0) {
+    pills.push({
+      key: "m",
+      dot: "dash-stat-dot--teal",
+      text: `${matchesCount} role${matchesCount !== 1 ? "s" : ""} on your shortlist`,
+    });
+  }
+  if (introsLoaded && intros.length > 0) {
+    pills.push({
+      key: "a",
+      dot: "dash-stat-dot--ink",
+      text: `${active} active intro${active !== 1 ? "s" : ""}`,
+    });
+  }
+  if (offers > 0) {
+    pills.push({
+      key: "o",
+      className: "dash-stat-pill--green",
+      dot: "dash-stat-dot--green",
+      text: `${offers} offer${offers !== 1 ? "s" : ""} to review`,
+    });
+  }
+  if (interviews > 0) {
+    pills.push({
+      key: "i",
+      className: "dash-stat-pill--amber",
+      dot: "dash-stat-dot--amber",
+      text: `${interviews} interview${interviews !== 1 ? "s" : ""} booked`,
+    });
+  }
+  if (warm > 0) {
+    pills.push({
+      key: "w",
+      dot: "dash-stat-dot--teal",
+      text: `${warm} founder${warm !== 1 ? "s" : ""} interested`,
+    });
+  }
+  if (awaiting > 0 && introsLoaded) {
+    pills.push({
+      key: "g",
+      dot: "dash-stat-dot--ink",
+      text: `${awaiting} awaiting company reply`,
+    });
+  }
+
+  if (pills.length === 0) return null;
+
+  return (
+    <div className="dash-quick-stats" aria-label="Pipeline snapshot">
+      <p className="dash-quick-stats-label">At a glance</p>
+      <div className="dash-stats-row">
+        {pills.map((p) => (
+          <span key={p.key} className={`dash-stat-pill${p.className ? ` ${p.className}` : ""}`}>
+            {p.dot ? <span className={`dash-stat-dot ${p.dot}`} aria-hidden /> : null}
+            {p.text}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function DashboardUpdateNotice({ update }: { update: DashboardUpdate }) {
@@ -241,11 +345,38 @@ export function DashboardClient({
 
   return (
     <>
-      {/* ── Greeting ─────────────────────────────────────────────────────── */}
-      <section className="dash-greeting">
-        <p className="dash-greeting-eyebrow">{greeting}</p>
-        <h1 className="dash-greeting-h1">{firstName}.</h1>
-        <DashboardUpdateNotice update={dashboardUpdate} />
+      {/* ── Overview: identity + status + snapshot ───────────────────────── */}
+      <section className="dash-overview">
+        <div className="dash-overview-primary">
+          <p className="dash-greeting-eyebrow">{greeting}</p>
+          <h1 className="dash-greeting-h1">{firstName}.</h1>
+          {dashboardUpdate.kind === "default" ? (
+            <p className="dash-greeting-sub">{dashboardUpdate.headline}</p>
+          ) : null}
+        </div>
+        <div className="dash-overview-side">
+          {dashboardUpdate.kind !== "default" ? (
+            <DashboardUpdateNotice update={dashboardUpdate} />
+          ) : null}
+          <DashboardQuickStats
+            matchesCount={matches.length}
+            intros={intros}
+            introsLoaded={loaded}
+          />
+          {hasMatches ? (
+            <div className="dash-overview-links">
+              <Link href="/chat" className="dash-overview-link">
+                Chat with Mitra
+              </Link>
+              <span className="dash-overview-links-sep" aria-hidden>
+                ·
+              </span>
+              <Link href="/matches" className="dash-overview-link">
+                Full shortlist
+              </Link>
+            </div>
+          ) : null}
+        </div>
       </section>
 
       {/* ── Journey strip (only before chatting) ─────────────────────────── */}

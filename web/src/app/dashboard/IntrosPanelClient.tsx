@@ -29,6 +29,46 @@ function formatDateTime(iso: string | undefined): string {
   });
 }
 
+function interviewFormatLabel(format: string | undefined): string {
+  if (!format) return "";
+  if (format === "in-person") return "In-person";
+  if (format === "video") return "Video";
+  if (format === "phone") return "Phone";
+  return format;
+}
+
+function introRowHint(intro: CandidateIntro): string {
+  const iv = intro.interview_details;
+  const od = intro.offer_details;
+  switch (intro.status) {
+    case "offer":
+      if (od?.salary_lpa != null) {
+        return `₹${od.salary_lpa}L / year on file · open for full terms`;
+      }
+      return "Offer details inside — tap to review";
+    case "interview":
+      if (iv?.scheduled_at) {
+        const bits = [formatDateTime(iv.scheduled_at)];
+        const fmt = interviewFormatLabel(iv.format);
+        if (fmt) bits.push(fmt);
+        return bits.join(" · ");
+      }
+      return "Interview time · confirming with the team";
+    case "acknowledged":
+      return "Founder is interested — intro thread is live";
+    case "sent":
+      return "Waiting for the company to acknowledge";
+    case "ghosted":
+      return "No reply yet · ask Mitra if you want a nudge";
+    case "hired":
+      return "Role closed — you're set";
+    case "declined":
+      return "This introduction didn't move forward";
+    default:
+      return "";
+  }
+}
+
 function IntroDetailModal({ intro, onClose }: { intro: CandidateIntro; onClose: () => void }) {
   const meta = introStatusMeta(intro.status);
   const iv = intro.interview_details;
@@ -141,6 +181,7 @@ function IntroRow({
 }) {
   const meta = introStatusMeta(intro.status);
   const isClickable = ["interview", "offer", "hired"].includes(intro.status);
+  const hint = introRowHint(intro);
   return (
     <button
       className={`dash-intro-row${isClickable ? " dash-intro-row--clickable" : ""}`}
@@ -153,6 +194,7 @@ function IntroRow({
       <div className="dash-intro-info">
         <span className="dash-intro-role">{intro.job_title}</span>
         <span className="dash-intro-company">{intro.company}</span>
+        {hint ? <span className="dash-intro-hint">{hint}</span> : null}
       </div>
       <div className="dash-intro-right">
         <span

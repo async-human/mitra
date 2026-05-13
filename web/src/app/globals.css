@@ -2665,13 +2665,76 @@ body {
 /* Main layout */
 .dash-main {
   flex: 1;
-  max-width: 920px;
+  max-width: 1120px;
   width: 100%;
   margin: 0 auto;
   padding: 64px 32px 80px;
   display: flex;
   flex-direction: column;
-  gap: 56px;
+  gap: 48px;
+}
+
+/* Dashboard overview — identity + status + snapshot */
+.dash-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 400px);
+  gap: 28px 48px;
+  align-items: start;
+}
+.dash-overview-primary .dash-greeting-h1 {
+  margin-bottom: 0;
+}
+.dash-overview-primary .dash-greeting-sub {
+  margin-top: 18px;
+  margin-bottom: 0;
+}
+.dash-overview-primary .dash-greeting-eyebrow {
+  margin-bottom: 10px;
+}
+.dash-overview-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.dash-overview-side .dash-update {
+  max-width: none;
+}
+.dash-quick-stats-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: rgba(28, 25, 23, 0.42);
+  margin: 0 0 6px 2px;
+}
+.dash-quick-stats .dash-stats-row {
+  margin-top: 0;
+}
+.dash-overview-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 13px;
+}
+.dash-overview-links-sep {
+  color: rgba(28, 25, 23, 0.28);
+  user-select: none;
+}
+.dash-overview-link {
+  font-weight: 600;
+  color: var(--teal);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.dash-overview-link:hover {
+  opacity: 0.75;
+}
+
+@media (max-width: 900px) {
+  .dash-overview {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Greeting */
@@ -2734,6 +2797,7 @@ body {
   background: var(--white);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.03);
   animation: dashUpdateIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  overflow: hidden;
 }
 .dash-update-icon {
   flex-shrink: 0;
@@ -3212,18 +3276,35 @@ body {
   flex-direction: column;
   gap: 10px;
 }
+.dash-match-row-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 12px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.dash-match-row-link:hover .dash-match-row {
+  background: var(--sand-hover, #EDEDE8);
+  box-shadow: 0 1px 0 rgba(28, 25, 23, 0.06);
+}
+.dash-match-row-link:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
 .dash-match-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 10px 12px;
   border-radius: 12px;
   background: var(--sand);
+  transition: background 0.15s;
 }
 .dash-match-av {
   flex-shrink: 0;
   width: 34px;
   height: 34px;
+  margin-top: 1px;
   border-radius: 8px;
   background: var(--amber-pale);
   color: var(--amber);
@@ -3253,6 +3334,20 @@ body {
   font-size: 12px;
   color: var(--foreground-muted);
 }
+.dash-match-why,
+.dash-match-tagline {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: rgba(28, 25, 23, 0.48);
+  margin-top: 5px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dash-match-why {
+  color: rgba(27, 94, 90, 0.78);
+}
 .dash-match-fit {
   font-size: 11px;
   font-weight: 700;
@@ -3264,12 +3359,13 @@ body {
 }
 .dash-match-meta {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
   gap: 6px;
   flex-shrink: 0;
   flex-wrap: wrap;
-  max-width: 52%;
+  max-width: 44%;
+  margin-top: 2px;
 }
 .dash-match-intro-chip {
   font-size: 10px;
@@ -3283,6 +3379,9 @@ body {
   animation: statusPop 0.4s ease-out;
 }
 .dash-match-row--settled {
+  opacity: 0.88;
+}
+.dash-match-row-link--settled .dash-match-row {
   opacity: 0.88;
 }
 .dash-match-row--settled .dash-match-fit {
@@ -3346,7 +3445,7 @@ body {
 }
 .dash-intro-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   padding: 10px 12px;
   border-radius: 12px;
@@ -3367,6 +3466,7 @@ body {
   flex-shrink: 0;
   width: 34px;
   height: 34px;
+  margin-top: 1px;
   border-radius: 8px;
   background: #DBEAFE;
   color: #3B82F6;
@@ -3396,12 +3496,23 @@ body {
   font-size: 12px;
   color: var(--foreground-muted);
 }
+.dash-intro-hint {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: rgba(28, 25, 23, 0.46);
+  margin-top: 5px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .dash-intro-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
   flex-shrink: 0;
+  margin-top: 1px;
 }
 .dash-intro-status-badge {
   display: inline-flex;

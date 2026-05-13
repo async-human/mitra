@@ -5,7 +5,20 @@ import Link from "next/link";
 import { introStatusMeta, isTerminalIntroStatus } from "./candidatePipeline";
 import type { CandidateIntro } from "./introTypes";
 
-interface StoredCard { id: string; title: string; description: string; }
+interface StoredCard { id: string; title: string; description: string; why?: string }
+
+function parseMatchCardDescription(description: string) {
+  const parts = description.split(" · ").map((s) => s.trim()).filter(Boolean);
+  const fitPart = parts.find((p) => /%\s*fit/i.test(p)) ?? "";
+  const company = parts[0] && parts[0] !== fitPart ? parts[0] : "";
+  const tagline = parts.filter((p) => p !== company && p !== fitPart).join(" · ");
+  return { company, fitPart, tagline };
+}
+
+function truncateText(s: string, max: number) {
+  if (s.length <= max) return s;
+  return `${s.slice(0, max - 1).trimEnd()}…`;
+}
 
 function matchesKey(email: string) {
   return `mitra-matches-${email}`;
@@ -76,33 +89,43 @@ export function MatchesPanelClient({
         </div>
         <div className="dash-matches-list">
           {cards.map((card) => {
-            const parts = card.description.split(" · ").map(s => s.trim()).filter(Boolean);
-            const fitPart = parts.find(p => p.includes("% fit") || p.includes("%fit")) ?? "";
-            const company = parts[0] !== fitPart ? parts[0] : "";
+            const { company, fitPart, tagline } = parseMatchCardDescription(card.description);
+            const whyLine = card.why?.trim();
             const intro = introByJobId.get(card.id.replace(/^job_/, ""));
             const meta = intro ? introStatusMeta(intro.status) : null;
+            const jobIdParam = encodeURIComponent(card.id.replace(/^job_/, ""));
             return (
-              <div
+              <Link
                 key={card.id}
-                className={`dash-match-row${intro && isTerminalIntroStatus(intro.status) ? " dash-match-row--settled" : ""}`}
+                href={`/matches?ids=${jobIdParam}`}
+                className={`dash-match-row-link${intro && isTerminalIntroStatus(intro.status) ? " dash-match-row-link--settled" : ""}`}
               >
-                <div className="dash-match-av">{(company || card.title).slice(0, 2).toUpperCase()}</div>
-                <div className="dash-match-info">
-                  <span className="dash-match-role">{card.title}</span>
-                  {company && <span className="dash-match-company">{company}</span>}
+                <div
+                  className={`dash-match-row${intro && isTerminalIntroStatus(intro.status) ? " dash-match-row--settled" : ""}`}
+                >
+                  <div className="dash-match-av">{(company || card.title).slice(0, 2).toUpperCase()}</div>
+                  <div className="dash-match-info">
+                    <span className="dash-match-role">{card.title}</span>
+                    {company ? <span className="dash-match-company">{company}</span> : null}
+                    {whyLine ? (
+                      <span className="dash-match-why">{truncateText(whyLine, 140)}</span>
+                    ) : tagline ? (
+                      <span className="dash-match-tagline">{truncateText(tagline, 120)}</span>
+                    ) : null}
+                  </div>
+                  <div className="dash-match-meta">
+                    {intro && meta && (
+                      <span
+                        className={`dash-match-intro-chip${meta.pulse ? " dash-match-intro-chip--pulse" : ""}`}
+                        style={{ color: meta.color, background: meta.bg }}
+                      >
+                        {meta.label}
+                      </span>
+                    )}
+                    {fitPart ? <span className="dash-match-fit">{fitPart}</span> : null}
+                  </div>
                 </div>
-                <div className="dash-match-meta">
-                  {intro && meta && (
-                    <span
-                      className={`dash-match-intro-chip${meta.pulse ? " dash-match-intro-chip--pulse" : ""}`}
-                      style={{ color: meta.color, background: meta.bg }}
-                    >
-                      {meta.label}
-                    </span>
-                  )}
-                  {fitPart && <span className="dash-match-fit">{fitPart}</span>}
-                </div>
-              </div>
+              </Link>
             );
           })}
         </div>
