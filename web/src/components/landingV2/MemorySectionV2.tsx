@@ -7,7 +7,8 @@ import s from "./landing-v2.module.css";
 const CONTENT = {
   candidate: {
     label: "Memory",
-    title: "Most tools see your CV.\nMitra builds your profile.",
+    title: "Most tools see your CV.",
+    titleAccent: "Mitra builds your profile.",
     left: {
       heading: "What a recruiter sees",
       items: [
@@ -31,7 +32,8 @@ const CONTENT = {
   },
   company: {
     label: "Memory",
-    title: "Most tools track candidates.\nMitra learns how you hire.",
+    title: "Most tools track candidates.",
+    titleAccent: "Mitra learns how you hire.",
     left: {
       heading: "What a recruiter tracks",
       items: [
@@ -56,46 +58,54 @@ const CONTENT = {
 
 export function MemorySectionV2({ audience }: { audience: V2Audience }) {
   const c = CONTENT[audience];
-  const titleLines = c.title.split("\n");
   const sectionRef = useRef<HTMLElement>(null);
-  const audienceReplaySkip = useRef(true);
+  const isFirstMount = useRef(true);
   const [inView, setInView] = useState(false);
+  // Incrementing this key forces React to remount list items → CSS animations restart cleanly
+  const [animKey, setAnimKey] = useState(0);
 
-  // Fire when section scrolls into viewport
+  // Scroll-triggered entry
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
-      ([e]) => {
-        if (e.isIntersecting) setInView(true);
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          setAnimKey((k) => k + 1);
+          obs.disconnect();
+        }
       },
-      { threshold: 0.12, rootMargin: "0px 0px -10% 0px" }
+      { threshold: 0.05 }
     );
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
 
-  // Re-run list/card entrance when global audience changes (skip first mount — that would cancel scroll-in motion)
+  // Replay on audience change (skip initial mount)
   useEffect(() => {
-    if (audienceReplaySkip.current) {
-      audienceReplaySkip.current = false;
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
       return;
     }
     let cancelled = false;
     const raf = requestAnimationFrame(() => {
-      if (!cancelled) setInView(false);
-    });
-    const t = setTimeout(() => {
       if (cancelled) return;
-      const el = sectionRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      if (rect.top < window.innerHeight && rect.bottom > 0) setInView(true);
-    }, 50);
+      setInView(false);
+      setTimeout(() => {
+        if (cancelled) return;
+        const el = sectionRef.current;
+        if (!el) return;
+        const { top, bottom } = el.getBoundingClientRect();
+        if (top < window.innerHeight && bottom > 0) {
+          setInView(true);
+          setAnimKey((k) => k + 1);
+        }
+      }, 60);
+    });
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
-      clearTimeout(t);
     };
   }, [audience]);
 
@@ -106,46 +116,54 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
         <p className={s.sectionLabel}>{c.label}</p>
 
         <h2 className={s.memoryTitle}>
-          {titleLines[0]}
-          {titleLines[1] && <><br /><span className={s.memoryTitleAccent}>{titleLines[1]}</span></>}
+          <span className={s.memoryTitleLine}>{c.title}</span>
+          <br />
+          <span className={s.memoryTitleAccent}>{c.titleAccent}</span>
         </h2>
 
         <div className={s.memoryCard}>
 
-          {/* Left — cold system data */}
+          {/* Left — cold system snapshot */}
           <div className={s.memoryColLeft}>
-            <p className={s.memoryColLabel}>{c.left.heading}</p>
+            <div className={s.memoryColHeader}>
+              <span className={s.memoryColHeaderDot} />
+              <p className={s.memoryColLabel}>{c.left.heading}</p>
+            </div>
             <ul className={s.memoryList}>
               {c.left.items.map((item, i) => (
                 <li
-                  key={item}
-                  className={`${s.memoryItem} ${s.memoryItemMuted} ${s.memoryItemLeft}`}
-                  style={{ "--item-delay": `${260 + i * 65}ms` } as React.CSSProperties}
+                  key={`${animKey}-L-${i}`}
+                  className={`${s.memoryItem} ${s.memoryItemLeft}`}
+                  style={{ animationDelay: `${180 + i * 90}ms` } as React.CSSProperties}
                 >
-                  <span className={s.memoryItemDash} aria-hidden="true">—</span>
-                  {item}
+                  <span className={s.memoryRowNum} aria-hidden="true">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className={s.memoryItemText}>{item}</span>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className={s.memoryDivider} aria-hidden="true" />
+          <div className={s.memoryDivider} aria-hidden="true">
+            <span className={s.memoryDividerGlow} />
+          </div>
 
-          {/* Right — Mitra's rich profile */}
+          {/* Right — Mitra's live intelligence */}
           <div className={s.memoryColRight}>
-            <p className={`${s.memoryColLabel} ${s.memoryColLabelAccent}`}>{c.right.heading}</p>
+            <div className={s.memoryColHeader}>
+              <span className={`${s.memoryColHeaderDot} ${s.memoryColHeaderDotLive}`} />
+              <p className={`${s.memoryColLabel} ${s.memoryColLabelAccent}`}>{c.right.heading}</p>
+            </div>
             <ul className={s.memoryList}>
               {c.right.items.map((item, i) => (
                 <li
-                  key={item}
+                  key={`${animKey}-R-${i}`}
                   className={`${s.memoryItem} ${s.memoryItemRight}`}
-                  style={{
-                    "--item-delay": `${340 + i * 85}ms`,
-                    "--dot-delay": `${i * 350}ms`,
-                  } as React.CSSProperties}
+                  style={{ animationDelay: `${360 + i * 120}ms` } as React.CSSProperties}
                 >
                   <span className={s.memoryItemDot} aria-hidden="true" />
-                  {item}
+                  <span className={s.memoryItemText}>{item}</span>
                 </li>
               ))}
             </ul>

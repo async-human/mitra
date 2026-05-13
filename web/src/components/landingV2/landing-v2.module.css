@@ -395,357 +395,315 @@
 
 /* ── Memory Section ────────────────────────────────────────── */
 
-/*
-  Scroll-triggered reveal: headings/card use transitions; list rows use keyframe
-  animations so entrances replay when .memorySectionInView is toggled (audience change).
-*/
-
+/* Section-level entrance: label + title fade/slide up on scroll */
 .memorySectionBody .sectionLabel {
   opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(14px);
+  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: 0ms;
 }
 
 .memorySectionBody .memoryTitle {
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: 80ms;
+  transform: translateY(22px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: 60ms;
 }
 
 .memorySectionBody .memoryCard {
   opacity: 0;
-  transform: translateY(28px);
-  transition:
-    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: 160ms;
+  transform: translateY(32px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: 140ms;
 }
 
-.memorySectionBody .memoryColLabel {
-  opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.4s ease, transform 0.4s ease;
-  transition-delay: 240ms;
-}
-
-/* List rows: hidden until in view; keyframes replay when .memorySectionInView is toggled */
-.memorySectionBody .memoryItemLeft {
-  opacity: 0;
-  transform: translateY(18px);
-}
-
-.memorySectionBody .memoryItemRight {
-  opacity: 0;
-  transform: translateX(28px);
-}
-
-.memorySectionInView .memoryItemLeft {
-  animation: memoryRevealLeft 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: var(--item-delay, 240ms);
-}
-
-.memorySectionInView .memoryItemRight {
-  animation: memoryRevealRight 0.78s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: var(--item-delay, 320ms);
-}
-
-@keyframes memoryRevealLeft {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes memoryRevealRight {
-  from {
-    opacity: 0;
-    transform: translateX(28px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* Revealed: chrome + headings use transitions */
 .memorySectionInView .sectionLabel,
 .memorySectionInView .memoryTitle,
-.memorySectionInView .memoryCard,
-.memorySectionInView .memoryColLabel {
+.memorySectionInView .memoryCard {
   opacity: 1;
   transform: none;
 }
 
-.memorySectionInView .memoryItemLeft:hover {
-  transform: translateX(4px);
-  background: rgba(0, 0, 0, 0.028);
-  transition: transform 0.28s ease, background 0.28s ease;
+/*
+  List items: keyframe animations so they restart whenever React remounts
+  the items (which happens when animKey changes — i.e. on scroll-in and on
+  audience switch while in viewport).
+  animation-fill-mode: backwards keeps items invisible during their delay.
+*/
+.memoryItemLeft {
+  animation: memFadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-.memorySectionInView .memoryItemRight:hover {
-  transform: translateX(6px);
-  background: rgba(0, 0, 0, 0.025);
-  transition: transform 0.28s ease, background 0.28s ease;
+.memoryItemRight {
+  animation: memSlideIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-.root[data-audience="company"] .memorySectionInView .memoryItemLeft:hover,
-.root[data-audience="company"] .memorySectionInView .memoryItemRight:hover {
-  background: rgba(255, 255, 255, 0.045);
+@keyframes memFadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Static styles ── */
+@keyframes memSlideIn {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Static layout ── */
 
 .memoryTitle {
   font-size: clamp(1.7rem, 3.2vw, 2.6rem);
   font-weight: 800;
   letter-spacing: -0.035em;
-  line-height: 1.1;
+  line-height: 1.15;
   color: var(--ink);
   margin: 0 0 2.5rem;
-  max-width: 600px;
+  max-width: 640px;
+}
+
+.memoryTitleLine {
+  display: inline;
 }
 
 .memoryTitleAccent {
   color: var(--accent);
+  display: inline;
 }
 
 .memoryCard {
   display: grid;
-  grid-template-columns: 1fr minmax(1px, auto) 1fr;
+  grid-template-columns: 1fr 1px 1fr;
   background: var(--bgCard);
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.06);
-  transition:
-    box-shadow 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 24px rgba(0, 0, 0, 0.05), 0 1px 4px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.4s ease, transform 0.4s ease;
 }
 
 .memorySectionInView .memoryCard:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.09);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 56px rgba(0, 0, 0, 0.1);
 }
 
 .root[data-audience="company"] .memorySectionInView .memoryCard:hover {
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    0 16px 48px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 18px 56px rgba(0,0,0,0.5);
 }
 
-.memoryDivider {
-  width: 1px;
-  align-self: stretch;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    var(--border) 12%,
-    var(--border) 88%,
-    transparent 100%
-  );
+/* Columns */
+.memoryColLeft {
+  padding: 2.5rem 2.75rem;
+  background: var(--bg);
+  position: relative;
+}
+
+.memoryColRight {
+  padding: 2.5rem 2.75rem;
   position: relative;
   overflow: hidden;
 }
 
-.memoryDivider::after {
+/* Subtle warm glow behind right column insights */
+.memoryColRight::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 45%;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    color-mix(in srgb, var(--accent) 60%, transparent),
-    transparent
-  );
-  opacity: 0;
-}
-
-.memorySectionInView .memoryDivider::after {
-  opacity: 0.85;
-  animation: memoryDividerDrift 5.5s ease-in-out infinite;
-}
-
-/* Left col: page bg (warm beige) vs card white — instant contrast, zero extra variable */
-.memoryColLeft {
-  padding: 2.25rem 2.5rem;
-  background: var(--bg);
-}
-
-.memoryColRight {
-  padding: 2.25rem 2.5rem;
+  inset: 0;
   background: radial-gradient(
-    ellipse 120% 80% at 100% 12%,
-    color-mix(in srgb, var(--accent) 10%, transparent),
-    transparent 58%
+    ellipse 140% 70% at 110% 0%,
+    color-mix(in srgb, var(--accent) 9%, transparent),
+    transparent 55%
   );
+  pointer-events: none;
+}
+
+/* Column headers */
+.memoryColHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.memoryColHeaderDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.memoryColHeaderDotLive {
+  background: var(--accent);
+  animation: livePulse 2s ease-in-out infinite;
+}
+
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent); }
+  50%       { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 0%, transparent); }
 }
 
 .memoryColLabel {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink2);
-  margin: 0 0 1.4rem;
+  margin: 0;
 }
 
 .memoryColLabelAccent {
   color: var(--accent);
 }
 
+/* Lists */
 .memoryList {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0;
 }
 
 .memoryItem {
   display: flex;
   align-items: flex-start;
-  gap: 0.65rem;
-  font-size: 0.875rem;
-  color: var(--ink);
-  line-height: 1.55;
-  font-weight: 450;
-  border-radius: 9px;
+  gap: 0.75rem;
+  padding: 0.7rem 0.6rem;
+  border-radius: 10px;
+  transition: background 0.22s ease, transform 0.22s ease;
+  cursor: default;
 }
 
-/* Monospace on left items — reads immediately as "system/database entry" */
-.memoryItemMuted {
-  color: var(--ink2);
+.memoryItem:hover {
+  background: rgba(0, 0, 0, 0.033);
+  transform: translateX(4px);
+}
+
+.root[data-audience="company"] .memoryItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Left items: monospace database-entry look */
+.memoryItemLeft {
   font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Courier New', monospace;
-  font-size: 0.82rem;
+  font-size: 0.815rem;
   font-weight: 400;
+  color: var(--ink2);
+  line-height: 1.5;
 }
 
-.memoryItemDash {
+/* Right items: body font, confident */
+.memoryItemRight {
+  font-size: 0.88rem;
+  font-weight: 450;
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+.memoryItemText {
+  flex: 1;
+}
+
+/* Row number prefix for left items */
+.memoryRowNum {
   flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 500;
   color: var(--border);
-  font-weight: 300;
-  margin-top: 0.05em;
+  line-height: 1.7;
+  user-select: none;
+  letter-spacing: 0.02em;
 }
 
+/* Accent diamond bullet for right items */
 .memoryItemDot {
   flex-shrink: 0;
   width: 5px;
   height: 5px;
-  border-radius: 1.5px;
+  border-radius: 1px;
   background: var(--accent);
-  margin-top: 0.48em;
+  margin-top: 0.5em;
   transform: rotate(45deg);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
-  animation: chipPulse 3s ease-in-out infinite;
-  animation-delay: var(--dot-delay, 0ms);
+  animation: chipPulse 2.8s ease-in-out infinite;
 }
 
-@keyframes memoryDividerDrift {
-  0%,
-  100% {
-    transform: translateY(-108%);
-    opacity: 0;
-  }
-  14% {
-    opacity: 1;
-  }
-  52% {
-    transform: translateY(130%);
-    opacity: 0.55;
-  }
-  72% {
-    opacity: 0;
-  }
+/* Vertical divider with animated glow */
+.memoryDivider {
+  position: relative;
+  overflow: hidden;
+  background: var(--border);
+  align-self: stretch;
 }
 
-@keyframes memoryDividerDriftH {
-  0%,
-  100% {
-    transform: translateX(-110%);
-    opacity: 0;
-  }
-  14% {
-    opacity: 1;
-  }
-  52% {
-    transform: translateX(330%);
-    opacity: 0.5;
-  }
-  72% {
-    opacity: 0;
-  }
+.memoryDividerGlow {
+  position: absolute;
+  left: -1px;
+  width: 3px;
+  height: 40%;
+  background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+  opacity: 0;
+  top: -40%;
 }
 
+.memorySectionInView .memoryDividerGlow {
+  opacity: 0.7;
+  animation: dividerDrift 4s cubic-bezier(0.4, 0, 0.6, 1) 0.8s infinite;
+}
+
+@keyframes dividerDrift {
+  from { top: -40%; opacity: 0; }
+  10%  { opacity: 0.7; }
+  80%  { opacity: 0.5; }
+  to   { top: 140%; opacity: 0; }
+}
+
+/* Mobile */
 @media (max-width: 680px) {
   .memoryCard {
     grid-template-columns: 1fr;
   }
   .memoryDivider {
-    width: 100%;
     height: 1px;
-    background: linear-gradient(
-      to right,
-      transparent 0%,
-      var(--border) 12%,
-      var(--border) 88%,
-      transparent 100%
-    );
+    background: var(--border);
   }
-  .memoryDivider::after {
-    top: 0;
-    left: 0;
-    width: 38%;
-    height: 100%;
-    background: linear-gradient(
-      to right,
-      transparent,
-      color-mix(in srgb, var(--accent) 55%, transparent),
-      transparent
-    );
-    opacity: 0;
+  .memoryDividerGlow {
+    top: -1px;
+    left: -40%;
+    width: 40%;
+    height: 3px;
+    background: linear-gradient(to right, transparent, var(--accent), transparent);
   }
-
-  .memorySectionInView .memoryDivider::after {
-    opacity: 0.85;
-    animation: memoryDividerDriftH 5.5s ease-in-out infinite;
+  @keyframes dividerDrift {
+    from { left: -40%; opacity: 0; }
+    10%  { opacity: 0.7; }
+    80%  { opacity: 0.5; }
+    to   { left: 140%; opacity: 0; }
   }
-  .memoryColLeft {
-    padding: 1.75rem 1.5rem;
-  }
+  .memoryColLeft,
   .memoryColRight {
     padding: 1.75rem 1.5rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .memoryDivider::after,
-  .memorySectionInView .memoryDivider::after {
-    animation: none;
-    opacity: 0;
+  .memoryItemLeft,
+  .memoryItemRight {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
-  .memoryItemDot {
+  .memoryColHeaderDotLive,
+  .memoryItemDot,
+  .memoryDividerGlow,
+  .memorySectionInView .memoryDividerGlow {
     animation: none;
+    opacity: 0.6;
   }
-  .memorySectionInView .memoryItemLeft,
-  .memorySectionInView .memoryItemRight {
-    animation: none;
-    opacity: 1;
-    transform: none;
-  }
-  .memorySectionInView .memoryCard:hover {
+  .memorySectionInView .memoryCard:hover,
+  .memoryItem:hover {
     transform: none;
   }
 }
