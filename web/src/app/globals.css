@@ -5724,6 +5724,123 @@ img.wchat-av--user { border-radius: 50%; }
   text-align: center;
 }
 
+/* ── intro gate (profile incomplete) — calm, not error-red ── */
+.match-actions--gate {
+  flex-direction: column;
+  align-items: stretch;
+  margin-top: 4px;
+}
+.match-intro-gate {
+  display: flex;
+  gap: 14px;
+  padding: 16px 18px 18px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #FAF8FF 0%, #FEFCF6 55%, #F5F3FF 100%);
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  animation: introFooterIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.match-intro-gate-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #4F46E5;
+  font-size: 15px;
+}
+.match-intro-gate-body {
+  flex: 1;
+  min-width: 0;
+}
+.match-intro-gate-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #312E81;
+  margin: 0 0 6px;
+  line-height: 1.35;
+}
+.match-intro-gate-lead {
+  font-size: 12px;
+  color: rgba(49, 46, 129, 0.72);
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+.match-intro-gate-list {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  font-size: 12px;
+  color: rgba(30, 27, 75, 0.85);
+  line-height: 1.55;
+}
+.match-intro-gate-list li::marker {
+  color: #6366F1;
+}
+.match-intro-gate-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.match-intro-gate-primary.match-btn {
+  flex: 1 1 160px;
+  text-align: center;
+  justify-content: center;
+}
+.match-btn--secondary {
+  flex: 1 1 160px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: #fff;
+  color: #4338CA;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.match-btn--secondary:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(79, 70, 229, 0.5);
+}
+.match-btn--secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.match-intro-gate-muted {
+  display: inline-block;
+  font-size: 11px;
+  color: rgba(67, 56, 202, 0.55);
+  text-decoration: none;
+}
+.match-intro-gate-muted:hover {
+  color: #4338CA;
+  text-decoration: underline;
+}
+
+@media (max-width: 520px) {
+  .match-intro-gate {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .match-intro-gate-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .match-intro-gate-primary.match-btn,
+  .match-btn--secondary {
+    flex: none;
+    width: 100%;
+  }
+}
+
 /* ── sent card accent ── */
 .match-card--sent {
   border-top: 3px solid #34D399;
@@ -5931,6 +6048,26 @@ img.wchat-av--user { border-radius: 50%; }
 [data-theme="dark"] .match-intro-footer--already .match-intro-footer-title { color: rgba(245,240,234,0.7); }
 [data-theme="dark"] .match-intro-footer-sub { color: rgba(110,231,183,0.65); }
 [data-theme="dark"] .match-intro-footer--already .match-intro-footer-sub { color: rgba(245,240,234,0.4); }
+[data-theme="dark"] .match-intro-gate {
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.12) 0%, rgba(30, 27, 75, 0.4) 100%);
+  border-color: rgba(129, 140, 248, 0.25);
+}
+[data-theme="dark"] .match-intro-gate-icon {
+  background: rgba(99, 102, 241, 0.22);
+  color: #A5B4FC;
+}
+[data-theme="dark"] .match-intro-gate-title { color: #E0E7FF; }
+[data-theme="dark"] .match-intro-gate-lead { color: rgba(224, 231, 255, 0.65); }
+[data-theme="dark"] .match-intro-gate-list { color: rgba(245, 240, 234, 0.78); }
+[data-theme="dark"] .match-btn--secondary {
+  background: rgba(30, 27, 75, 0.6);
+  border-color: rgba(165, 180, 252, 0.35);
+  color: #C7D2FE;
+}
+[data-theme="dark"] .match-btn--secondary:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.18);
+}
+[data-theme="dark"] .match-intro-gate-muted { color: rgba(199, 210, 254, 0.55); }
 [data-theme="dark"] .match-btn--ghost {
   background: rgba(255,255,255,0.06);
   border-color: rgba(255,255,255,0.1);

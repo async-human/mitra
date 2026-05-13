@@ -586,15 +586,17 @@ async def run_agent_turn(
     last_interpretation  = known_signals.pop("_last_interpretation", None)
     trajectory_data      = known_signals.pop("_trajectory", None)
     last_reflection      = known_signals.pop("_reflection", None)
+    implicit_contradictions = known_signals.pop("_implicit_contradictions", None) or []
+    probed_dimensions       = known_signals.pop("_probed_dimensions", None) or []
+    asked_log_raw           = known_signals.pop("_asked_log", None) or []
     # Remove all _implicit_* and other _-prefixed keys from the raw dump;
-    # they are surfaced via the formatted [SIGNAL INTELLIGENCE: ...] block instead
+    # they are surfaced via the [CONVERSATION STATE] block instead.
     implicit_signals = {k: v for k, v in list(known_signals.items()) if k.startswith("_")}
     for k in implicit_signals:
         known_signals.pop(k, None)
 
     # ── Rule-based signal extraction (fast, free, synchronous) ───────────────
     from mitra_api.tools.signal_interpreter import (
-        build_interpretation_context_injection,
         interpret_hesitation_signals,
         interpret_ownership_signals,
         interpret_salary_mention,
@@ -611,6 +613,32 @@ async def run_agent_turn(
         await sessions.merge_signals(whatsapp_sender_id, rule_signals)
         known_signals.update(rule_signals)
         log.debug("rule-based signals: %s", list(rule_signals.keys()))
+
+    # ── Contradiction detection (rule-based, synchronous, free) ──────────────
+    # Detects stated-vs-revealed inconsistencies on 6 dimensions. Surfaced to
+    # the agent via [CANDIDATE INTERNAL TENSION] block, never to founders
+    # until human-reviewed.
+    try:
+        from mitra_api.tools.contradictions import (
+            detect_contradictions,
+            merge_contradictions,
+        )
+        fresh_contradictions = detect_contradictions(known_signals)
+        if fresh_contradictions:
+            implicit_contradictions = merge_contradictions(
+                implicit_contradictions, fresh_contradictions
+            )
+            await sessions.merge_signals(
+                whatsapp_sender_id,
+                {"_implicit_contradictions": implicit_contradictions},
+            )
+            log.info(
+                "[agent:%s] contradictions detected: %s",
+                whatsapp_sender_id,
+                [c["dimension"] for c in fresh_contradictions],
+            )
+    except Exception:
+        log.debug("contradiction detection failed (non-critical)", exc_info=True)
 
     # Pull framing_hint out before the signals dump — it's an agent instruction,
     # not a profile fact, and it gets its own formatted [FRAMING: ...] block later.
@@ -713,24 +741,11 @@ async def run_agent_turn(
             )
         )
 
-    # Profile readiness hint — suppressed on new web sessions so it doesn't
-    # compete with the welcome-back instruction and cause repeated intake questions.
-    if known_signals and not fresh_start and not is_new_web_session:
-        try:
-            from mitra_api.tools.intelligence import score_conversation_quality
-            quality = score_conversation_quality(known_signals)
-            if quality["readiness"] != "match_ready" and quality["top_missing"]:
-                top = quality["top_missing"].replace("_", " ")
-                msgs.append(ChatMessage(
-                    role="system",
-                    content=(
-                        f"[INTAKE READINESS: {quality['score']}% complete. "
-                        f"Most valuable missing signal: {top}. "
-                        f"Collect this naturally before offering to search jobs.]"
-                    ),
-                ))
-        except Exception:
-            log.debug("conversation quality scoring failed (non-critical)")
+    # NOTE: [INTAKE READINESS], [SIGNAL INTELLIGENCE], [BEHAVIORAL STATE], and
+    # [CANDIDATE INTERNAL TENSION] are no longer injected individually.
+    # They are integrated into the single [CONVERSATION STATE] block below,
+    # produced by conversation_state.compute_state(). See the integration block
+    # further down (after the fresh_start / returning / new_session branches).
 
     if fresh_start and known_signals:
         name = known_signals.get("candidate_name", "")
@@ -794,43 +809,60 @@ async def run_agent_turn(
                 "HARD RULES FOR THIS TURN:\n"
                 "- Do NOT continue mid-conversation or respond to the last message in the transcript.\n"
                 "- Do NOT ask any intake questions (motivation, challenges, stack, salary).\n"
-                "- Do NOT use '[INTAKE READINESS]' or '[SIGNAL INTELLIGENCE]' suggestions.\n"
+                "- Ignore any [CONVERSATION STATE] block — it is not injected on a new session, but if seen, defer to these instructions.\n"
                 "- One question only, about how they'd like to proceed."
             ),
         ))
         log.info("[agent:%s] new web session — returning candidate, transcript present", whatsapp_sender_id)
 
-    # ── Inject interpretation intelligence from previous turn ─────────────────
-    # Suppressed on new web sessions — the "priority next question" from the last
-    # turn would override the welcome-back instruction and cause the agent to
-    # continue mid-conversation instead of greeting the returning candidate.
-    interp_block = build_interpretation_context_injection(last_interpretation)
-    if interp_block and not is_new_web_session:
-        msgs.append(ChatMessage(role="system", content=interp_block))
+    # ── [CONVERSATION STATE] — single integration block ─────────────────────
+    # Replaces the previous [SIGNAL INTELLIGENCE], [INTAKE READINESS],
+    # [BEHAVIORAL STATE], and [CANDIDATE INTERNAL TENSION] blocks. The
+    # ConversationState view is computed once and rendered into one prompt
+    # block telling the agent exactly what to do this turn.
+    #
+    # Suppressed on new web sessions / fresh_start so the override branches
+    # above remain authoritative.
+    if not is_new_web_session and not fresh_start:
+        try:
+            from mitra_api.agent.conversation_state import (
+                compute_state,
+                load_asked_log,
+            )
+            from mitra_api.tools.intelligence import score_conversation_quality
 
-    # ── Inject behavioral reflection from previous turn ────────────────────────
-    if last_reflection and isinstance(last_reflection, dict) and not is_new_web_session:
-        refl_parts: list[str] = []
-        if last_reflection.get("phase"):
-            refl_parts.append(f"Search phase: {last_reflection['phase']}")
-        if last_reflection.get("emotional_tone"):
-            refl_parts.append(f"Tone: {last_reflection['emotional_tone']}")
-        if last_reflection.get("behavioral_shift"):
-            refl_parts.append(f"Shift: {last_reflection['behavioral_shift']}")
-        if last_reflection.get("remember"):
-            refl_parts.append(f"Remember: {last_reflection['remember']}")
-        if refl_parts:
-            msgs.append(ChatMessage(
-                role="system",
-                content="[BEHAVIORAL STATE: " + " · ".join(refl_parts) + "]",
-            ))
+            asked_log = load_asked_log(asked_log_raw)
+            quality   = score_conversation_quality(known_signals)
+            state = compute_state(
+                turn_idx=len(transcript) // 2 + 1,
+                known_signals=known_signals,
+                transcript_len=len(transcript),
+                last_reflection=last_reflection,
+                last_interpretation=last_interpretation,
+                contradictions=implicit_contradictions,
+                probed_dimensions=probed_dimensions,
+                asked_log=asked_log,
+                readiness_pct=int(quality.get("score", 0)),
+                framing_hint=framing_hint,
+            )
+            msgs.append(ChatMessage(role="system", content=state.to_prompt_block()))
 
-    # Framing hints from rule-based extraction (suppressed on new web sessions)
-    if framing_hint and not is_new_web_session:
-        msgs.append(ChatMessage(
-            role="system",
-            content=f"[FRAMING: {framing_hint}]",
-        ))
+            # If next_action is probe_tension, mark dimension as probed so the
+            # same tension isn't raised again next turn.
+            if state.next_action.kind == "probe_tension" and state.next_action.tension:
+                new_probed = list(probed_dimensions) + [state.next_action.tension]
+                await sessions.merge_signals(
+                    whatsapp_sender_id,
+                    {"_probed_dimensions": new_probed},
+                )
+
+            log.info(
+                "[agent:%s] state — stage=%s readiness=%d%% action=%s",
+                whatsapp_sender_id, state.stage, state.readiness_pct,
+                state.next_action.to_block_line(),
+            )
+        except Exception:
+            log.debug("conversation state computation failed (non-critical)", exc_info=True)
 
     # Inject weak-intro nudge — drives proactive strengthening without candidate having to ask.
     # Suppressed on fresh_start so the agent doesn't immediately re-fire old intros.
@@ -1044,6 +1076,32 @@ async def run_agent_turn(
         await sessions.append_messages(whatsapp_sender_id, msgs[persist_from:])
     except Exception:
         log.warning("Redis append_messages failed for %s — turn complete but history not saved", whatsapp_sender_id)
+
+    # ── Tag the agent's question topic and update _asked_log ────────────────
+    # Runs synchronously — cheap (~ms), and the result feeds the next turn's
+    # ConversationState. No LLM, no DB; pure regex + Redis merge.
+    try:
+        from mitra_api.agent.conversation_state import (
+            append_asked,
+            load_asked_log,
+        )
+        current_asked = load_asked_log(asked_log_raw)
+        new_asked, tagged_topic = append_asked(
+            current_asked,
+            assistant_text=final_text,
+            turn_idx=len(transcript) // 2 + 1,
+        )
+        if tagged_topic:
+            await sessions.merge_signals(
+                whatsapp_sender_id,
+                {"_asked_log": [a.to_dict() for a in new_asked]},
+            )
+            log.info(
+                "[agent:%s] tagged agent question — topic=%s (log size=%d)",
+                whatsapp_sender_id, tagged_topic, len(new_asked),
+            )
+    except Exception:
+        log.debug("asked-log update failed (non-critical)", exc_info=True)
 
     # Fire post-turn reflection now that we have the assistant's response
     _final_text_snap = final_text

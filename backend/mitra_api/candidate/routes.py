@@ -137,6 +137,8 @@ class IntroResponse(BaseModel):
     founder_contacted: bool = False
     already_sent: bool = False
     confirmation_sent: bool = False
+    needs_more_info: bool = False
+    missing_signals: list[str] = Field(default_factory=list)
 
 
 @router.post("/intro", response_model=IntroResponse)
@@ -156,12 +158,16 @@ async def request_candidate_intro(body: IntroRequest) -> IntroResponse:
             session=db,
         )
 
+    raw_ok = bool(result.get("ok", False))
+    msg = str(result.get("message", "Something went wrong — please try again."))
     return IntroResponse(
-        ok=bool(result.get("ok", False)),
-        message=str(result.get("message", "Something went wrong — please try again.")),
+        ok=raw_ok,
+        message=msg,
         intro_id=result.get("intro_id"),
         founder_contacted=bool(result.get("founder_contacted", False)),
-        already_sent=not result.get("ok", True) and "already sent" in str(result.get("message", "")),
+        already_sent=not raw_ok and "already sent" in msg,
+        needs_more_info=bool(result.get("needs_more_info", False)),
+        missing_signals=list(result.get("missing_signals") or []),
     )
 
 

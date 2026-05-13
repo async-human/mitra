@@ -56,7 +56,19 @@ function groupAndSort(jobs: MergedJob[]): { label: DateGroup; jobs: MergedJob[] 
     .map(label => ({ label, jobs: buckets[label] }));
 }
 
-type IntroStatus = "idle" | "loading" | "sent" | "already_sent" | "error";
+type IntroStatus = "idle" | "loading" | "sent" | "already_sent" | "error" | "needs_info";
+
+function buildStrengthenIntroHref(job: MergedJob, missing: string[]): string {
+  const q = new URLSearchParams();
+  q.set("intent", "strengthen_intro");
+  q.set("job_id", job.external_id ?? String(job.id));
+  q.set("company", job.company);
+  q.set("role", job.title);
+  if (missing.length > 0) {
+    q.set("missing", missing.join("|"));
+  }
+  return `/chat?${q.toString()}`;
+}
 
 function parseFit(description: string): { fit: string; fit_pct: number } {
   const parts = description.split(" · ");
@@ -236,13 +248,14 @@ function IntroSuccessFooter({ company, already }: { company: string; already?: b
 }
 
 function JobCard({
-  job, idx, userEmail, introStatus, introError, onRequestIntro,
+  job, idx, userEmail, introStatus, introError, introMissing, onRequestIntro,
 }: {
   job: MergedJob;
   idx: number;
   userEmail?: string;
   introStatus: IntroStatus;
   introError: string;
+  introMissing: string[];
   onRequestIntro: (job: MergedJob) => void;
 }) {
   const salary = salaryLabel(job.salary_min_lpa, job.salary_max_lpa);
@@ -251,6 +264,8 @@ function JobCard({
   const pills = [empType, remote, job.location, job.sector, salary].filter(Boolean) as string[];
   const rankLabel = RANK_LABELS[idx] ?? null;
   const isSent = introStatus === "sent" || introStatus === "already_sent";
+  const needsProfile = introStatus === "needs_info";
+  const chatCompleteHref = buildStrengthenIntroHref(job, introMissing);
 
   return (
     <div
@@ -307,7 +322,40 @@ function JobCard({
       <WhyFits job={job} />
 
       {/* Actions — hidden when intro is sent, Ask Mitra still accessible */}
-      {!isSent && (
+      {!isSent && needsProfile ? (
+        <div className="match-actions match-actions--gate">
+          <div className="match-intro-gate" role="status">
+            <div className="match-intro-gate-icon" aria-hidden>✦</div>
+            <div className="match-intro-gate-body">
+              <p className="match-intro-gate-title">Almost there — founders reply more often to complete intros</p>
+              <p className="match-intro-gate-lead">
+                Your match is saved. Chat with Mitra for a minute to add what’s missing — then tap retry and we’ll send a strong intro to {job.company}.
+              </p>
+              <ul className="match-intro-gate-list">
+                {(introMissing.length > 0 ? introMissing : ["A few profile details still needed for this intro"]).map((item, i) => (
+                  <li key={`${item}-${i}`}>{item}</li>
+                ))}
+              </ul>
+              <div className="match-intro-gate-row">
+                <Link href={chatCompleteHref} className="match-btn match-btn--primary match-intro-gate-primary">
+                  Continue with Mitra →
+                </Link>
+                <button
+                  type="button"
+                  className="match-btn match-btn--secondary match-intro-gate-secondary"
+                  disabled={introStatus === "loading" || !userEmail}
+                  onClick={() => onRequestIntro(job)}
+                >
+                  {introStatus === "loading" ? <span className="match-btn-spinner" /> : "I’ve added this — retry intro"}
+                </button>
+              </div>
+              <Link href={`/chat?about=${encodeURIComponent(job.title)}`} className="match-intro-gate-muted">
+                Ask something else →
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : !isSent ? (
         <div className="match-actions">
           <Link href={`/chat?about=${encodeURIComponent(job.title)}`} className="match-btn match-btn--ghost">
             Ask Mitra →
@@ -331,7 +379,7 @@ function JobCard({
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Success footer — replaces the actions row entirely */}
       {isSent && (
@@ -353,6 +401,7 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
   const [loading, setLoading] = useState(true);
   const [introStatuses, setIntroStatuses] = useState<Record<number, IntroStatus>>({});
   const [introErrors, setIntroErrors] = useState<Record<number, string>>({});
+  const [introMissingByJob, setIntroMissingByJob] = useState<Record<number, string[]>>({});
   const firstName = userName?.split(" ")[0];
 
   useEffect(() => {
@@ -414,6 +463,7 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
 
     setIntroStatuses(prev => ({ ...prev, [job.id]: "loading" }));
     setIntroErrors(prev => ({ ...prev, [job.id]: "" }));
+    setIntroMissingByJob(prev => ({ ...prev, [job.id]: [] }));
 
     try {
       const res = await fetch(`${API_URL}/candidate/intro`, {
@@ -427,6 +477,15 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
       });
 
       const data = await res.json();
+
+      if (data.needs_more_info) {
+        setIntroStatuses(prev => ({ ...prev, [job.id]: "needs_info" }));
+        setIntroMissingByJob(prev => ({
+          ...prev,
+          [job.id]: Array.isArray(data.missing_signals) ? data.missing_signals : [],
+        }));
+        return;
+      }
 
       if (!res.ok) {
         throw new Error(data?.message || `HTTP ${res.status}`);
@@ -509,6 +568,7 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
                         userEmail={userEmail}
                         introStatus={introStatuses[job.id] ?? "idle"}
                         introError={introErrors[job.id] ?? ""}
+                        introMissing={introMissingByJob[job.id] ?? []}
                         onRequestIntro={handleRequestIntro}
                       />
                     );

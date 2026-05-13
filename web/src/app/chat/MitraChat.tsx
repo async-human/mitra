@@ -50,8 +50,14 @@ function matchesKey(email: string) {
 }
 
 export function MitraChat({
-  userName, userEmail, userImage, intent,
-}: { userName?: string; userEmail: string; userImage?: string; intent?: string }) {
+  userName, userEmail, userImage, intent, strengthenIntro,
+}: {
+  userName?: string;
+  userEmail: string;
+  userImage?: string;
+  intent?: string;
+  strengthenIntro?: { jobId: string; company: string; role: string; missing: string[] };
+}) {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -70,7 +76,7 @@ export function MitraChat({
         const cards: JobCard[] = JSON.parse(raw);
         if (cards.length > 0) {
           const ids = cards.map(c => c.id.replace(/^job_/, "")).join(",");
-          setStoredMatchIds(ids);
+          queueMicrotask(() => setStoredMatchIds(ids));
         }
       }
     } catch { /* ignore */ }
@@ -163,14 +169,28 @@ export function MitraChat({
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    if (intent === "update") {
-      const msg = "I want to update my job search preferences";
-      setMessages([{ role: "user", text: msg }]);
-      callApi(msg);
-    } else {
-      callApi("");
-    }
-  }, [callApi, intent]);
+    queueMicrotask(() => {
+      if (intent === "update") {
+        const msg = "I want to update my job search preferences";
+        setMessages([{ role: "user", text: msg }]);
+        callApi(msg);
+      } else if (intent === "strengthen_intro" && strengthenIntro) {
+        const { jobId, company, role, missing } = strengthenIntro;
+        const missingLine =
+          missing.length > 0
+            ? ` I'm told the intro still needs: ${missing.join("; ")}.`
+            : "";
+        const msg =
+          `I tried to request an intro for the **${role}** role at **${company}** ` +
+          `(job ref: \`${jobId}\`).${missingLine} ` +
+          `Please help me fill in whatever's still missing so Mitra can send a strong intro.`;
+        setMessages([{ role: "user", text: msg }]);
+        callApi(msg);
+      } else {
+        callApi("");
+      }
+    });
+  }, [callApi, intent, strengthenIntro]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -286,7 +306,7 @@ export function MitraChat({
                                 setMessages(prev => [...prev, { role: "user", text: q }]);
                                 callApi(q);
                               }}>
-                              I'm interested →
+                              {"I'm interested →"}
                             </button>
                           </div>
                         );
