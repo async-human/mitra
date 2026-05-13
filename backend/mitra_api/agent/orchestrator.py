@@ -46,6 +46,44 @@ log = logging.getLogger(__name__)
 
 ToolRunner = Callable[[str, dict[str, Any]], Awaitable[str]]
 
+# Keep aligned with mitra_api.tools.intros._SALARY_SIGNALS
+_REQUEST_INTRO_SALARY_KEYS = (
+    "salary_floor_lpa",
+    "salary_target_lpa",
+    "salary_min_lpa",
+    "salary_max_lpa",
+    "current_ctc_lpa",
+)
+
+
+def _build_request_intro_inline_patch(args: dict[str, Any]) -> dict[str, Any]:
+    """Extract optional fields from request_intro tool args for gate + persistence."""
+    inline: dict[str, Any] = {}
+    if args.get("candidate_name"):
+        inline["candidate_name"] = str(args["candidate_name"]).strip()
+    ps = args.get("primary_stack")
+    if ps:
+        inline["primary_stack"] = ps
+    if args.get("current_role"):
+        inline["current_role"] = str(args["current_role"]).strip()
+    cc = args.get("current_company")
+    if cc is not None and str(cc).strip() != "":
+        inline["current_company"] = str(cc).strip()
+    for key in _REQUEST_INTRO_SALARY_KEYS:
+        v = args.get(key)
+        if v is None or v == "":
+            continue
+        try:
+            inline[key] = int(round(float(v)))
+        except (TypeError, ValueError):
+            continue
+    return inline
+
+
+def _has_intro_salary_signal(signals: dict[str, Any]) -> bool:
+    """True if at least one salary field satisfies the intro gate (see intros._SALARY_SIGNALS)."""
+    return any(signals.get(k) for k in _REQUEST_INTRO_SALARY_KEYS)
+
 
 @dataclass(frozen=True)
 class AgentTurn:
@@ -156,8 +194,8 @@ def tool_catalog() -> list[ToolDefinition]:
             description=(
                 "Send a warm introduction from the candidate to a specific founder. "
                 "Call when the candidate explicitly asks to be introduced to a role. "
-                "You MUST pass the candidate's name, stack, and current role inline — "
-                "they are required fields and the intro will not send without them."
+                "You MUST pass the candidate's name, stack, current role, and salary expectation "
+                "(floor or target LPA) inline — they are required for the intro to send."
             ),
             parameters={
                 "type": "object",
@@ -189,6 +227,18 @@ def tool_catalog() -> list[ToolDefinition]:
                     "current_company": {
                         "type": "string",
                         "description": "Current employer. e.g. 'Infinite Possibilities'.",
+                    },
+                    "salary_target_lpa": {
+                        "type": "number",
+                        "description": (
+                            "Expected compensation in LPA (annual). Use the candidate's confirmed "
+                            "target or the high end of their stated range. Required for the intro "
+                            "unless already saved via remember_candidate_signals."
+                        ),
+                    },
+                    "salary_floor_lpa": {
+                        "type": "number",
+                        "description": "Minimum acceptable LPA if they gave a floor instead of a single target.",
                     },
                 },
                 "required": ["job_id", "why_note", "candidate_name", "primary_stack", "current_role"],
@@ -324,18 +374,7 @@ def build_tool_runner(
 
         # ── 4. request_intro ──────────────────────────────────────────────────
         if name == "request_intro":
-            # Persist inline signals immediately so the gate check in request_intro
-            # finds them in the DB — even if remember_candidate_signals was never called.
-            inline: dict[str, Any] = {}
-            if args.get("candidate_name"):
-                inline["candidate_name"] = args["candidate_name"]
-            if args.get("primary_stack"):
-                inline["primary_stack"] = args["primary_stack"]
-            if args.get("current_role"):
-                inline["current_role"] = args["current_role"]
-            if args.get("current_company"):
-                inline["current_company"] = args["current_company"]
-
+            inline = _build_request_intro_inline_patch(args)
             async with db_factory() as db:
                 if inline:
                     await sessions.merge_signals(session_id, inline)
@@ -349,6 +388,7 @@ def build_tool_runner(
                     job_external_id=str(args.get("job_id", "")),
                     why_note=str(args.get("why_note", "")),
                     session=db,
+                    inline_signal_patch=inline or None,
                 )
             return json.dumps(result, ensure_ascii=False)
 
@@ -454,20 +494,22 @@ async def _load_weak_intros_note(candidate_phone: str, db_factory) -> str | None
             role    = signals.get("current_role", "")
             company = signals.get("current_company", "")
 
-            if name and stack and role:
-                stack_str = ", ".join(stack) if isinstance(stack, list) else str(stack)
+            if name and stack and role and _has_intro_salary_signal(signals):
                 return (
                     f"CONTEXT: Thin intro(s) exist for {items}. "
                     f"Profile confirmed — name='{name}', stack={stack}, role='{role}', "
                     f"company='{company}'. "
                     f"If the candidate asks about these intros or wants to strengthen them, "
-                    f"call request_intro with these inline fields. "
+                    f"call request_intro with these inline fields plus salary_target_lpa or "
+                    f"salary_floor_lpa if not already stored. "
                     f"Wait for explicit intent — do NOT auto-fire intros if the candidate is "
                     f"asking a new question or starting a fresh search."
                 )
             else:
                 missing = [k for k in ("candidate_name", "primary_stack", "current_role")
                            if not signals.get(k)]
+                if not _has_intro_salary_signal(signals):
+                    missing.append("salary_expectation_lpa")
                 return (
                     f"CONTEXT: Thin intro(s) for {items} were sent with incomplete profile info. "
                     f"Missing signals: {', '.join(missing)}. "

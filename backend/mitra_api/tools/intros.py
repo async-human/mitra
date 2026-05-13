@@ -32,8 +32,14 @@ _GATE_REQUIRED = {
     "primary_stack":  "your primary tech stack (e.g. Python, React)",
     "current_role":   "your current job title",
 }
-# At least one salary signal must be present
-_SALARY_SIGNALS = ("salary_floor_lpa", "salary_target_lpa", "salary_min_lpa", "current_ctc_lpa")
+# At least one salary signal must be present (cover interpreter + tool inline args)
+_SALARY_SIGNALS = (
+    "salary_floor_lpa",
+    "salary_target_lpa",
+    "salary_min_lpa",
+    "salary_max_lpa",
+    "current_ctc_lpa",
+)
 
 # Soft-required: collected if missing but don't block the intro
 _SOFT_SIGNALS = ("notice_period_days", "motivation")
@@ -263,9 +269,14 @@ async def request_intro(
     job_external_id: str,
     why_note: str,
     session: AsyncSession,
+    inline_signal_patch: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Create an intro record and send the warm intro to the founder.
+
+    ``inline_signal_patch`` is merged into DB-backed signals before the intro gate.
+    Ensures salary/name/stack passed on the ``request_intro`` tool call count toward
+    the gate even if they were not persisted earlier.
 
     Returns:
         ok                – bool
@@ -286,6 +297,12 @@ async def request_intro(
         signals["candidate_name"] = candidate.name
     if candidate.current_role and "current_role" not in signals:
         signals["current_role"] = candidate.current_role
+
+    if inline_signal_patch:
+        for k, v in inline_signal_patch.items():
+            if v is None or v == "" or v == []:
+                continue
+            signals[k] = v
 
     # ── Look up job (needed for gate message + fit scoring) ──────────────────
     # Strip the "job_" prefix that interactive_native.py prepends to row_ids
