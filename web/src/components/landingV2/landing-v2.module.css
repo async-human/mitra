@@ -395,7 +395,7 @@
 
 /* ── Memory Section ────────────────────────────────────────── */
 
-/* Section-level entrance: label + title fade/slide up on scroll */
+/* Label + title: transition in when section enters view */
 .memorySectionBody .sectionLabel {
   opacity: 0;
   transform: translateY(14px);
@@ -409,50 +409,16 @@
   transform: translateY(22px);
   transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: 60ms;
-}
-
-.memorySectionBody .memoryCard {
-  opacity: 0;
-  transform: translateY(32px);
-  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
-  transition-delay: 140ms;
+  transition-delay: 70ms;
 }
 
 .memorySectionInView .sectionLabel,
-.memorySectionInView .memoryTitle,
-.memorySectionInView .memoryCard {
+.memorySectionInView .memoryTitle {
   opacity: 1;
   transform: none;
 }
 
-/*
-  List items: keyframe animations so they restart whenever React remounts
-  the items (which happens when animKey changes — i.e. on scroll-in and on
-  audience switch while in viewport).
-  animation-fill-mode: backwards keeps items invisible during their delay.
-*/
-.memoryItemLeft {
-  animation: memFadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-}
-
-.memoryItemRight {
-  animation: memSlideIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) backwards;
-}
-
-@keyframes memFadeUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes memSlideIn {
-  from { opacity: 0; transform: translateX(32px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-/* ── Static layout ── */
-
+/* ── Title ── */
 .memoryTitle {
   font-size: clamp(1.7rem, 3.2vw, 2.6rem);
   font-weight: 800;
@@ -463,15 +429,11 @@
   max-width: 640px;
 }
 
-.memoryTitleLine {
-  display: inline;
-}
-
 .memoryTitleAccent {
   color: var(--accent);
-  display: inline;
 }
 
+/* ── Card: animates in when it mounts (which is after `entered` becomes true) ── */
 .memoryCard {
   display: grid;
   grid-template-columns: 1fr 1px 1fr;
@@ -480,84 +442,113 @@
   border-radius: 20px;
   overflow: hidden;
   box-shadow: 0 2px 24px rgba(0, 0, 0, 0.05), 0 1px 4px rgba(0, 0, 0, 0.04);
+  animation: memCardReveal 0.65s cubic-bezier(0.16, 1, 0.3, 1) 80ms backwards;
   transition: box-shadow 0.4s ease, transform 0.4s ease;
 }
 
-.memorySectionInView .memoryCard:hover {
+@keyframes memCardReveal {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.memoryCard:hover {
   transform: translateY(-4px);
   box-shadow: 0 16px 56px rgba(0, 0, 0, 0.1);
 }
 
-.root[data-audience="company"] .memorySectionInView .memoryCard:hover {
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 18px 56px rgba(0,0,0,0.5);
+.root[data-audience="company"] .memoryCard:hover {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.09), 0 18px 56px rgba(0,0,0,0.5);
 }
 
-/* Columns */
+/* ── Columns ── */
 .memoryColLeft {
-  padding: 2.5rem 2.75rem;
+  padding: 2.25rem 2.5rem;
   background: var(--bg);
-  position: relative;
 }
 
 .memoryColRight {
-  padding: 2.5rem 2.75rem;
+  padding: 2.25rem 2.5rem;
   position: relative;
   overflow: hidden;
 }
 
-/* Subtle warm glow behind right column insights */
+/* Warm glow in top-right corner of insight column */
 .memoryColRight::before {
   content: "";
   position: absolute;
   inset: 0;
+  pointer-events: none;
   background: radial-gradient(
-    ellipse 140% 70% at 110% 0%,
-    color-mix(in srgb, var(--accent) 9%, transparent),
+    ellipse 130% 60% at 110% 0%,
+    color-mix(in srgb, var(--accent) 8%, transparent),
     transparent 55%
   );
-  pointer-events: none;
 }
 
-/* Column headers */
+/* ── Column header row ── */
 .memoryColHeader {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.35rem;
+  min-height: 1.5rem;
 }
 
 .memoryColHeaderDot {
+  flex-shrink: 0;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: var(--border);
-  flex-shrink: 0;
 }
 
+/* Pulsing live dot on the Mitra-insights column */
 .memoryColHeaderDotLive {
   background: var(--accent);
-  animation: livePulse 2s ease-in-out infinite;
+  animation: memLivePulse 1.8s ease-in-out infinite;
 }
 
-@keyframes livePulse {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 40%, transparent); }
-  50%       { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 0%, transparent); }
+@keyframes memLivePulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 50%, transparent); }
+  55%       { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }
 }
 
 .memoryColLabel {
-  font-size: 0.7rem;
+  font-size: 0.69rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink2);
   margin: 0;
+  line-height: 1;
 }
 
-.memoryColLabelAccent {
+.memoryColLabelAccent { color: var(--accent); }
+
+/* Live counter / "✓ Recorded" pill */
+.memoryStatusPill {
+  margin-left: auto;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 0.18rem 0.55rem;
+  transition: opacity 0.3s ease, color 0.3s ease, border-color 0.3s ease,
+              background 0.3s ease;
+  white-space: nowrap;
+}
+
+.memoryStatusPillHidden { opacity: 0; }
+
+.memoryStatusPillDone {
   color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
 
-/* Lists */
+/* ── Lists ── */
 .memoryList {
   list-style: none;
   margin: 0;
@@ -570,15 +561,15 @@
 .memoryItem {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.7rem 0.6rem;
+  gap: 0.7rem;
+  padding: 0.65rem 0.5rem;
   border-radius: 10px;
-  transition: background 0.22s ease, transform 0.22s ease;
   cursor: default;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
 
 .memoryItem:hover {
-  background: rgba(0, 0, 0, 0.033);
+  background: rgba(0, 0, 0, 0.03);
   transform: translateX(4px);
 }
 
@@ -586,51 +577,91 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* Left items: monospace database-entry look */
+/* Left items: monospace, cold database feel */
 .memoryItemLeft {
   font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Courier New', monospace;
   font-size: 0.815rem;
   font-weight: 400;
   color: var(--ink2);
   line-height: 1.5;
+  /* CSS animation: plays on mount because component mounts after scroll-in */
+  animation: memFadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
-/* Right items: body font, confident */
+@keyframes memFadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Row numbers */
+.memoryRowNum {
+  flex-shrink: 0;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--border);
+  line-height: 1.75;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+/* Right items: hidden by default, shown by JS */
 .memoryItemRight {
-  font-size: 0.88rem;
+  font-size: 0.875rem;
   font-weight: 450;
   color: var(--ink);
   line-height: 1.6;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-.memoryItemText {
-  flex: 1;
+.memoryItemVisible {
+  opacity: 1;
 }
 
-/* Row number prefix for left items */
-.memoryRowNum {
-  flex-shrink: 0;
-  font-size: 0.68rem;
-  font-weight: 500;
-  color: var(--border);
-  line-height: 1.7;
-  user-select: none;
-  letter-spacing: 0.02em;
+/* Slight pop when item is fully typed */
+.memoryItemDone {
+  opacity: 1;
 }
 
-/* Accent diamond bullet for right items */
+.memoryItemText { flex: 1; }
+
+/* Accent diamond bullet */
 .memoryItemDot {
   flex-shrink: 0;
   width: 5px;
   height: 5px;
   border-radius: 1px;
-  background: var(--accent);
-  margin-top: 0.5em;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  margin-top: 0.52em;
   transform: rotate(45deg);
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+.memoryItemDotDone {
+  background: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
   animation: chipPulse 2.8s ease-in-out infinite;
 }
 
-/* Vertical divider with animated glow */
+/* Blinking cursor that appears at end of currently-typing text */
+.typingCursor {
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  background: var(--accent);
+  border-radius: 1px;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: memCursorBlink 0.65s step-end infinite;
+}
+
+@keyframes memCursorBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Vertical divider with drifting accent glow ── */
 .memoryDivider {
   position: relative;
   overflow: hidden;
@@ -642,25 +673,20 @@
   position: absolute;
   left: -1px;
   width: 3px;
-  height: 40%;
+  height: 35%;
   background: linear-gradient(to bottom, transparent, var(--accent), transparent);
-  opacity: 0;
-  top: -40%;
+  top: -35%;
+  animation: memDividerDrift 3.8s cubic-bezier(0.45, 0, 0.55, 1) 1s infinite;
 }
 
-.memorySectionInView .memoryDividerGlow {
-  opacity: 0.7;
-  animation: dividerDrift 4s cubic-bezier(0.4, 0, 0.6, 1) 0.8s infinite;
+@keyframes memDividerDrift {
+  from { top: -35%; opacity: 0; }
+  12%  { opacity: 0.8; }
+  85%  { opacity: 0.45; }
+  to   { top: 135%; opacity: 0; }
 }
 
-@keyframes dividerDrift {
-  from { top: -40%; opacity: 0; }
-  10%  { opacity: 0.7; }
-  80%  { opacity: 0.5; }
-  to   { top: 140%; opacity: 0; }
-}
-
-/* Mobile */
+/* ── Mobile ── */
 @media (max-width: 680px) {
   .memoryCard {
     grid-template-columns: 1fr;
@@ -671,16 +697,17 @@
   }
   .memoryDividerGlow {
     top: -1px;
-    left: -40%;
-    width: 40%;
+    left: -35%;
+    width: 35%;
     height: 3px;
     background: linear-gradient(to right, transparent, var(--accent), transparent);
+    animation: memDividerDriftH 3.8s cubic-bezier(0.45, 0, 0.55, 1) 1s infinite;
   }
-  @keyframes dividerDrift {
-    from { left: -40%; opacity: 0; }
-    10%  { opacity: 0.7; }
-    80%  { opacity: 0.5; }
-    to   { left: 140%; opacity: 0; }
+  @keyframes memDividerDriftH {
+    from { left: -35%; opacity: 0; }
+    12%  { opacity: 0.8; }
+    85%  { opacity: 0.45; }
+    to   { left: 135%; opacity: 0; }
   }
   .memoryColLeft,
   .memoryColRight {
@@ -688,24 +715,18 @@
   }
 }
 
+/* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
-  .memoryItemLeft,
-  .memoryItemRight {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
+  .memoryItemLeft { animation: none; opacity: 1; }
+  .memoryCard     { animation: none; }
   .memoryColHeaderDotLive,
-  .memoryItemDot,
-  .memoryDividerGlow,
-  .memorySectionInView .memoryDividerGlow {
-    animation: none;
-    opacity: 0.6;
-  }
-  .memorySectionInView .memoryCard:hover,
-  .memoryItem:hover {
-    transform: none;
-  }
+  .memoryItemDotDone { animation: none; }
+  .memoryDividerGlow { animation: none; opacity: 0.4; }
+  .typingCursor   { animation: none; opacity: 1; visibility: hidden; }
+  .memoryItemRight,
+  .memoryItemVisible { opacity: 1; transition: none; }
+  .memoryCard:hover,
+  .memoryItem:hover { transform: none; }
 }
 
 /* ── Proof / Stats (dark strip) ────────────────────────────── */
