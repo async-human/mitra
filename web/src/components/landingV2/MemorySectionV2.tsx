@@ -1,24 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import type { V2Audience } from "./LandingV2";
 import s from "./landing-v2.module.css";
-
-function useReveal() {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([e]) => { if (e.isIntersecting) { setVisible(true); obs.disconnect(); } },
-      { threshold: 0.08 }
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-  return { ref, visible };
-}
 
 const CONTENT = {
   candidate: {
@@ -72,9 +55,6 @@ const CONTENT = {
 
 export function MemorySectionV2({ audience }: { audience: V2Audience }) {
   const c = CONTENT[audience];
-  const card = useReveal();
-
-  // Split title on \n for line break
   const titleLines = c.title.split("\n");
 
   return (
@@ -89,8 +69,8 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
         </h2>
 
         <div
-          ref={card.ref}
-          className={`${s.memoryCard} ${card.visible ? s.inView : ""}`}
+          className={`${s.memoryCard} ${s.fadeUp}`}
+          style={{ "--anim-delay": "200ms" } as React.CSSProperties}
         >
           {/* Left — what they see */}
           <div className={s.memoryCol}>

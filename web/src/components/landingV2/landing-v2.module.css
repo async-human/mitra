@@ -417,16 +417,6 @@
   border: 1px solid var(--border);
   border-radius: 20px;
   overflow: hidden;
-  opacity: 0;
-  transform: translateY(28px);
-  transition:
-    opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-    transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.memoryCard.inView {
-  opacity: 1;
-  transform: translateY(0);
 }
 
 .memoryCol {
