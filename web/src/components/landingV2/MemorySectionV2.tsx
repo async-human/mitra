@@ -54,9 +54,15 @@ const CONTENT = {
   },
 };
 
-export function MemorySectionV2({ audience }: { audience: V2Audience }) {
+interface MemorySectionV2Props {
+  audience: V2Audience;
+  onAudienceChange: (a: V2Audience) => void;
+}
+
+export function MemorySectionV2({ audience, onAudienceChange }: MemorySectionV2Props) {
   const c = CONTENT[audience];
   const titleLines = c.title.split("\n");
+  const isCompany = audience === "company";
   const sectionRef = useRef<HTMLElement>(null);
   const [inView, setInView] = useState(false);
 
@@ -72,16 +78,24 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
     return () => obs.disconnect();
   }, []);
 
-  // Re-run animation when audience switches
+  // Re-run animation when audience switches (defer setState to satisfy react-hooks/set-state-in-effect)
   useEffect(() => {
-    setInView(false);
+    let cancelled = false;
+    const raf = requestAnimationFrame(() => {
+      if (!cancelled) setInView(false);
+    });
     const t = setTimeout(() => {
+      if (cancelled) return;
       const el = sectionRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
       if (rect.top < window.innerHeight - 80) setInView(true);
     }, 30);
-    return () => clearTimeout(t);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+    };
   }, [audience]);
 
   return (
@@ -94,6 +108,36 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
           {titleLines[0]}
           {titleLines[1] && <><br /><span className={s.memoryTitleAccent}>{titleLines[1]}</span></>}
         </h2>
+
+        <div className={s.memoryToolbar}>
+          <span className={s.memoryToolbarHint} id="memory-compare-label">
+            Compare for
+          </span>
+          <div
+            className={s.memoryToggle}
+            role="tablist"
+            aria-labelledby="memory-compare-label"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!isCompany}
+              className={`${s.memoryToggleBtn} ${!isCompany ? s.memoryToggleBtnActive : ""}`}
+              onClick={() => onAudienceChange("candidate")}
+            >
+              Candidates
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={isCompany}
+              className={`${s.memoryToggleBtn} ${isCompany ? s.memoryToggleBtnActive : ""}`}
+              onClick={() => onAudienceChange("company")}
+            >
+              Companies
+            </button>
+          </div>
+        </div>
 
         <div className={s.memoryCard}>
 
@@ -113,6 +157,8 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
               ))}
             </ul>
           </div>
+
+          <div className={s.memoryDivider} aria-hidden="true" />
 
           {/* Right — Mitra's rich profile */}
           <div className={s.memoryColRight}>

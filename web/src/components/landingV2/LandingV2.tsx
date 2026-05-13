@@ -21,7 +21,7 @@ export function LandingV2() {
       <main>
         <HeroV2 audience={audience} />
         <HowItWorksV2 audience={audience} />
-        <MemorySectionV2 audience={audience} />
+        <MemorySectionV2 audience={audience} onAudienceChange={setAudience} />
         <ProofV2 audience={audience} />
         <FAQV2 audience={audience} />
       </main>
