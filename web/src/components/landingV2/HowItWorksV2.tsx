@@ -20,7 +20,7 @@ function RevealCard({ children, delay = 0 }: { children: React.ReactNode; delay?
           observer.disconnect();
         }
       },
-      { threshold: 0.12 }
+      { threshold: 0, rootMargin: "0px 0px -60px 0px" }
     );
     observer.observe(el);
     return () => observer.disconnect();

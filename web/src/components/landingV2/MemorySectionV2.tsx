@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import type { V2Audience } from "./LandingV2";
 import s from "./landing-v2.module.css";
 
@@ -56,30 +57,54 @@ const CONTENT = {
 export function MemorySectionV2({ audience }: { audience: V2Audience }) {
   const c = CONTENT[audience];
   const titleLines = c.title.split("\n");
+  const sectionRef = useRef<HTMLElement>(null);
+  const [inView, setInView] = useState(false);
+
+  // Fire when section scrolls into viewport
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) setInView(true); },
+      { threshold: 0, rootMargin: "0px 0px -80px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  // Re-run animation when audience switches
+  useEffect(() => {
+    setInView(false);
+    const t = setTimeout(() => {
+      const el = sectionRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight - 80) setInView(true);
+    }, 30);
+    return () => clearTimeout(t);
+  }, [audience]);
 
   return (
-    <section className={s.sectionWrap}>
-      <div className={s.sectionInner} key={audience}>
-        <p className={`${s.sectionLabel} ${s.fadeUp}`} style={{ "--anim-delay": "0ms" } as React.CSSProperties}>
-          {c.label}
-        </p>
-        <h2 className={`${s.memoryTitle} ${s.fadeUp}`} style={{ "--anim-delay": "80ms" } as React.CSSProperties}>
+    <section className={s.sectionWrap} ref={sectionRef}>
+      <div className={`${s.sectionInner} ${s.memorySectionBody} ${inView ? s.memorySectionInView : ""}`}>
+
+        <p className={s.sectionLabel}>{c.label}</p>
+
+        <h2 className={s.memoryTitle}>
           {titleLines[0]}
           {titleLines[1] && <><br /><span className={s.memoryTitleAccent}>{titleLines[1]}</span></>}
         </h2>
 
-        <div
-          className={`${s.memoryCard} ${s.fadeUp}`}
-          style={{ "--anim-delay": "180ms" } as React.CSSProperties}
-        >
-          {/* Left — what a recruiter/tracker sees */}
+        <div className={s.memoryCard}>
+
+          {/* Left — cold system data */}
           <div className={s.memoryColLeft}>
             <p className={s.memoryColLabel}>{c.left.heading}</p>
             <ul className={s.memoryList}>
               {c.left.items.map((item, i) => (
                 <li
                   key={item}
-                  className={`${s.memoryItem} ${s.memoryItemMuted} ${s.memoryItemStagger}`}
+                  className={`${s.memoryItem} ${s.memoryItemMuted} ${s.memoryItemLeft}`}
                   style={{ "--item-delay": `${260 + i * 65}ms` } as React.CSSProperties}
                 >
                   <span className={s.memoryItemDash} aria-hidden="true">—</span>
@@ -89,16 +114,16 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
             </ul>
           </div>
 
-          {/* Right — what Mitra builds/learns */}
+          {/* Right — Mitra's rich profile */}
           <div className={s.memoryColRight}>
             <p className={`${s.memoryColLabel} ${s.memoryColLabelAccent}`}>{c.right.heading}</p>
             <ul className={s.memoryList}>
               {c.right.items.map((item, i) => (
                 <li
                   key={item}
-                  className={`${s.memoryItem} ${s.memoryItemStagger}`}
+                  className={`${s.memoryItem} ${s.memoryItemRight}`}
                   style={{
-                    "--item-delay": `${320 + i * 80}ms`,
+                    "--item-delay": `${340 + i * 85}ms`,
                     "--dot-delay": `${i * 350}ms`,
                   } as React.CSSProperties}
                 >
@@ -108,6 +133,7 @@ export function MemorySectionV2({ audience }: { audience: V2Audience }) {
               ))}
             </ul>
           </div>
+
         </div>
       </div>
     </section>

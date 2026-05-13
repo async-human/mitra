@@ -395,6 +395,74 @@
 
 /* ── Memory Section ────────────────────────────────────────── */
 
+/*
+  Scroll-triggered reveal system.
+  All child elements start hidden via transitions (not keyframe animations,
+  which fire on mount regardless of scroll position).
+  When .memorySectionInView is added to the wrapper, transitions fire in sequence.
+*/
+
+.memorySectionBody .sectionLabel {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: 0ms;
+}
+
+.memorySectionBody .memoryTitle {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: 80ms;
+}
+
+.memorySectionBody .memoryCard {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: 160ms;
+}
+
+.memorySectionBody .memoryColLabel {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  transition-delay: 240ms;
+}
+
+/* Left items: fade up — cold data being pulled from a system */
+.memorySectionBody .memoryItemLeft {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.38s ease, transform 0.38s ease;
+  transition-delay: var(--item-delay, 260ms);
+}
+
+/* Right items: slide in from right — insights arriving */
+.memorySectionBody .memoryItemRight {
+  opacity: 0;
+  transform: translateX(22px);
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--item-delay, 340ms);
+}
+
+/* Revealed: all transitions fire to their end state */
+.memorySectionInView .sectionLabel,
+.memorySectionInView .memoryTitle,
+.memorySectionInView .memoryCard,
+.memorySectionInView .memoryColLabel,
+.memorySectionInView .memoryItemLeft,
+.memorySectionInView .memoryItemRight {
+  opacity: 1;
+  transform: none;
+}
+
+/* ── Static styles ── */
+
 .memoryTitle {
   font-size: clamp(1.7rem, 3.2vw, 2.6rem);
   font-weight: 800;
@@ -419,7 +487,7 @@
   box-shadow: 0 4px 32px rgba(0, 0, 0, 0.06);
 }
 
-/* Left column uses the page background — warm beige vs white creates natural contrast */
+/* Left col: page bg (warm beige) vs card white — instant contrast, zero extra variable */
 .memoryColLeft {
   padding: 2.25rem 2.5rem;
   background: var(--bg);
@@ -462,7 +530,7 @@
   font-weight: 450;
 }
 
-/* Left column items: monospace suggests "cold system data" */
+/* Monospace on left items — reads immediately as "system/database entry" */
 .memoryItemMuted {
   color: var(--ink2);
   font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Courier New', monospace;
@@ -486,13 +554,6 @@
   margin-top: 0.45em;
   animation: chipPulse 3s ease-in-out infinite;
   animation-delay: var(--dot-delay, 0ms);
-}
-
-/* Per-item stagger — driven by --item-delay inline style */
-.memoryItemStagger {
-  opacity: 0;
-  animation: v2FadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: var(--item-delay, 250ms);
 }
 
 @media (max-width: 680px) {
