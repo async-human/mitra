@@ -3,15 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { introStatusMeta, isTerminalIntroStatus } from "./candidatePipeline";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+import type { CandidateIntro } from "./introTypes";
 
 interface StoredCard { id: string; title: string; description: string; }
-
-interface IntroBrief {
-  job_id: number;
-  status: string;
-}
 
 function matchesKey(email: string) {
   return `mitra-matches-${email}`;
@@ -29,10 +23,17 @@ function MatchesEmptyIcon() {
   );
 }
 
-export function MatchesPanelClient({ userEmail }: { userEmail: string }) {
+export function MatchesPanelClient({
+  userEmail,
+  intros,
+  introsLoaded,
+}: {
+  userEmail: string;
+  intros: CandidateIntro[];
+  introsLoaded: boolean;
+}) {
   const [cards, setCards] = useState<StoredCard[] | null>(null);
   const [matchIds, setMatchIds] = useState<string>("");
-  const [intros, setIntros] = useState<IntroBrief[] | null>(null);
 
   useEffect(() => {
     try {
@@ -48,22 +49,12 @@ export function MatchesPanelClient({ userEmail }: { userEmail: string }) {
     } catch { /* localStorage unavailable or corrupt */ }
   }, [userEmail]);
 
-  useEffect(() => {
-    if (!userEmail) return;
-    fetch(`${API_URL}/candidate/intros?session_id=${encodeURIComponent(userEmail)}`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: IntroBrief[]) => {
-        if (Array.isArray(data)) setIntros(data.map((i) => ({ job_id: i.job_id, status: i.status })));
-      })
-      .catch(() => setIntros([]));
-  }, [userEmail]);
-
   const introByJobId = useMemo(() => {
-    const m = new Map<string, IntroBrief>();
-    if (!intros) return m;
+    const m = new Map<string, { job_id: number; status: string }>();
+    if (!introsLoaded) return m;
     for (const i of intros) m.set(String(i.job_id), i);
     return m;
-  }, [intros]);
+  }, [intros, introsLoaded]);
 
   if (cards && cards.length > 0) {
     const openRoles = cards.filter((c) => {
@@ -71,7 +62,7 @@ export function MatchesPanelClient({ userEmail }: { userEmail: string }) {
       return !intro || !isTerminalIntroStatus(intro.status);
     }).length;
     const badgeLabel =
-      intros === null
+      !introsLoaded
         ? `${cards.length} saved`
         : openRoles < cards.length
         ? `${openRoles} open · ${cards.length - openRoles} wrapped up`

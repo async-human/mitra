@@ -1,33 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { introStatusMeta, sortIntrosByPriority } from "./candidatePipeline";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-interface InterviewDetails {
-  scheduled_at?: string;
-  format?: string;
-  link?: string;
-  notes?: string;
-}
-interface OfferDetails {
-  salary_lpa?: number;
-  equity_percent?: number;
-  start_date?: string;
-  notes?: string;
-}
-interface IntroSummary {
-  intro_id: number;
-  job_id: number;
-  job_title: string;
-  company: string;
-  status: string;
-  sent_at: string | null;
-  interview_details?: InterviewDetails | null;
-  offer_details?: OfferDetails | null;
-}
+import { introStatusMeta, isTerminalIntroStatus, sortIntrosByPriority } from "./candidatePipeline";
+import type { CandidateIntro } from "./introTypes";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "";
@@ -53,7 +29,7 @@ function formatDateTime(iso: string | undefined): string {
   });
 }
 
-function IntroDetailModal({ intro, onClose }: { intro: IntroSummary; onClose: () => void }) {
+function IntroDetailModal({ intro, onClose }: { intro: CandidateIntro; onClose: () => void }) {
   const meta = introStatusMeta(intro.status);
   const iv = intro.interview_details;
   const of = intro.offer_details;
@@ -77,7 +53,6 @@ function IntroDetailModal({ intro, onClose }: { intro: IntroSummary; onClose: ()
           {intro.sent_at && <span className="dash-modal-status-date">· Intro sent {formatDate(intro.sent_at)}</span>}
         </div>
 
-        {/* Interview details */}
         {intro.status === "interview" && (
           <div className="dash-modal-section">
             <p className="dash-modal-section-title">Interview details</p>
@@ -112,7 +87,6 @@ function IntroDetailModal({ intro, onClose }: { intro: IntroSummary; onClose: ()
           </div>
         )}
 
-        {/* Offer details */}
         {intro.status === "offer" && (
           <div className="dash-modal-section">
             <p className="dash-modal-section-title">Offer details</p>
@@ -158,22 +132,66 @@ function IntroDetailModal({ intro, onClose }: { intro: IntroSummary; onClose: ()
   );
 }
 
-export function IntrosPanelClient({ userEmail }: { userEmail: string }) {
-  const [intros, setIntros] = useState<IntroSummary[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<IntroSummary | null>(null);
+function IntroRow({
+  intro,
+  onSelect,
+}: {
+  intro: CandidateIntro;
+  onSelect: (i: CandidateIntro) => void;
+}) {
+  const meta = introStatusMeta(intro.status);
+  const isClickable = ["interview", "offer", "hired"].includes(intro.status);
+  return (
+    <button
+      className={`dash-intro-row${isClickable ? " dash-intro-row--clickable" : ""}`}
+      onClick={() => isClickable && onSelect(intro)}
+      type="button"
+    >
+      <div className="dash-intro-av">
+        {intro.company.slice(0, 2).toUpperCase()}
+      </div>
+      <div className="dash-intro-info">
+        <span className="dash-intro-role">{intro.job_title}</span>
+        <span className="dash-intro-company">{intro.company}</span>
+      </div>
+      <div className="dash-intro-right">
+        <span
+          className={`dash-intro-status-badge${meta.pulse ? " dash-intro-status-badge--pulse" : ""}`}
+          style={{ color: meta.color, background: meta.bg }}
+        >
+          <span className={`dash-intro-dot${meta.pulse ? " dash-intro-dot--pulse" : ""}`} style={{ background: meta.dot }} />
+          {meta.label}
+        </span>
+        {intro.sent_at && <span className="dash-intro-date">{formatDate(intro.sent_at)}</span>}
+        {isClickable && <span className="dash-intro-chevron">›</span>}
+      </div>
+    </button>
+  );
+}
+
+export function IntrosPanelClient({
+  intros,
+  introsLoaded,
+}: {
+  intros: CandidateIntro[];
+  introsLoaded: boolean;
+}) {
+  const [selected, setSelected] = useState<CandidateIntro | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const didAutoExpandCompleted = useRef(false);
+
+  const count = intros.length;
+  const sortedIntros = sortIntrosByPriority(intros);
+  const activeIntros = sortedIntros.filter((i) => !isTerminalIntroStatus(i.status));
+  const completedIntros = sortedIntros.filter((i) => isTerminalIntroStatus(i.status));
 
   useEffect(() => {
-    if (!userEmail) { setLoading(false); return; }
-    fetch(`${API_URL}/candidate/intros?session_id=${encodeURIComponent(userEmail)}`)
-      .then(r => r.ok ? r.json() : [])
-      .then((data: IntroSummary[]) => setIntros(data))
-      .catch(() => setIntros([]))
-      .finally(() => setLoading(false));
-  }, [userEmail]);
-
-  const count = intros?.length ?? 0;
-  const sortedIntros = intros ? sortIntrosByPriority(intros) : null;
+    if (didAutoExpandCompleted.current) return;
+    if (introsLoaded && activeIntros.length === 0 && completedIntros.length > 0) {
+      setShowCompleted(true);
+      didAutoExpandCompleted.current = true;
+    }
+  }, [introsLoaded, activeIntros.length, completedIntros.length]);
 
   return (
     <>
@@ -181,16 +199,20 @@ export function IntrosPanelClient({ userEmail }: { userEmail: string }) {
 
       <div className="dash-panel-head">
         <h3 className="dash-panel-title">Introductions</h3>
-        {loading ? (
+        {!introsLoaded ? (
           <span className="dash-panel-badge">—</span>
         ) : (
           <span className={`dash-panel-badge${count > 0 ? " dash-panel-badge--active" : ""}`}>
-            {count} sent
+            {activeIntros.length > 0
+              ? `${activeIntros.length} active`
+              : count > 0
+              ? `${count} tracked`
+              : "0 sent"}
           </span>
         )}
       </div>
 
-      {loading && (
+      {!introsLoaded && (
         <div className="dash-intros-skeleton">
           {[70, 55, 65].map((w, i) => (
             <div key={i} className="dash-intro-sk-row">
@@ -205,43 +227,43 @@ export function IntrosPanelClient({ userEmail }: { userEmail: string }) {
         </div>
       )}
 
-      {!loading && count > 0 && (
-        <div className="dash-intros-list">
-          {sortedIntros!.map(intro => {
-            const meta = introStatusMeta(intro.status);
-            const isClickable = ["interview", "offer", "hired"].includes(intro.status);
-            return (
+      {introsLoaded && count > 0 && (
+        <>
+          {activeIntros.length > 0 && (
+            <div className="dash-intros-list">
+              {activeIntros.map((intro) => (
+                <IntroRow key={intro.intro_id} intro={intro} onSelect={setSelected} />
+              ))}
+            </div>
+          )}
+
+          {completedIntros.length > 0 && (
+            <div className="dash-intros-completed-block">
               <button
-                key={intro.intro_id}
-                className={`dash-intro-row${isClickable ? " dash-intro-row--clickable" : ""}`}
-                onClick={() => isClickable && setSelected(intro)}
                 type="button"
+                className="dash-intros-completed-toggle"
+                onClick={() => setShowCompleted((v) => !v)}
+                aria-expanded={showCompleted}
               >
-                <div className="dash-intro-av">
-                  {intro.company.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="dash-intro-info">
-                  <span className="dash-intro-role">{intro.job_title}</span>
-                  <span className="dash-intro-company">{intro.company}</span>
-                </div>
-                <div className="dash-intro-right">
-                  <span
-                    className={`dash-intro-status-badge${meta.pulse ? " dash-intro-status-badge--pulse" : ""}`}
-                    style={{ color: meta.color, background: meta.bg }}
-                  >
-                    <span className={`dash-intro-dot${meta.pulse ? " dash-intro-dot--pulse" : ""}`} style={{ background: meta.dot }} />
-                    {meta.label}
-                  </span>
-                  {intro.sent_at && <span className="dash-intro-date">{formatDate(intro.sent_at)}</span>}
-                  {isClickable && <span className="dash-intro-chevron">›</span>}
-                </div>
+                <span>
+                  Completed
+                  <span className="dash-intros-completed-count"> · {completedIntros.length}</span>
+                </span>
+                <span className="dash-intros-completed-chevron" aria-hidden>{showCompleted ? "▲" : "▼"}</span>
               </button>
-            );
-          })}
-        </div>
+              {showCompleted && (
+                <div className="dash-intros-list dash-intros-list--completed">
+                  {completedIntros.map((intro) => (
+                    <IntroRow key={intro.intro_id} intro={intro} onSelect={setSelected} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
-      {!loading && count === 0 && (
+      {introsLoaded && count === 0 && (
         <div className="dash-empty">
           <div className="dash-empty-icon"><IntrosEmptyIcon /></div>
           <p className="dash-empty-title">No intros yet</p>

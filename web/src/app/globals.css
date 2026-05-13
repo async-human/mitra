@@ -3308,6 +3308,42 @@ body {
   gap: 6px;
   margin-top: 4px;
 }
+.dash-intros-list--completed {
+  margin-top: 6px;
+  opacity: 0.95;
+}
+.dash-intros-completed-block {
+  margin-top: 12px;
+}
+.dash-intros-completed-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(28, 25, 23, 0.08);
+  background: rgba(28, 25, 23, 0.02);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(28, 25, 23, 0.55);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.dash-intros-completed-toggle:hover {
+  background: rgba(28, 25, 23, 0.04);
+  border-color: rgba(28, 25, 23, 0.12);
+}
+.dash-intros-completed-count {
+  font-weight: 500;
+  color: rgba(28, 25, 23, 0.38);
+}
+.dash-intros-completed-chevron {
+  font-size: 10px;
+  color: rgba(28, 25, 23, 0.35);
+}
 .dash-intro-row {
   display: flex;
   align-items: center;

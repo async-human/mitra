@@ -5,6 +5,7 @@ import Link from "next/link";
 import { WhatsAppIcon } from "@/components/icons";
 import { MatchesPanelClient } from "./MatchesPanelClient";
 import { IntrosPanelClient } from "./IntrosPanelClient";
+import type { CandidateIntro } from "./introTypes";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -64,10 +65,6 @@ function CalendarIcon() {
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
 interface StoredCard { id: string; title: string; description: string; }
-interface IntroSummary {
-  intro_id: number; job_id: number; job_title: string;
-  company: string; status: string; sent_at: string | null;
-}
 type StepState = "done" | "current" | "locked";
 
 type DashboardUpdateKind = "offer" | "interview" | "hired" | "intros" | "shortlist" | "default";
@@ -81,7 +78,7 @@ interface DashboardUpdate {
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 
-function getDashboardUpdate(matches: StoredCard[], intros: IntroSummary[]): DashboardUpdate {
+function getDashboardUpdate(matches: StoredCard[], intros: CandidateIntro[]): DashboardUpdate {
   const offers = intros.filter((i) => i.status === "offer");
   if (offers.length > 0) {
     const company = offers[0].company;
@@ -128,11 +125,25 @@ function getDashboardUpdate(matches: StoredCard[], intros: IntroSummary[]): Dash
         : "Each introduction is summarized in the list below.",
     };
   }
-  if (intros.length > 0) {
+  const pipelineActive = intros.filter((i) => !["hired", "declined"].includes(i.status));
+  if (intros.length > 0 && pipelineActive.length === 0 && hiredList.length === 0) {
     return {
       kind: "intros",
       label: "Pipeline",
-      headline: `${intros.length} introduction${intros.length !== 1 ? "s" : ""} in flight`,
+      headline: "This round is closed out",
+      detail: "Every introduction here has finished. Chat with Mitra if you want a fresh shortlist.",
+    };
+  }
+  if (intros.length > 0) {
+    const nActive = intros.filter((i) => !["hired", "declined"].includes(i.status)).length;
+    const nDone = intros.length - nActive;
+    return {
+      kind: "intros",
+      label: "Pipeline",
+      headline:
+        nDone > 0
+          ? `${nActive} open · ${nDone} completed`
+          : `${nActive} introduction${nActive !== 1 ? "s" : ""} in flight`,
       detail: "Track status below.",
     };
   }
@@ -190,7 +201,7 @@ export function DashboardClient({
   waHref: string;
 }) {
   const [matches, setMatches] = useState<StoredCard[]>([]);
-  const [intros, setIntros] = useState<IntroSummary[]>([]);
+  const [intros, setIntros] = useState<CandidateIntro[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -206,7 +217,7 @@ export function DashboardClient({
 
     fetch(`${API_URL}/candidate/intros?session_id=${encodeURIComponent(userEmail)}`)
       .then((r) => (r.ok ? r.json() : []))
-      .then((data: IntroSummary[]) => { if (Array.isArray(data)) setIntros(data); })
+      .then((data: CandidateIntro[]) => { if (Array.isArray(data)) setIntros(data); })
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, [userEmail]);
@@ -359,10 +370,10 @@ export function DashboardClient({
       {/* ── Panels ───────────────────────────────────────────────────────── */}
       <section className="dash-panels">
         <div className="dash-panel">
-          <MatchesPanelClient userEmail={userEmail} />
+          <MatchesPanelClient userEmail={userEmail} intros={intros} introsLoaded={loaded} />
         </div>
         <div className="dash-panel">
-          <IntrosPanelClient userEmail={userEmail} />
+          <IntrosPanelClient intros={intros} introsLoaded={loaded} />
         </div>
       </section>
     </>
