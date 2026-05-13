@@ -78,30 +78,83 @@ export function MitraChat({
 
   const callApi = useCallback(async (message: string) => {
     setLoading(true);
+    // Add a placeholder message that we'll fill in as tokens arrive
+    const placeholderIdx = { current: -1 };
     try {
-      const res = await fetch(`${API_URL}/candidate/chat`, {
+      const res = await fetch(`${API_URL}/candidate/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: userEmail, message, user_name: userName }),
       });
-      if (!res.ok) throw new Error("failed");
-      const data = await res.json();
-      const cards: JobCard[] = data.job_cards ?? [];
-      setMessages(prev => [...prev, {
-        role: "mitra", text: data.reply,
-        jobCards: cards.length ? cards : undefined,
-      }]);
-      if (cards.length > 0) {
-        const now = new Date().toISOString();
-        const stamped = cards.map(c => ({ ...c, recommended_at: now }));
-        localStorage.setItem(matchesKey(userEmail), JSON.stringify(stamped));
-        const ids = cards.map(c => c.id.replace(/^job_/, "")).join(",");
-        setStoredMatchIds(ids);
-        setExiting(true);
-        setTimeout(() => router.push(`/matches?ids=${ids}`), 550);
+      if (!res.ok || !res.body) throw new Error("failed");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let cards: JobCard[] = [];
+
+      // Insert an empty mitra message — we'll stream text into it
+      setMessages(prev => {
+        placeholderIdx.current = prev.length;
+        return [...prev, { role: "mitra", text: "" }];
+      });
+      setLoading(false);
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE lines: "data: {...}\n\n"
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.t === "tok") {
+              setMessages(prev => {
+                const next = [...prev];
+                const idx = placeholderIdx.current;
+                if (idx >= 0 && next[idx]) {
+                  next[idx] = { ...next[idx], text: next[idx].text + event.v };
+                }
+                return next;
+              });
+            } else if (event.t === "end") {
+              cards = event.cards ?? [];
+              if (cards.length > 0) {
+                setMessages(prev => {
+                  const next = [...prev];
+                  const idx = placeholderIdx.current;
+                  if (idx >= 0 && next[idx]) {
+                    next[idx] = { ...next[idx], jobCards: cards };
+                  }
+                  return next;
+                });
+                const now = new Date().toISOString();
+                const stamped = cards.map(c => ({ ...c, recommended_at: now }));
+                localStorage.setItem(matchesKey(userEmail), JSON.stringify(stamped));
+                const ids = cards.map(c => c.id.replace(/^job_/, "")).join(",");
+                setStoredMatchIds(ids);
+                setExiting(true);
+                setTimeout(() => router.push(`/matches?ids=${ids}`), 550);
+              }
+            }
+          } catch { /* malformed SSE line — ignore */ }
+        }
       }
     } catch {
-      setMessages(prev => [...prev, { role: "mitra", text: "Something went wrong — please try again." }]);
+      if (placeholderIdx.current >= 0) {
+        setMessages(prev => {
+          const next = [...prev];
+          next[placeholderIdx.current] = { role: "mitra", text: "Something went wrong — please try again." };
+          return next;
+        });
+      } else {
+        setMessages(prev => [...prev, { role: "mitra", text: "Something went wrong — please try again." }]);
+      }
     } finally {
       setLoading(false);
     }

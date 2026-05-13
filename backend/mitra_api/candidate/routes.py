@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
-from typing import Any
+from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from mitra_api.agent.orchestrator import run_agent_turn
@@ -223,19 +226,22 @@ def _is_restart_intent(text: str) -> bool:
     return any(phrase in t for phrase in _RESTART_PHRASES)
 
 
-@router.post("/chat", response_model=CandidateChatResponse)
-async def candidate_chat(
+async def _prepare_turn(
     body: CandidateChatRequest,
-    settings: Settings = Depends(get_settings),
-) -> CandidateChatResponse:
-    store = _get_store(settings)
-    # "web:" prefix keeps web sessions separate from WhatsApp sessions
-    sid = f"web:{body.session_id}"
+    store: AgentSessionStore,
+    sid: str,
+    settings: Settings,
+) -> tuple[str, bool, CandidateChatResponse | None]:
+    """
+    Resolve (user_text, fresh_start, early_reply).
+    early_reply is non-None only for the WhatsApp shortlist shortcut —
+    callers should return / stream it immediately without calling run_agent_turn.
+    """
     is_init = not body.message.strip()
     fresh_start = False
 
     if is_init:
-        # On page load: warm session store signals from DB if Redis is cold (new device / TTL expired)
+        # Warm Redis from Postgres if TTL has expired (new device / server restart)
         if settings.mitra_database_url:
             try:
                 from mitra_api.db.engine import get_session_factory as _sf
@@ -251,13 +257,10 @@ async def candidate_chat(
             except Exception:
                 log.warning("could not warm signals from DB for %s (non-critical)", sid, exc_info=True)
 
-        # If a transcript exists, let the orchestrator generate a proper welcome-back
-        # message (name + recap + follow-up question) instead of replaying the last
-        # assistant message verbatim.
         transcript_check = await store.get_transcript(sid)
         if transcript_check:
-            # Special case: last message is a raw WhatsApp shortlist — return a clean
-            # web-friendly version directly (no LLM call needed).
+            # Special case: last message is a raw WhatsApp shortlist — return a
+            # clean web-friendly line directly (no LLM call needed).
             from mitra_api.whatsapp.job_cards import WHATSAPP_SHORTLIST_MARKER
             _WA_NOISE = (WHATSAPP_SHORTLIST_MARKER, "―――――――――――", "1 of ", "2 of ", "3 of ")
             for msg in reversed(transcript_check):
@@ -270,19 +273,17 @@ async def candidate_chat(
                             "Your shortlist is ready — I've curated the best-fit roles for you. "
                             "Tap \"View shortlist\" to review them, or keep chatting if you'd like to adjust anything."
                         )
-                        return CandidateChatResponse(reply=greeting, job_cards=[])
+                        return "", False, CandidateChatResponse(reply=greeting, job_cards=[])
                     break
-            # Ensure the auth-supplied name is in signals so the orchestrator can
-            # use it in the welcome-back greeting (candidate_name may not have been
-            # extracted from the conversation if the user never stated it explicitly).
+
+            # Ensure the auth name is persisted so the orchestrator greeting can use it
             if body.user_name:
                 auth_name = body.user_name.strip()
                 existing = await store.get_signals(sid)
                 if not existing.get("candidate_name") and auth_name:
                     await store.merge_signals(sid, {"candidate_name": auth_name})
 
-            # Returning candidate — pass empty user_text so the orchestrator detects
-            # is_new_web_session=True and generates a personalized welcome-back message.
+            # Returning candidate — empty user_text triggers is_new_web_session in orchestrator
             user_text = ""
         else:
             name_part = f" The candidate's name is {body.user_name}." if body.user_name else ""
@@ -292,23 +293,16 @@ async def candidate_chat(
             )
     else:
         user_text = body.message.strip()
-
-        # Detect explicit "start from scratch" intent — clear chat history so the
-        # agent starts a clean search conversation without re-firing old intros.
         if _is_restart_intent(user_text):
             await store.clear_transcript(sid)
             fresh_start = True
             log.info("restart intent detected for %s — transcript cleared", sid)
 
-    turn = await run_agent_turn(
-        whatsapp_sender_id=sid,
-        user_text=user_text,
-        sessions=store,
-        settings=settings,
-        fresh_start=fresh_start,
-    )
+    return user_text, fresh_start, None
 
-    job_cards = [
+
+def _build_job_cards(turn: Any) -> list[JobCard]:
+    return [
         JobCard(
             id=r.row_id,
             title=r.title,
@@ -318,7 +312,74 @@ async def candidate_chat(
         for r in turn.native_list_rows
     ]
 
+
+@router.post("/chat", response_model=CandidateChatResponse)
+async def candidate_chat(
+    body: CandidateChatRequest,
+    settings: Settings = Depends(get_settings),
+) -> CandidateChatResponse:
+    store = _get_store(settings)
+    sid = f"web:{body.session_id}"
+
+    user_text, fresh_start, early_reply = await _prepare_turn(body, store, sid, settings)
+    if early_reply:
+        return early_reply
+
+    turn = await run_agent_turn(
+        whatsapp_sender_id=sid,
+        user_text=user_text,
+        sessions=store,
+        settings=settings,
+        fresh_start=fresh_start,
+    )
     return CandidateChatResponse(
         reply=turn.history_assistant_text,
-        job_cards=job_cards,
+        job_cards=_build_job_cards(turn),
+    )
+
+
+async def _sse_stream_reply(reply: str, job_cards: list[dict]) -> AsyncIterator[str]:
+    """Yield SSE events: one token per word, then a done event with job cards."""
+    words = reply.split(" ")
+    for i, word in enumerate(words):
+        chunk = word if i == 0 else f" {word}"
+        yield f"data: {json.dumps({'t': 'tok', 'v': chunk})}\n\n"
+        await asyncio.sleep(0.035)  # ~28 words / sec — natural reading pace
+    yield f"data: {json.dumps({'t': 'end', 'cards': job_cards})}\n\n"
+
+
+@router.post("/chat/stream")
+async def candidate_chat_stream(
+    body: CandidateChatRequest,
+    settings: Settings = Depends(get_settings),
+) -> StreamingResponse:
+    store = _get_store(settings)
+    sid = f"web:{body.session_id}"
+
+    user_text, fresh_start, early_reply = await _prepare_turn(body, store, sid, settings)
+
+    if early_reply:
+        reply_text = early_reply.reply
+        cards_data: list[dict] = [c.model_dump() for c in early_reply.job_cards]
+    else:
+        turn = await run_agent_turn(
+            whatsapp_sender_id=sid,
+            user_text=user_text,
+            sessions=store,
+            settings=settings,
+            fresh_start=fresh_start,
+        )
+        reply_text = turn.history_assistant_text
+        cards_data = [
+            {"id": c.id, "title": c.title, "description": c.description, "why": c.why}
+            for c in _build_job_cards(turn)
+        ]
+
+    return StreamingResponse(
+        _sse_stream_reply(reply_text, cards_data),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable nginx buffering
+        },
     )
