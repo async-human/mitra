@@ -405,10 +405,10 @@ function JobCard({
                 <button
                   type="button"
                   className="match-btn match-btn--secondary match-intro-gate-secondary"
-                  disabled={introStatus === "loading" || !userEmail}
+                  disabled={!userEmail}
                   onClick={() => onRequestIntro(job)}
                 >
-                  {introStatus === "loading" ? <span className="match-btn-spinner" /> : "I’ve added this — retry intro"}
+                  I’ve added this — retry intro
                 </button>
               </div>
               <Link href={`/chat?about=${encodeURIComponent(job.title)}`} className="match-intro-gate-muted">
