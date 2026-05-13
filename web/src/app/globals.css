@@ -2875,6 +2875,9 @@ body {
   color: var(--teal);
   text-decoration: none;
 }
+.dash-command-inline-link:hover {
+  text-decoration: underline;
+}
 .dash-command-hint {
   margin: 0;
   padding: 12px 22px 16px;
@@ -2903,6 +2906,8 @@ body {
   width: 11px;
   height: 11px;
 }
+
+@media (max-width: 540px) {
   .dash-stat-grid {
     grid-template-columns: repeat(2, 1fr);
   }
