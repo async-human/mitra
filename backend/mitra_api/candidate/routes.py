@@ -272,6 +272,15 @@ async def candidate_chat(
                         )
                         return CandidateChatResponse(reply=greeting, job_cards=[])
                     break
+            # Ensure the auth-supplied name is in signals so the orchestrator can
+            # use it in the welcome-back greeting (candidate_name may not have been
+            # extracted from the conversation if the user never stated it explicitly).
+            if body.user_name:
+                auth_name = body.user_name.strip()
+                existing = await store.get_signals(sid)
+                if not existing.get("candidate_name") and auth_name:
+                    await store.merge_signals(sid, {"candidate_name": auth_name})
+
             # Returning candidate — pass empty user_text so the orchestrator detects
             # is_new_web_session=True and generates a personalized welcome-back message.
             user_text = ""
