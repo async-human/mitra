@@ -936,6 +936,113 @@ class PortalActionResponse(BaseModel):
     message: str
 
 
+def _is_intro_profile_header_line(line: str) -> bool:
+    """True for lines like *Name's profile:* in Mitra intro emails."""
+    s = line.strip()
+    return bool(s.startswith("*") and "'s profile:" in s)
+
+
+def _extract_why_fit_from_intro_note(intro_note: str | None) -> str | None:
+    """
+    Parse the LLM-authored 'why fit' paragraph(s) from a stored intro email body.
+
+    Mitra intros use a *Why I'm making this intro:* section; the portal previously
+    grabbed the first non-greeting line (often "I'd like to introduce you...").
+    """
+    if not intro_note or not intro_note.strip():
+        return None
+    t = intro_note.replace("\r\n", "\n")
+    low = t.lower()
+
+    markers = (
+        "*why i'm making this intro:*",
+        "*why i am making this intro:*",
+    )
+    start = -1
+    for m in markers:
+        idx = low.find(m)
+        if idx != -1:
+            start = idx + len(m)
+            break
+
+    if start == -1:
+        plain = "why i'm making this intro:"
+        idx = low.find(plain)
+        if idx != -1:
+            start = idx + len(plain)
+        else:
+            return _fallback_why_paragraph_from_intro(t)
+
+    chunk = t[start:].lstrip("\n")
+    collected: list[str] = []
+    for line in chunk.split("\n"):
+        stripped = line.strip()
+        if not stripped:
+            if collected:
+                collected.append("")
+            continue
+        if _is_intro_profile_header_line(stripped):
+            break
+        if stripped.lower().startswith("*why i'm making this intro"):
+            continue
+        collected.append(line.rstrip())
+    while collected and not collected[-1]:
+        collected.pop()
+    body = "\n".join(collected).strip()
+    return body or _fallback_why_paragraph_from_intro(t)
+
+
+def _fallback_why_paragraph_from_intro(t: str) -> str | None:
+    """If section headers are missing, skip boilerplate and return first substantive line."""
+    skip = (
+        "hi ",
+        "i'm mitra",
+        "i'd like to introduce",
+        "would you have",
+        "i've spent time",
+        "this isn't a spray",
+        "— mitra",
+        "quick reply",
+        "────────",
+    )
+    for line in t.split("\n"):
+        s = line.strip()
+        if not s or s.startswith("─"):
+            continue
+        low = s.lower()
+        if any(low.startswith(p) for p in skip):
+            continue
+        if s.startswith("*") and "profile:" in low:
+            break
+        if _is_intro_profile_header_line(s):
+            break
+        return s
+    return None
+
+
+def _format_portal_fit_bullets(signals: PortalCandidateSignals, job_stack: list[str]) -> str:
+    """Short bullets for founders: stack overlap, tenure, comp — complements the intro 'why' text."""
+    js = {str(x).strip().lower() for x in job_stack if x}
+    overlap = [s for s in signals.stack if str(s).strip().lower() in js]
+    parts: list[str] = []
+    if overlap:
+        parts.append(
+            f"**Stack fit:** {', '.join(overlap)} — overlaps with skills called out on your JD."
+        )
+    elif signals.stack:
+        parts.append(f"**Their stack:** {', '.join(signals.stack[:8])}.")
+    if signals.years_exp is not None:
+        parts.append(f"**Tenure:** ~{signals.years_exp} years relevant experience.")
+    if signals.salary_target_lpa is not None:
+        parts.append(f"**Comp expectation:** ₹{signals.salary_target_lpa}L target (annual).")
+    if signals.current_role:
+        cc = f" at {signals.current_company}" if signals.current_company else ""
+        parts.append(f"**Current title:** {signals.current_role}{cc}.")
+    if not parts:
+        return ""
+    return "\n".join(f"• {p}" for p in parts)
+
+
 def _extract_portal_signals(candidate: Any, raw_signals: dict) -> PortalCandidateSignals:
     """Merge DB candidate fields + raw CandidateSignal rows into a clean struct."""
     def _int(v: Any) -> int | None:
@@ -1221,14 +1328,17 @@ async def founder_portal(
             raw_signals = {r.key: r.value for r in sig_rows}
             signals = _extract_portal_signals(candidate, raw_signals)
 
-            # Extract "why" from intro_note — first paragraph after "Why I'm making this intro:"
-            why_note = None
-            if intro.intro_note:
-                for line in intro.intro_note.split("\n"):
-                    stripped = line.strip()
-                    if stripped and not stripped.startswith("Hi ") and not stripped.startswith("I'm Mitra") and not stripped.startswith("*") and not stripped.startswith("—"):
-                        why_note = stripped
-                        break
+            why_core = _extract_why_fit_from_intro_note(intro.intro_note)
+            job_stack_list = [str(s) for s in job.stack] if isinstance(job.stack, list) else []
+            bullets = _format_portal_fit_bullets(signals, job_stack_list)
+            if why_core and bullets:
+                why_note = f"{why_core}\n\n{bullets}"
+            elif why_core:
+                why_note = why_core
+            elif bullets:
+                why_note = bullets
+            else:
+                why_note = None
 
             candidates_out.append(PortalCandidate(
                 intro_id=intro.id,

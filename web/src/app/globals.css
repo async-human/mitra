@@ -7718,6 +7718,7 @@ img.wchat-av--user { border-radius: 50%; }
   color: var(--fp2-text-1);
   line-height: 1.6;
   margin: 0;
+  white-space: pre-line;
 }
 
 /* Extras */
