@@ -209,33 +209,36 @@ function SkeletonCard({ delay = 0 }: { delay?: number }) {
         <span className="sk-block" style={{ width: 80, height: 12, borderRadius: 4 }} />
       </div>
 
-      {/* Header */}
-      <div className="match-card-header">
-        <div className="sk-avatar" />
-        <div className="match-card-meta" style={{ gap: 6, display: "flex", flexDirection: "column" }}>
-          <span className="sk-block" style={{ width: "60%", height: 14 }} />
-          <span className="sk-block" style={{ width: "40%", height: 11 }} />
+      <div className="match-card-top">
+        {/* Header */}
+        <div className="match-card-header">
+          <div className="sk-avatar" />
+          <div className="match-card-meta" style={{ gap: 6, display: "flex", flexDirection: "column" }}>
+            <span className="sk-block" style={{ width: "60%", height: 14 }} />
+            <span className="sk-block" style={{ width: "40%", height: 11 }} />
+          </div>
+          <div className="sk-fit-badge" />
         </div>
-        <div className="sk-fit-badge" />
+
+        {/* Stars */}
+        <div className="match-stars-row">
+          <span className="sk-block" style={{ width: 84, height: 12 }} />
+        </div>
+
+        {/* Pills */}
+        <div className="match-pills">
+          {[52, 64, 44].map((w, i) => (
+            <span key={i} className="sk-block" style={{ width: w, height: 22, borderRadius: 100 }} />
+          ))}
+        </div>
       </div>
 
-      {/* Stars */}
-      <div className="match-stars-row">
-        <span className="sk-block" style={{ width: 84, height: 12 }} />
-      </div>
-
-      {/* Pills */}
-      <div className="match-pills">
-        {[52, 64, 44].map((w, i) => (
-          <span key={i} className="sk-block" style={{ width: w, height: 22, borderRadius: 100 }} />
-        ))}
-      </div>
-
-      {/* Why box */}
-      <div className="sk-why-box">
-        <span className="sk-block" style={{ width: "50%", height: 11, marginBottom: 8 }} />
-        <span className="sk-block" style={{ width: "100%", height: 11, marginBottom: 5 }} />
-        <span className="sk-block" style={{ width: "85%", height: 11 }} />
+      <div className="match-card-why-slot">
+        <div className="sk-why-box">
+          <span className="sk-block" style={{ width: "50%", height: 11, marginBottom: 8 }} />
+          <span className="sk-block" style={{ width: "100%", height: 11, marginBottom: 5 }} />
+          <span className="sk-block" style={{ width: "85%", height: 11 }} />
+        </div>
       </div>
 
       {/* Buttons */}
@@ -249,14 +252,19 @@ function SkeletonCard({ delay = 0 }: { delay?: number }) {
 
 function WhyFits({ job }: { job: MergedJob }) {
   const whyText = job.why || job.summary;
-  if (!whyText) return null;
   return (
     <div className="match-why">
       <div className="match-why-header">
         <span className="match-why-icon">✦</span>
         <span className="match-why-label">Why Mitra thinks this fits you</span>
       </div>
-      <p className="match-why-text">{whyText}</p>
+      {whyText ? (
+        <p className="match-why-text">{whyText}</p>
+      ) : (
+        <p className="match-why-text match-why-text--placeholder">
+          Personalized fit notes show up here when this role came from your Mitra shortlist in chat.
+        </p>
+      )}
     </div>
   );
 }
@@ -476,46 +484,49 @@ function JobCard({
         </div>
       )}
 
-      {/* Card header */}
-      <div className="match-card-header">
-        <div className="match-company-av">
-          {job.company.slice(0, 2).toUpperCase()}
+      <div className="match-card-top">
+        {/* Card header */}
+        <div className="match-card-header">
+          <div className="match-company-av">
+            {job.company.slice(0, 2).toUpperCase()}
+          </div>
+          <div className="match-card-meta">
+            <h2 className="match-role">{job.title}</h2>
+            <p className="match-company">{job.company}</p>
+          </div>
+          {job.fit && (
+            <div className={`match-fit ${fitColor(job.fit_pct)}`}>
+              <span className="match-fit-pct">{job.fit_pct}%</span>
+              <span className="match-fit-label">fit</span>
+            </div>
+          )}
         </div>
-        <div className="match-card-meta">
-          <h2 className="match-role">{job.title}</h2>
-          <p className="match-company">{job.company}</p>
-        </div>
-        {job.fit && (
-          <div className={`match-fit ${fitColor(job.fit_pct)}`}>
-            <span className="match-fit-pct">{job.fit_pct}%</span>
-            <span className="match-fit-label">fit</span>
+
+        {/* Stars */}
+        {job.fit_pct > 0 && (
+          <div className="match-stars-row">
+            <StarRating pct={job.fit_pct} />
+          </div>
+        )}
+
+        {/* Pills */}
+        {pills.length > 0 && (
+          <div className="match-pills">
+            {pills.map((p, i) => <span key={i} className="match-pill">{p}</span>)}
+          </div>
+        )}
+
+        {/* Stack tags */}
+        {job.stack.length > 0 && (
+          <div className="match-stack">
+            {job.stack.map((s, i) => <span key={i} className="match-stack-tag">{s}</span>)}
           </div>
         )}
       </div>
 
-      {/* Stars */}
-      {job.fit_pct > 0 && (
-        <div className="match-stars-row">
-          <StarRating pct={job.fit_pct} />
-        </div>
-      )}
-
-      {/* Pills */}
-      {pills.length > 0 && (
-        <div className="match-pills">
-          {pills.map((p, i) => <span key={i} className="match-pill">{p}</span>)}
-        </div>
-      )}
-
-      {/* Stack tags */}
-      {job.stack.length > 0 && (
-        <div className="match-stack">
-          {job.stack.map((s, i) => <span key={i} className="match-stack-tag">{s}</span>)}
-        </div>
-      )}
-
-      {/* Why this fits */}
-      <WhyFits job={job} />
+      <div className="match-card-why-slot">
+        <WhyFits job={job} />
+      </div>
 
       {/* Actions — weak intro uses same row + modal */}
       {!isSent ? (
