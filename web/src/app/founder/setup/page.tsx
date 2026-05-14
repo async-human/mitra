@@ -87,25 +87,33 @@ export default async function FounderSetupPage({
     redirect(jobs[0].portal_url);
   }
 
+  const setupUserMenu = (
+    <UserMenu
+      name={session.user.name}
+      email={session.user.email}
+      image={session.user.image}
+    />
+  );
+
   // Multiple jobs OR forced list view — show role picker
   if (jobs.length > 1 || (jobs.length === 1 && forceList)) {
     return (
       <main className="fp-setup-page">
+        <header className="fp-setup-topbar">
+          <Link href="/" className="fp-setup-topbar-brand">
+            Mitra<span className="fp-setup-topbar-brand-dot">.</span>
+          </Link>
+          {setupUserMenu}
+        </header>
+        <div className="fp-setup-page-body">
         <div className="fp-setup-card fp-setup-card--wide">
-          <div className="fp-setup-header">
-            <div className="fp-setup-logo">
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-                <rect width="32" height="32" rx="8" fill="#111" />
-                <path d="M8 24V10l8-3 8 3v14l-8 3-8-3Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-                <path d="M16 7v17M8 10l8 3 8-3" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-              </svg>
-              <span className="fp-setup-brand">Mitra</span>
-            </div>
-            <UserMenu
-              name={session.user.name}
-              email={session.user.email}
-              image={session.user.image}
-            />
+          <div className="fp-setup-logo">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <rect width="32" height="32" rx="8" fill="#111" />
+              <path d="M8 24V10l8-3 8 3v14l-8 3-8-3Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+              <path d="M16 7v17M8 10l8 3 8-3" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+            </svg>
+            <span className="fp-setup-brand">Mitra</span>
           </div>
 
           <div>
@@ -158,6 +166,7 @@ export default async function FounderSetupPage({
             Signed in as <strong style={{ fontWeight: 500 }}>{email}</strong>
           </p>
         </div>
+        </div>
       </main>
     );
   }
@@ -165,21 +174,21 @@ export default async function FounderSetupPage({
   // Zero jobs — show onboarding CTA
   return (
     <main className="fp-setup-page">
+      <header className="fp-setup-topbar">
+        <Link href="/" className="fp-setup-topbar-brand">
+          Mitra<span className="fp-setup-topbar-brand-dot">.</span>
+        </Link>
+        {setupUserMenu}
+      </header>
+      <div className="fp-setup-page-body">
       <div className="fp-setup-card">
-        <div className="fp-setup-header">
-          <div className="fp-setup-logo">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-              <rect width="32" height="32" rx="8" fill="#111" />
-              <path d="M8 24V10l8-3 8 3v14l-8 3-8-3Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-              <path d="M16 7v17M8 10l8 3 8-3" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-            </svg>
-            <span className="fp-setup-brand">Mitra</span>
-          </div>
-          <UserMenu
-            name={session.user.name}
-            email={session.user.email}
-            image={session.user.image}
-          />
+        <div className="fp-setup-logo">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <rect width="32" height="32" rx="8" fill="#111" />
+            <path d="M8 24V10l8-3 8 3v14l-8 3-8-3Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+            <path d="M16 7v17M8 10l8 3 8-3" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+          </svg>
+          <span className="fp-setup-brand">Mitra</span>
         </div>
 
         <h1 className="fp-setup-title">Hi {name}, welcome to Mitra</h1>
@@ -220,6 +229,7 @@ export default async function FounderSetupPage({
             Contact support
           </a>
         </p>
+      </div>
       </div>
     </main>
   );

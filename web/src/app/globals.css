@@ -4355,10 +4355,49 @@ body {
 .fp-setup-page {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  background: var(--background);
+}
+
+.fp-setup-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  width: 100%;
+  padding: 16px 20px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border);
+  background: var(--background);
+}
+
+.fp-setup-topbar-brand {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--foreground);
+  text-decoration: none;
+  letter-spacing: -0.02em;
+}
+
+.fp-setup-topbar-brand:hover {
+  opacity: 0.88;
+}
+
+.fp-setup-topbar-brand-dot {
+  color: var(--muted);
+}
+
+.fp-setup-page-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  background: var(--background);
+  min-height: 0;
 }
 
 .fp-setup-card {
@@ -4387,11 +4426,13 @@ body {
   gap: 16px;
 }
 
-.fp-setup-header .dash-user-menu {
+.fp-setup-header .dash-user-menu,
+.fp-setup-topbar .dash-user-menu {
   flex-shrink: 0;
 }
 
-.fp-setup-header .dash-topbar-name {
+.fp-setup-header .dash-topbar-name,
+.fp-setup-topbar .dash-topbar-name {
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4399,7 +4440,8 @@ body {
 }
 
 @media (min-width: 520px) {
-  .fp-setup-header .dash-topbar-name {
+  .fp-setup-header .dash-topbar-name,
+  .fp-setup-topbar .dash-topbar-name {
     max-width: 180px;
   }
 }
