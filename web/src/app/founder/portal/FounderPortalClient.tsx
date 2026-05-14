@@ -657,8 +657,12 @@ export function FounderPortalClient({
       </header>
 
       <main className="fp2-main">
-        {/* Job — Dex-style stacked section blocks */}
-        <div className="fp2-job-pane">
+        <section className="fp2-role-region" aria-labelledby="fp2-role-heading">
+          <p id="fp2-role-heading" className="fp2-region-eyebrow">
+            Your opening
+          </p>
+          {/* Job — Dex-style stacked section blocks */}
+          <div className="fp2-job-pane">
 
           {/* Block 1: Header — avatar + title + company + stage + delete */}
           <div className="fp2-job-block fp2-job-block--header">
@@ -858,6 +862,10 @@ export function FounderPortalClient({
           )}
         </div>
 
+        {/* Pipeline for this role */}
+        <StatsBar stats={stats} />
+        </section>
+
         {/* Delete confirmation modal */}
         {showDeleteConfirm && (
           <div className="fp2-modal-overlay" onClick={() => !deleting && setShowDeleteConfirm(false)}>
@@ -891,58 +899,59 @@ export function FounderPortalClient({
           </div>
         )}
 
-        {/* Stats */}
-        <StatsBar stats={stats} />
+        <section
+          className="fp2-candidates-region"
+          aria-labelledby="fp2-intros-heading"
+        >
+          <h2 id="fp2-intros-heading" className="fp2-section-label fp2-section-label--candidates">
+            <span>Introductions</span>
+            <span className="fp2-section-count">{candidates.length}</span>
+          </h2>
 
-        {/* Divider */}
-        <div className="fp2-section-label">
-          <span>Introductions</span>
-          <span className="fp2-section-count">{candidates.length}</span>
-        </div>
+          {/* Filter tabs */}
+          {candidates.length > 0 && (
+            <div className="fp2-filters">
+              {FILTERS.map(f => {
+                const count = f.key === "all" ? candidates.length : (counts[f.key] ?? 0);
+                if (f.key !== "all" && count === 0) return null;
+                return (
+                  <button
+                    key={f.key}
+                    onClick={() => setFilter(f.key)}
+                    className={`fp2-filter${filter === f.key ? " fp2-filter--on" : ""}`}
+                  >
+                    {f.label}
+                    {count > 0 && (
+                      <span className={`fp2-filter-badge${filter === f.key ? " fp2-filter-badge--on" : ""}`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-        {/* Filter tabs */}
-        {candidates.length > 0 && (
-          <div className="fp2-filters">
-            {FILTERS.map(f => {
-              const count = f.key === "all" ? candidates.length : (counts[f.key] ?? 0);
-              if (f.key !== "all" && count === 0) return null;
-              return (
-                <button
-                  key={f.key}
-                  onClick={() => setFilter(f.key)}
-                  className={`fp2-filter${filter === f.key ? " fp2-filter--on" : ""}`}
-                >
-                  {f.label}
-                  {count > 0 && (
-                    <span className={`fp2-filter-badge${filter === f.key ? " fp2-filter-badge--on" : ""}`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          {/* Candidate list */}
+          <div className="fp2-list">
+            {filtered.length === 0
+              ? <EmptyState />
+              : filtered.map((c, i) => (
+                <CandidateCard
+                  key={c.intro_id}
+                  candidate={c}
+                  idx={i}
+                  token={token}
+                  onStatusChange={handleStatusChange}
+                />
+              ))
+            }
           </div>
-        )}
 
-        {/* Candidate list */}
-        <div className="fp2-list">
-          {filtered.length === 0
-            ? <EmptyState />
-            : filtered.map((c, i) => (
-              <CandidateCard
-                key={c.intro_id}
-                candidate={c}
-                idx={i}
-                token={token}
-                onStatusChange={handleStatusChange}
-              />
-            ))
-          }
-        </div>
-
-        <p className="fp2-footer">
-          Introductions curated by Mitra — AI talent agent for India&apos;s funded startups.
-        </p>
+          <p className="fp2-footer">
+            Introductions curated by Mitra — AI talent agent for India&apos;s funded startups.
+          </p>
+        </section>
       </main>
     </div>
   );
