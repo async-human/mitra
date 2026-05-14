@@ -1,14 +1,15 @@
 """
 mitra_api/agent/orchestrator.py  (production replacement)
 
-Six tools available to the agent
----------------------------------
-1. search_jobs              Vector search + LLM reranking against real Postgres jobs
+Seven tools available to the agent
+----------------------------------
+1. search_jobs                 Vector search + LLM reranking against real Postgres jobs
 2. remember_candidate_signals  Persist signals to Redis session + Postgres
-3. get_salary_benchmark     India startup salary data by role/stage/seniority
-4. request_intro            Record intro + prepare founder message
-5. check_intro_status       Look up status of a previously sent intro
-6. parse_resume             Extract structured data from PDF sent on WhatsApp
+3. get_salary_benchmark        India startup salary data by role/stage/seniority
+4. web_market_research         Live web search (Tavily) for fresh third-party context
+5. request_intro               Record intro + prepare founder message
+6. check_intro_status         Look up status of a previously sent intro
+7. parse_resume               Extract structured data from PDF sent on WhatsApp
 
 Drop-in replacement for the existing orchestrator.py.
 All other files (inbound.py, session_store.py, routes, etc.) stay unchanged.
@@ -22,6 +23,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
+# phase: "start" | "end", name: tool function name from the catalog.
+OnToolProgress = Callable[[str, str], Awaitable[None]]
+
 from mitra_api.agent.memory import build_candidate_memory, inject_memory_into_context
 from mitra_api.agent.prompts import OFFER_COACH_WEB_INTENT_OVERRIDE, SYSTEM_PROMPT
 from mitra_api.agent.session_store import AgentSessionStore
@@ -32,6 +36,7 @@ from mitra_api.llm.types import ChatMessage, ToolDefinition
 from mitra_api.tools.candidates import get_signals as get_persisted_signals
 from mitra_api.tools.candidates import persist_signals
 from mitra_api.tools.intros import get_intro_status, request_intro
+from mitra_api.tools.market_research import web_market_research
 from mitra_api.tools.resume_parser import parse_resume_from_url, twilio_media_auth
 from mitra_api.tools.salary_benchmark import get_salary_benchmark_async
 from mitra_api.tools.search import search_jobs
@@ -186,6 +191,33 @@ def tool_catalog() -> list[ToolDefinition]:
                     },
                 },
                 "required": ["role", "stage", "seniority"],
+            },
+        ),
+
+        ToolDefinition(
+            name="web_market_research",
+            description=(
+                "Search the public web for up-to-date market context (e.g. salary surveys, "
+                "reports, hiring news, funding). Use when the candidate asks for *current* "
+                "external data, broader market colour, or sources beyond Mitra's job database. "
+                "Prefer get_salary_benchmark first for standard India startup CTC bands "
+                "by role/stage/seniority — use this when they want live web sources, "
+                "recent articles, or topics benchmarks do not cover. Results are snippets — "
+                "tell them to verify key numbers on the linked pages."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": (
+                            "Specific English search query. Include India, role, level, "
+                            "and year when freshness matters. "
+                            "Example: 'senior machine learning engineer salary India tech startup 2025 LPA report'"
+                        ),
+                    },
+                },
+                "required": ["query"],
             },
         ),
 
@@ -372,7 +404,15 @@ def build_tool_runner(
             )
             return json.dumps(result, ensure_ascii=False)
 
-        # ── 4. request_intro ──────────────────────────────────────────────────
+        # ── 4. web_market_research ─────────────────────────────────────────────
+        if name == "web_market_research":
+            result = await web_market_research(
+                query=str(args.get("query", "")),
+                settings=settings,
+            )
+            return json.dumps(result, ensure_ascii=False)
+
+        # ── 5. request_intro ──────────────────────────────────────────────────
         if name == "request_intro":
             inline = _build_request_intro_inline_patch(args)
             async with db_factory() as db:
@@ -392,7 +432,7 @@ def build_tool_runner(
                 )
             return json.dumps(result, ensure_ascii=False)
 
-        # ── 5. check_intro_status ─────────────────────────────────────────────
+        # ── 6. check_intro_status ─────────────────────────────────────────────
         if name == "check_intro_status":
             async with db_factory() as db:
                 result = await get_intro_status(
@@ -402,7 +442,7 @@ def build_tool_runner(
                 )
             return json.dumps(result, ensure_ascii=False)
 
-        # ── 6. parse_resume ───────────────────────────────────────────────────
+        # ── 7. parse_resume ───────────────────────────────────────────────────
         if name == "parse_resume":
             media_url = str(args.get("media_url", ""))
             if not media_url:
@@ -609,6 +649,7 @@ async def run_agent_turn(
     media_type: str | None = None,    # "application/pdf" etc
     fresh_start: bool = False,        # True when user explicitly asked to start over
     web_intent: str | None = None,    # e.g. "offer_coach" from Mitra web app
+    on_tool_progress: OnToolProgress | None = None,
 ) -> AgentTurn:
     """
     Process one inbound WhatsApp message and return the agent's response.
@@ -1115,6 +1156,11 @@ async def run_agent_turn(
                     else {"query": str(parsed.get("query", ""))[:120]},
                 )
 
+                if on_tool_progress:
+                    try:
+                        await on_tool_progress("start", tc.name)
+                    except Exception:
+                        log.debug("on_tool_progress(start) failed", exc_info=True)
                 try:
                     out = await run_tool(tc.name, parsed)
                     if tc.name == "search_jobs":
@@ -1136,6 +1182,12 @@ async def run_agent_turn(
                 except Exception as exc:
                     log.exception("[agent:%s] tool %s raised: %s", whatsapp_sender_id, tc.name, exc)
                     out = json.dumps({"error": str(exc)})
+                finally:
+                    if on_tool_progress:
+                        try:
+                            await on_tool_progress("end", tc.name)
+                        except Exception:
+                            log.debug("on_tool_progress(end) failed", exc_info=True)
 
                 msgs.append(ChatMessage(
                     role="tool",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 from typing import Any, AsyncIterator
@@ -356,6 +357,69 @@ async def _sse_stream_reply(reply: str, job_cards: list[dict]) -> AsyncIterator[
     yield f"data: {json.dumps({'t': 'end', 'cards': job_cards})}\n\n"
 
 
+async def _sse_stream_with_tools(
+    *,
+    store: AgentSessionStore,
+    sid: str,
+    user_text: str,
+    fresh_start: bool,
+    web_intent: str | None,
+    settings: Settings,
+) -> AsyncIterator[str]:
+    """Run agent turn while forwarding tool start/end as SSE, then stream reply tokens."""
+    q: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+    turn_box: dict[str, Any] = {}
+
+    async def on_tool_progress(phase: str, name: str) -> None:
+        await q.put({"t": "tool", "phase": phase, "name": name})
+
+    async def run_agent() -> None:
+        try:
+            turn = await run_agent_turn(
+                whatsapp_sender_id=sid,
+                user_text=user_text,
+                sessions=store,
+                settings=settings,
+                fresh_start=fresh_start,
+                web_intent=web_intent,
+                on_tool_progress=on_tool_progress,
+            )
+            turn_box["turn"] = turn
+        except Exception:
+            log.exception("candidate chat stream — agent turn failed for %s", sid)
+            turn_box["error"] = True
+        finally:
+            await q.put(None)
+
+    task = asyncio.create_task(run_agent())
+    try:
+        while True:
+            item = await q.get()
+            if item is None:
+                break
+            yield f"data: {json.dumps(item)}\n\n"
+        await task
+    except asyncio.CancelledError:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        raise
+
+    if turn_box.get("error"):
+        yield f"data: {json.dumps({'t': 'tok', 'v': 'Something went wrong — please try again.'})}\n\n"
+        yield f"data: {json.dumps({'t': 'end', 'cards': []})}\n\n"
+        return
+
+    turn = turn_box["turn"]
+    reply_text = turn.history_assistant_text
+    cards_data = [
+        {"id": c.id, "title": c.title, "description": c.description, "why": c.why}
+        for c in _build_job_cards(turn)
+    ]
+    async for chunk in _sse_stream_reply(reply_text, cards_data):
+        yield chunk
+
+
 @router.post("/chat/stream")
 async def candidate_chat_stream(
     body: CandidateChatRequest,
@@ -369,23 +433,19 @@ async def candidate_chat_stream(
     if early_reply:
         reply_text = early_reply.reply
         cards_data: list[dict] = [c.model_dump() for c in early_reply.job_cards]
+        body_iter: AsyncIterator[str] = _sse_stream_reply(reply_text, cards_data)
     else:
-        turn = await run_agent_turn(
-            whatsapp_sender_id=sid,
+        body_iter = _sse_stream_with_tools(
+            store=store,
+            sid=sid,
             user_text=user_text,
-            sessions=store,
-            settings=settings,
             fresh_start=fresh_start,
             web_intent=body.web_intent,
+            settings=settings,
         )
-        reply_text = turn.history_assistant_text
-        cards_data = [
-            {"id": c.id, "title": c.title, "description": c.description, "why": c.why}
-            for c in _build_job_cards(turn)
-        ]
 
     return StreamingResponse(
-        _sse_stream_reply(reply_text, cards_data),
+        body_iter,
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

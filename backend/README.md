@@ -52,6 +52,9 @@ See `.env.example`. Summary:
 | `MITRA_REDIS_URL` | e.g. `redis://localhost:6379/0` — **persistent** chat transcripts + tool signals per sender; leave empty for in-memory (dev only). |
 | `MITRA_SESSION_TTL_SECONDS` | Redis expiry for session keys (refreshed on each message). |
 | `MITRA_REDIS_KEY_PREFIX` | Namespace prefix for Redis keys. |
+| `TAVILY_API_KEY` | **Optional** — enables `web_market_research` (live web search via [Tavily](https://tavily.com)). Leave empty to disable. |
+| `MITRA_TAVILY_SEARCH_DEPTH` | `basic` or `advanced` (default `advanced`) — Tavily quota vs. richness tradeoff. |
+| `MITRA_MARKET_RESEARCH_MAX_RESULTS` | Web hits per call, 1–10 (default `5`). |
 
 ### Twilio sandbox (quick test)
 

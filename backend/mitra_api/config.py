@@ -109,6 +109,28 @@ class Settings(BaseSettings):
         description="Set true to use interactive list picker. False = inline plain-text cards.",
     )
 
+    # ── WEB MARKET RESEARCH (Tavily) ───────────────────────────────────────────
+    tavily_api_key: str = Field(
+        default="",
+        validation_alias="TAVILY_API_KEY",
+        description=(
+            "Tavily Search API key for web_market_research tool — live snippets from the public web. "
+            "https://tavily.com — leave empty to disable (agent falls back to get_salary_benchmark only)."
+        ),
+    )
+    mitra_tavily_search_depth: Literal["basic", "advanced"] = Field(
+        default="advanced",
+        validation_alias="MITRA_TAVILY_SEARCH_DEPTH",
+        description="Tavily search depth — advanced uses more quota but fresher/richer results.",
+    )
+    mitra_market_research_max_results: int = Field(
+        default=5,
+        validation_alias="MITRA_MARKET_RESEARCH_MAX_RESULTS",
+        ge=1,
+        le=10,
+        description="Max web results per web_market_research call (1–10).",
+    )
+
     # ── EMAIL (Resend) ────────────────────────────────────────────────────────
     resend_api_key: str = Field(
         default="",

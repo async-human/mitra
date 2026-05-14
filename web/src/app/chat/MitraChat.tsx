@@ -14,7 +14,23 @@ function parseJobCard(card: JobCard): { company: string; fit: string; tags: stri
   const tags = parts.filter((_, i) => i !== 0 && i !== fitIdx);
   return { company, fit, tags };
 }
-interface Message { role: "mitra" | "user"; text: string; jobCards?: JobCard[]; }
+interface Message { role: "mitra" | "user"; text: string; jobCards?: JobCard[]; pendingToolLabel?: string }
+
+const TOOL_DISPLAY: Record<string, string> = {
+  search_jobs: "search jobs",
+  remember_candidate_signals: "save profile",
+  get_salary_benchmark: "salary data",
+  web_market_research: "web research",
+  request_intro: "intro request",
+  check_intro_status: "intro status",
+  parse_resume: "résumé",
+};
+
+function toolDisplayName(name: string): string {
+  const d = TOOL_DISPLAY[name];
+  if (d) return d;
+  return name.replace(/_/g, " ");
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -129,10 +145,38 @@ export function MitraChat({
                 const next = [...prev];
                 const idx = placeholderIdx.current;
                 if (idx >= 0 && next[idx]) {
-                  next[idx] = { ...next[idx], text: next[idx].text + event.v };
+                  next[idx] = {
+                    ...next[idx],
+                    text: next[idx].text + event.v,
+                    pendingToolLabel: undefined,
+                  };
                 }
                 return next;
               });
+            } else if (event.t === "tool") {
+              const phase = event.phase as string | undefined;
+              const name = event.name as string | undefined;
+              if (!phase || !name) continue;
+              if (phase === "start") {
+                const label = toolDisplayName(name);
+                setMessages(prev => {
+                  const next = [...prev];
+                  const idx = placeholderIdx.current;
+                  if (idx >= 0 && next[idx]) {
+                    next[idx] = { ...next[idx], pendingToolLabel: label };
+                  }
+                  return next;
+                });
+              } else if (phase === "end") {
+                setMessages(prev => {
+                  const next = [...prev];
+                  const idx = placeholderIdx.current;
+                  if (idx >= 0 && next[idx]) {
+                    next[idx] = { ...next[idx], pendingToolLabel: undefined };
+                  }
+                  return next;
+                });
+              }
             } else if (event.t === "end") {
               cards = event.cards ?? [];
               if (cards.length > 0) {
@@ -160,11 +204,11 @@ export function MitraChat({
       if (placeholderIdx.current >= 0) {
         setMessages(prev => {
           const next = [...prev];
-          next[placeholderIdx.current] = { role: "mitra", text: "Something went wrong — please try again." };
+          next[placeholderIdx.current] = { role: "mitra", text: "Something went wrong — please try again.", pendingToolLabel: undefined };
           return next;
         });
       } else {
-        setMessages(prev => [...prev, { role: "mitra", text: "Something went wrong — please try again." }]);
+        setMessages(prev => [...prev, { role: "mitra", text: "Something went wrong — please try again.", pendingToolLabel: undefined }]);
       }
     } finally {
       setLoading(false);
@@ -289,6 +333,12 @@ export function MitraChat({
             {messages.map((msg, i) =>
               msg.role === "mitra" ? (
                 <div key={i} className="wc-msg-mitra">
+                  {msg.pendingToolLabel && (
+                    <div className="wc-tool-call" role="status" aria-live="polite">
+                      <span className="wc-tool-spinner" aria-hidden />
+                      <span className="wc-tool-label">Calling {msg.pendingToolLabel}</span>
+                    </div>
+                  )}
                   <p className="wc-msg-mitra-text">{renderText(msg.text)}</p>
                   {msg.jobCards && msg.jobCards.length > 0 && (
                     <div className="wc-job-cards">

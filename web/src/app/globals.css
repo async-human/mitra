@@ -5164,6 +5164,31 @@ img.wchat-av--user { border-radius: 50%; }
   font-weight: 400;
 }
 
+.wc-tool-call {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(60, 52, 44, 0.72);
+  letter-spacing: 0.01em;
+}
+.wc-tool-spinner {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  border: 1.5px dotted rgba(60, 52, 44, 0.45);
+  border-radius: 2px;
+  animation: wc-tool-spin 0.65s linear infinite;
+}
+.wc-tool-label {
+  font-variant-numeric: tabular-nums;
+}
+@keyframes wc-tool-spin {
+  to { transform: rotate(90deg); }
+}
+
 /* User message — pill bubble, right aligned */
 .wc-msg-user-wrap { display: flex; justify-content: flex-end; }
 .wc-msg-user {
@@ -5331,6 +5356,10 @@ img.wchat-av--user { border-radius: 50%; }
 [data-theme="dark"] .wc-logo-mark { background: #fff; color: var(--ink); }
 [data-theme="dark"] .wc-logo-text { color: #fff; }
 [data-theme="dark"] .wc-msg-mitra-text { color: rgba(255,255,255,0.92); }
+[data-theme="dark"] .wc-tool-call { color: rgba(255,255,255,0.55); }
+[data-theme="dark"] .wc-tool-spinner {
+  border-color: rgba(255,255,255,0.45);
+}
 [data-theme="dark"] .wc-input { color: rgba(255,255,255,0.92); }
 [data-theme="dark"] .wc-input::placeholder { color: rgba(255,255,255,0.3); }
 [data-theme="dark"] .wc-input-bar { border-top-color: rgba(255,255,255,0.07); }
