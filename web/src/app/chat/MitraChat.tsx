@@ -67,6 +67,60 @@ function toolDisplayName(name: string): string {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
+/**
+ * SSE frames are delimited by a blank line. Proxies often use CRLF (`\r\n\r\n`);
+ * splitting only on `\n\n` leaves the whole stream in one chunk so events never parse.
+ */
+function pullCompleteSseDataPayloads(buffer: string): { payloads: string[]; rest: string } {
+  const normalized = buffer.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const frames = normalized.split("\n\n");
+  const rest = frames.pop() ?? "";
+  const payloads: string[] = [];
+  for (const frame of frames) {
+    for (const rawLine of frame.split("\n")) {
+      const line = rawLine.replace(/\s+$/, "");
+      if (!line.startsWith("data:")) continue;
+      const jsonPart = line.slice("data:".length).replace(/^\s*/, "");
+      if (jsonPart) payloads.push(jsonPart);
+    }
+  }
+  return { payloads, rest };
+}
+
+/**
+ * When SOURCES cards are shown, strip duplicate "Key sources" sections and markdown
+ * link lists the model still sometimes emits.
+ */
+function stripRedundantWebSourceNarrative(text: string): string {
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  const out: string[] = [];
+  let i = 0;
+  const isSourceBlockHeading = (raw: string) => {
+    const s = raw.trim();
+    if (/^#{1,6}\s*(?:key\s+)?sources\b/i.test(s)) return true;
+    if (/^\*{0,2}\s*key\s*sources\*{0,2}\s*:?\s*$/i.test(s)) return true;
+    return false;
+  };
+  const isCitationOnlyLine = (raw: string) => {
+    const s = raw.trim();
+    if (!s) return true;
+    if (/^\d+\.\s*\[[^\]]+\]\(https?:\/\/[^)]+\)\s*$/.test(s)) return true;
+    if (/^[-*+]\s*\[[^\]]+\]\(https?:\/\/[^)]+\)\s*$/.test(s)) return true;
+    if (/^https?:\/\/\S+$/.test(s)) return true;
+    return false;
+  };
+  while (i < lines.length) {
+    if (isSourceBlockHeading(lines[i])) {
+      i += 1;
+      while (i < lines.length && isCitationOnlyLine(lines[i])) i += 1;
+      continue;
+    }
+    out.push(lines[i]);
+    i += 1;
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trimEnd();
+}
+
 function renderInline(line: string): React.ReactNode[] {
   const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|_[^_]+_)/g;
   const nodes: React.ReactNode[] = [];
@@ -168,96 +222,105 @@ export function MitraChat({
       let cards: JobCard[] = [];
 
       // Insert an empty mitra message — we'll stream text into it
-      flushSync(() => {
+      try {
+        flushSync(() => {
+          setMessages(prev => {
+            placeholderIdx.current = prev.length;
+            return [...prev, { role: "mitra", text: "" }];
+          });
+        });
+      } catch {
         setMessages(prev => {
           placeholderIdx.current = prev.length;
           return [...prev, { role: "mitra", text: "" }];
         });
-      });
+      }
       setLoading(false);
+
+      const dispatchSse = (event: Record<string, unknown>) => {
+        const t = event.t;
+        if (t === "tok") {
+          const v = typeof event.v === "string" ? event.v : String(event.v ?? "");
+          setMessages(prev => {
+            const next = [...prev];
+            const idx = placeholderIdx.current;
+            if (idx >= 0 && next[idx]) {
+              next[idx] = {
+                ...next[idx],
+                text: next[idx].text + v,
+                pendingToolLabel: undefined,
+              };
+            }
+            return next;
+          });
+        } else if (t === "tool") {
+          const phase = event.phase;
+          const name = event.name;
+          if (typeof phase !== "string" || typeof name !== "string") return;
+          if (phase === "start") {
+            const label = toolDisplayName(name);
+            setMessages(prev => {
+              const next = [...prev];
+              const idx = placeholderIdx.current;
+              if (idx >= 0 && next[idx]) {
+                next[idx] = { ...next[idx], pendingToolLabel: label };
+              }
+              return next;
+            });
+          }
+        } else if (t === "end") {
+          const evCards = event.cards;
+          cards = Array.isArray(evCards) ? (evCards as JobCard[]) : [];
+          const webSources = normalizeWebSources(event.webSources);
+          setMessages(prev => {
+            const next = [...prev];
+            const idx = placeholderIdx.current;
+            if (idx < 0 || !next[idx]) return prev;
+            const cur = next[idx];
+            const hasCards = cards.length > 0;
+            const hasSources = webSources.length > 0;
+            if (!hasCards && !hasSources) return prev;
+            const text = hasSources ? stripRedundantWebSourceNarrative(cur.text) : cur.text;
+            next[idx] = {
+              ...cur,
+              text,
+              ...(hasCards ? { jobCards: cards } : {}),
+              ...(hasSources ? { webSources } : {}),
+            };
+            return next;
+          });
+          if (cards.length > 0) {
+            const now = new Date().toISOString();
+            const stamped = cards.map(c => ({ ...c, recommended_at: now }));
+            try {
+              localStorage.setItem(matchesKey(userEmail), JSON.stringify(stamped));
+            } catch { /* quota / private mode — non-fatal */ }
+            const ids = cards.map(c => c.id.replace(/^job_/, "")).join(",");
+            setStoredMatchIds(ids);
+            setExiting(true);
+            setTimeout(() => router.push(`/matches?ids=${ids}`), 550);
+          }
+        }
+      };
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-
-        // SSE lines: "data: {...}\n\n"
-        const lines = buffer.split("\n\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
+        const pulled = pullCompleteSseDataPayloads(buffer);
+        buffer = pulled.rest;
+        for (const payload of pulled.payloads) {
           try {
-            const event = JSON.parse(line.slice(6));
-            if (event.t === "tok") {
-              setMessages(prev => {
-                const next = [...prev];
-                const idx = placeholderIdx.current;
-                if (idx >= 0 && next[idx]) {
-                  next[idx] = {
-                    ...next[idx],
-                    text: next[idx].text + event.v,
-                    pendingToolLabel: undefined,
-                  };
-                }
-                return next;
-              });
-            } else if (event.t === "tool") {
-              const phase = event.phase as string | undefined;
-              const name = event.name as string | undefined;
-              if (!phase || !name) continue;
-              if (phase === "start") {
-                const label = toolDisplayName(name);
-                setMessages(prev => {
-                  const next = [...prev];
-                  const idx = placeholderIdx.current;
-                  if (idx >= 0 && next[idx]) {
-                    next[idx] = { ...next[idx], pendingToolLabel: label };
-                  }
-                  return next;
-                });
-              }
-              // Keep spinner visible until reply tokens stream (phase "end" is ignored on purpose).
-            } else if (event.t === "sources") {
-              const webSources = normalizeWebSources(event.items);
-              if (webSources.length === 0) continue;
-              setMessages(prev => {
-                const next = [...prev];
-                const idx = placeholderIdx.current;
-                if (idx >= 0 && next[idx]) {
-                  next[idx] = { ...next[idx], webSources };
-                }
-                return next;
-              });
-            } else if (event.t === "end") {
-              cards = event.cards ?? [];
-              const webSources = normalizeWebSources(event.webSources);
-              setMessages(prev => {
-                if (cards.length === 0 && webSources.length === 0) return prev;
-                const next = [...prev];
-                const idx = placeholderIdx.current;
-                if (idx >= 0 && next[idx]) {
-                  const cur = next[idx];
-                  next[idx] = {
-                    ...cur,
-                    ...(cards.length > 0 ? { jobCards: cards } : {}),
-                    ...(webSources.length > 0 ? { webSources } : {}),
-                  };
-                }
-                return next;
-              });
-              if (cards.length > 0) {
-                const now = new Date().toISOString();
-                const stamped = cards.map(c => ({ ...c, recommended_at: now }));
-                localStorage.setItem(matchesKey(userEmail), JSON.stringify(stamped));
-                const ids = cards.map(c => c.id.replace(/^job_/, "")).join(",");
-                setStoredMatchIds(ids);
-                setExiting(true);
-                setTimeout(() => router.push(`/matches?ids=${ids}`), 550);
-              }
-            }
-          } catch { /* malformed SSE line — ignore */ }
+            dispatchSse(JSON.parse(payload) as Record<string, unknown>);
+          } catch { /* malformed JSON */ }
         }
+      }
+      buffer += decoder.decode();
+      const tail = pullCompleteSseDataPayloads(buffer);
+      for (const payload of tail.payloads) {
+        try {
+          dispatchSse(JSON.parse(payload) as Record<string, unknown>);
+        } catch { /* malformed JSON */ }
       }
     } catch {
       if (placeholderIdx.current >= 0) {
@@ -272,7 +335,7 @@ export function MitraChat({
     } finally {
       setLoading(false);
     }
-  }, [userEmail, userName]);
+  }, [userEmail, userName, router]);
 
   useEffect(() => {
     if (initialized.current) return;

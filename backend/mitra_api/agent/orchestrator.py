@@ -25,8 +25,6 @@ from typing import Any, Awaitable, Callable
 
 # phase: "start" | "end", name: tool function name from the catalog.
 OnToolProgress = Callable[[str, str], Awaitable[None]]
-# Deduped list of {title, url} after each web_market_research tool completes (web UI).
-OnWebResearchSources = Callable[[list[dict[str, str]]], Awaitable[None]]
 
 from mitra_api.agent.memory import build_candidate_memory, inject_memory_into_context
 from mitra_api.agent.prompts import OFFER_COACH_WEB_INTENT_OVERRIDE, SYSTEM_PROMPT
@@ -653,7 +651,6 @@ async def run_agent_turn(
     fresh_start: bool = False,        # True when user explicitly asked to start over
     web_intent: str | None = None,    # e.g. "offer_coach" from Mitra web app
     on_tool_progress: OnToolProgress | None = None,
-    on_web_research_sources: OnWebResearchSources | None = None,
 ) -> AgentTurn:
     """
     Process one inbound WhatsApp message and return the agent's response.
@@ -1205,14 +1202,6 @@ async def run_agent_turn(
                                 web_research_accum.append(
                                     {"title": title[:400], "url": url[:800]}
                                 )
-                            if on_web_research_sources and web_research_accum:
-                                try:
-                                    await on_web_research_sources(list(web_research_accum))
-                                except Exception:
-                                    log.debug(
-                                        "on_web_research_sources failed",
-                                        exc_info=True,
-                                    )
                         except json.JSONDecodeError:
                             log.debug(
                                 "[agent:%s] web_market_research result not JSON",
