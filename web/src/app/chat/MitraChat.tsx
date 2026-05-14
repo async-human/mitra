@@ -44,6 +44,8 @@ interface Message {
   jobCards?: JobCard[];
   pendingToolLabel?: string;
   webSources?: WebSource[];
+  /** True until first streamed token — show typing indicator in this bubble */
+  awaitingReply?: boolean;
 }
 
 /** Braille dot cycle for in-chat tool progress (matches CLI-style spinners). */
@@ -106,6 +108,7 @@ function stripRedundantWebSourceNarrative(text: string): string {
     if (!s) return true;
     if (/^\d+\.\s*\[[^\]]+\]\(https?:\/\/[^)]+\)\s*$/.test(s)) return true;
     if (/^[-*+]\s*\[[^\]]+\]\(https?:\/\/[^)]+\)\s*$/.test(s)) return true;
+    if (/^\[[^\]]+\]\(https?:\/\/[^)]+\)\s*$/.test(s)) return true;
     if (/^https?:\/\/\S+$/.test(s)) return true;
     return false;
   };
@@ -201,9 +204,23 @@ export function MitraChat({
 
   const callApi = useCallback(async (message: string, opts?: { web_intent?: string }) => {
     setLoading(true);
-    // Add a placeholder message that we'll fill in as tokens arrive
     const placeholderIdx = { current: -1 };
     try {
+      try {
+        flushSync(() => {
+          setMessages(prev => {
+            placeholderIdx.current = prev.length;
+            return [...prev, { role: "mitra", text: "", awaitingReply: true }];
+          });
+        });
+      } catch {
+        setMessages(prev => {
+          placeholderIdx.current = prev.length;
+          return [...prev, { role: "mitra", text: "", awaitingReply: true }];
+        });
+      }
+      setLoading(false);
+
       const res = await fetch(`${API_URL}/candidate/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -221,22 +238,6 @@ export function MitraChat({
       let buffer = "";
       let cards: JobCard[] = [];
 
-      // Insert an empty mitra message — we'll stream text into it
-      try {
-        flushSync(() => {
-          setMessages(prev => {
-            placeholderIdx.current = prev.length;
-            return [...prev, { role: "mitra", text: "" }];
-          });
-        });
-      } catch {
-        setMessages(prev => {
-          placeholderIdx.current = prev.length;
-          return [...prev, { role: "mitra", text: "" }];
-        });
-      }
-      setLoading(false);
-
       const dispatchSse = (event: Record<string, unknown>) => {
         const t = event.t;
         if (t === "tok") {
@@ -248,6 +249,7 @@ export function MitraChat({
               next[idx] = {
                 ...next[idx],
                 text: next[idx].text + v,
+                awaitingReply: false,
                 pendingToolLabel: undefined,
               };
             }
@@ -283,6 +285,7 @@ export function MitraChat({
             const text = hasSources ? stripRedundantWebSourceNarrative(cur.text) : cur.text;
             next[idx] = {
               ...cur,
+              awaitingReply: false,
               text,
               ...(hasCards ? { jobCards: cards } : {}),
               ...(hasSources ? { webSources } : {}),
@@ -322,15 +325,23 @@ export function MitraChat({
           dispatchSse(JSON.parse(payload) as Record<string, unknown>);
         } catch { /* malformed JSON */ }
       }
+
+      setMessages(prev => {
+        const idx = placeholderIdx.current;
+        if (idx < 0 || !prev[idx]?.awaitingReply) return prev;
+        const next = [...prev];
+        next[idx] = { ...next[idx], awaitingReply: false, pendingToolLabel: undefined };
+        return next;
+      });
     } catch {
       if (placeholderIdx.current >= 0) {
         setMessages(prev => {
           const next = [...prev];
-          next[placeholderIdx.current] = { role: "mitra", text: "Something went wrong — please try again.", pendingToolLabel: undefined };
+          next[placeholderIdx.current] = { role: "mitra", text: "Something went wrong — please try again.", pendingToolLabel: undefined, awaitingReply: false };
           return next;
         });
       } else {
-        setMessages(prev => [...prev, { role: "mitra", text: "Something went wrong — please try again.", pendingToolLabel: undefined }]);
+        setMessages(prev => [...prev, { role: "mitra", text: "Something went wrong — please try again.", pendingToolLabel: undefined, awaitingReply: false }]);
       }
     } finally {
       setLoading(false);
@@ -463,7 +474,14 @@ export function MitraChat({
                       <span className="wc-tool-label">Calling {msg.pendingToolLabel}</span>
                     </div>
                   )}
-                  <p className="wc-msg-mitra-text">{renderText(msg.text)}</p>
+                  {msg.awaitingReply && !msg.pendingToolLabel && !msg.text && (
+                    <div className="wc-typing" aria-busy="true" aria-label="Mitra is replying">
+                      <span /><span /><span />
+                    </div>
+                  )}
+                  {(msg.text || (!msg.awaitingReply && !msg.pendingToolLabel)) && (
+                    <p className="wc-msg-mitra-text">{renderText(msg.text)}</p>
+                  )}
                   {msg.webSources && msg.webSources.length > 0 && (
                     <div className="wc-web-sources">
                       <div className="wc-web-sources-heading">Sources</div>
@@ -525,11 +543,6 @@ export function MitraChat({
               )
             )}
 
-            {loading && (
-              <div className="wc-msg-mitra">
-                <div className="wc-typing"><span /><span /><span /></div>
-              </div>
-            )}
             <div ref={bottomRef} />
           </div>
 

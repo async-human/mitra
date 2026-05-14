@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import re
 from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, Depends, Query
@@ -327,6 +328,47 @@ def _build_job_cards(turn: Any) -> list[JobCard]:
     ]
 
 
+def strip_redundant_web_source_narrative(text: str) -> str:
+    """
+    Strip duplicate "Key sources" / markdown link blocks from the assistant reply.
+    Must run before streaming tokens so the web UI never flashes plain-text citations
+    (SOURCES cards carry links after the stream completes).
+    """
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    lines = text.split("\n")
+    out: list[str] = []
+    i = 0
+    md_heading = re.compile(r"^#{1,6}\s*(?:key\s+)?sources\b", re.I)
+    bold_heading = re.compile(r"^\*{0,2}\s*key\s*sources\*{0,2}\s*:?\s*$", re.I)
+    num_link = re.compile(r"^\d+\.\s*\[[^\]]+\]\(https?://[^)]+\)\s*$")
+    bullet_link = re.compile(r"^[-*+]\s*\[[^\]]+\]\(https?://[^)]+\)\s*$")
+    md_only = re.compile(r"^\[[^\]]+\]\(https?://[^)]+\)\s*$")
+    bare_url = re.compile(r"^https?://\S+$")
+    while i < len(lines):
+        st = lines[i].strip()
+        if md_heading.match(st) or bold_heading.match(st):
+            i += 1
+            while i < len(lines):
+                inner = lines[i].strip()
+                if not inner:
+                    i += 1
+                    continue
+                if (
+                    num_link.match(inner)
+                    or bullet_link.match(inner)
+                    or md_only.match(inner)
+                    or bare_url.match(inner)
+                ):
+                    i += 1
+                    continue
+                break
+            continue
+        out.append(lines[i])
+        i += 1
+    joined = "\n".join(out)
+    return re.sub(r"\n{3,}", "\n\n", joined).rstrip()
+
+
 @router.post("/chat", response_model=CandidateChatResponse)
 async def candidate_chat(
     body: CandidateChatRequest,
@@ -347,14 +389,18 @@ async def candidate_chat(
         fresh_start=fresh_start,
         web_intent=body.web_intent,
     )
+    ws = [
+        WebSourceItem(title=str(s.get("title") or ""), url=str(s.get("url") or ""))
+        for s in turn.web_research_sources
+        if (s.get("url") or "").strip()
+    ]
+    reply = turn.history_assistant_text
+    if ws:
+        reply = strip_redundant_web_source_narrative(reply)
     return CandidateChatResponse(
-        reply=turn.history_assistant_text,
+        reply=reply,
         job_cards=_build_job_cards(turn),
-        web_sources=[
-            WebSourceItem(title=str(s.get("title") or ""), url=str(s.get("url") or ""))
-            for s in turn.web_research_sources
-            if (s.get("url") or "").strip()
-        ],
+        web_sources=ws,
     )
 
 
@@ -365,6 +411,8 @@ async def _sse_stream_reply(
     web_sources: list[dict[str, str]] | None = None,
 ) -> AsyncIterator[str]:
     """Yield SSE events: one token per word, then a done event with job cards."""
+    if web_sources:
+        reply = strip_redundant_web_source_narrative(reply)
     words = reply.split(" ")
     for i, word in enumerate(words):
         chunk = word if i == 0 else f" {word}"
