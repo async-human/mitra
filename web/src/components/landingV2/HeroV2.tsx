@@ -119,10 +119,20 @@ export function HeroV2({ audience }: { audience: V2Audience }) {
             </span>
           </div>
 
-          {/* Headline types out — cursor blinks at end */}
-          <h1 className={s.heroHeadline}>
-            <TypedText text={typed} />
-            <span className={s.heroCursor} aria-hidden="true" />
+          {/* Headline types out over a hidden full-text measure so layout doesn&apos;t shift */}
+          <h1
+            className={s.heroHeadline}
+            aria-label={c.headlineText.replace(/\n/g, " ")}
+          >
+            <span className={s.heroHeadlineSlot}>
+              <span className={s.heroHeadlineMeasure} aria-hidden="true">
+                <TypedText text={c.headlineText} />
+              </span>
+              <span className={s.heroHeadlineLive}>
+                <TypedText text={typed} />
+                <span className={s.heroCursor} aria-hidden="true" />
+              </span>
+            </span>
           </h1>
 
           {/* Sub, CTA, and proof fade in once typing has a head start */}

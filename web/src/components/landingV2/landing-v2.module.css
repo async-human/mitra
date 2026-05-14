@@ -227,6 +227,26 @@
   margin: 0 0 2rem;
 }
 
+.heroHeadlineSlot {
+  display: block;
+  position: relative;
+}
+
+/* Invisible copy of the final headline — reserves height so typing doesn&apos;t push content down */
+.heroHeadlineMeasure {
+  display: block;
+  visibility: hidden;
+  user-select: none;
+  pointer-events: none;
+}
+
+.heroHeadlineLive {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+}
+
 .heroCursor {
   display: inline-block;
   width: 3px;
