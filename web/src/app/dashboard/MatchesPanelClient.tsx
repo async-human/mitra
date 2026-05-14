@@ -44,7 +44,7 @@ export function MatchesPanelClient({
   intros: CandidateIntro[];
   introsLoaded: boolean;
 }) {
-  const [cards, setCards] = useState<StoredCard[] | null>(null);
+  const [cards, setCards] = useState<StoredMatchCard[] | null>(null);
   const [matchIds, setMatchIds] = useState<string>("");
 
   useEffect(() => {
