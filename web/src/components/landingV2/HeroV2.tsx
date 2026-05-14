@@ -35,11 +35,25 @@ function useTyping(fullText: string, speed = 36) {
 }
 
 /* Render a typed string — handles \n as <br /> */
-function TypedText({ text }: { text: string }) {
+function TypedText({
+  text,
+  firstLineNoWrap,
+}: {
+  text: string;
+  /** Keeps the first line on one row (e.g. “Your AI career companion.”) before the manual break */
+  firstLineNoWrap?: boolean;
+}) {
   return (
     <>
       {text.split("\n").map((line, i) => (
-        <Fragment key={i}>{i > 0 && <br />}{line}</Fragment>
+        <Fragment key={i}>
+          {i > 0 && <br />}
+          {firstLineNoWrap && i === 0 ? (
+            <span className={s.heroHeadlineFirstLine}>{line}</span>
+          ) : (
+            line
+          )}
+        </Fragment>
       ))}
     </>
   );
@@ -126,10 +140,10 @@ export function HeroV2({ audience }: { audience: V2Audience }) {
           >
             <span className={s.heroHeadlineSlot}>
               <span className={s.heroHeadlineMeasure} aria-hidden="true">
-                <TypedText text={c.headlineText} />
+                <TypedText text={c.headlineText} firstLineNoWrap />
               </span>
               <span className={s.heroHeadlineLive}>
-                <TypedText text={typed} />
+                <TypedText text={typed} firstLineNoWrap />
                 <span className={s.heroCursor} aria-hidden="true" />
               </span>
             </span>

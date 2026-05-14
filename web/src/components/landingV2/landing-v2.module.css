@@ -247,6 +247,17 @@
   width: 100%;
 }
 
+/* First sentence stays one line until the explicit line break; avoids “companion.” alone on a row */
+.heroHeadlineFirstLine {
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .heroHeadlineFirstLine {
+    white-space: normal;
+  }
+}
+
 .heroCursor {
   display: inline-block;
   width: 3px;
