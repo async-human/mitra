@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, Fragment } from "react";
 import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,6 +45,9 @@ interface Message {
   pendingToolLabel?: string;
   webSources?: WebSource[];
 }
+
+/** Braille dot cycle for in-chat tool progress (matches CLI-style spinners). */
+const TOOL_SPINNER_FRAMES = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"] as const;
 
 const TOOL_DISPLAY: Record<string, string> = {
   search_jobs: "search jobs",
@@ -110,9 +113,23 @@ export function MitraChat({
   const [loading, setLoading] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [storedMatchIds, setStoredMatchIds] = useState<string>("");
+  const [toolSpinnerFrame, setToolSpinnerFrame] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initialized = useRef(false);
+
+  const hasPendingTool = useMemo(
+    () => messages.some(m => m.role === "mitra" && m.pendingToolLabel),
+    [messages],
+  );
+
+  useEffect(() => {
+    if (!hasPendingTool) return;
+    const id = window.setInterval(() => {
+      setToolSpinnerFrame(f => (f + 1) % TOOL_SPINNER_FRAMES.length);
+    }, 90);
+    return () => window.clearInterval(id);
+  }, [hasPendingTool]);
 
   // On mount: check localStorage for existing matches from a previous session
   useEffect(() => {
@@ -366,7 +383,9 @@ export function MitraChat({
                 <div key={i} className="wc-msg-mitra">
                   {msg.pendingToolLabel && (
                     <div className="wc-tool-call" role="status" aria-live="polite">
-                      <span className="wc-tool-spinner" aria-hidden />
+                      <span className="wc-tool-spinner-char" aria-hidden>
+                        {TOOL_SPINNER_FRAMES[toolSpinnerFrame]}
+                      </span>
                       <span className="wc-tool-label">Calling {msg.pendingToolLabel}</span>
                     </div>
                   )}

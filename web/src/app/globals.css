@@ -5174,19 +5174,17 @@ img.wchat-av--user { border-radius: 50%; }
   color: rgba(60, 52, 44, 0.72);
   letter-spacing: 0.01em;
 }
-.wc-tool-spinner {
-  width: 11px;
-  height: 11px;
+.wc-tool-spinner-char {
   flex-shrink: 0;
-  border: 1.5px dotted rgba(60, 52, 44, 0.45);
-  border-radius: 2px;
-  animation: wc-tool-spin 0.65s linear infinite;
+  width: 1.1em;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1;
+  font-family: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
+  color: rgba(60, 52, 44, 0.78);
 }
 .wc-tool-label {
   font-variant-numeric: tabular-nums;
-}
-@keyframes wc-tool-spin {
-  to { transform: rotate(90deg); }
 }
 
 .wc-web-sources {
@@ -5408,8 +5406,8 @@ img.wchat-av--user { border-radius: 50%; }
 [data-theme="dark"] .wc-logo-text { color: #fff; }
 [data-theme="dark"] .wc-msg-mitra-text { color: rgba(255,255,255,0.92); }
 [data-theme="dark"] .wc-tool-call { color: rgba(255,255,255,0.55); }
-[data-theme="dark"] .wc-tool-spinner {
-  border-color: rgba(255,255,255,0.45);
+[data-theme="dark"] .wc-tool-spinner-char {
+  color: rgba(255,255,255,0.75);
 }
 [data-theme="dark"] .wc-web-sources {
   border-top-color: rgba(255,255,255,0.12);
