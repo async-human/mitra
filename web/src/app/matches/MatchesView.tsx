@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, Fragment } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { deriveMatchCardsFromIntros } from "@/app/dashboard/deriveMatchCards";
+import type { CandidateIntro } from "@/app/dashboard/introTypes";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -580,6 +582,24 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
       let basic: BasicCard[] | null = null;
       if (raw) {
         try { basic = JSON.parse(raw); } catch { basic = null; }
+      }
+
+      if ((!basic || basic.length === 0) && userEmail) {
+        try {
+          const r = await fetch(
+            `${API_URL}/candidate/intros?session_id=${encodeURIComponent(userEmail)}`,
+          );
+          if (r.ok) {
+            const data: unknown = await r.json();
+            if (Array.isArray(data) && data.length > 0) {
+              const derived = deriveMatchCardsFromIntros(data as CandidateIntro[]);
+              basic = derived;
+              try {
+                localStorage.setItem(matchesKey(userEmail), JSON.stringify(derived));
+              } catch { /* ignore */ }
+            }
+          }
+        } catch { /* ignore */ }
       }
 
       let ids: string;

@@ -6,6 +6,7 @@ import { WhatsAppIcon } from "@/components/icons";
 import { MatchesPanelClient } from "./MatchesPanelClient";
 import { IntrosPanelClient } from "./IntrosPanelClient";
 import type { CandidateIntro } from "./introTypes";
+import { deriveMatchCardsFromIntros, type StoredMatchCard } from "./deriveMatchCards";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -64,12 +65,6 @@ function CalendarIcon() {
 
 /* ── Types ──────────────────────────────────────────────────────────────── */
 
-interface StoredCard {
-  id: string;
-  title: string;
-  description: string;
-  why?: string;
-}
 type StepState = "done" | "current" | "locked";
 
 type DashboardUpdateKind = "offer" | "interview" | "hired" | "intros" | "shortlist" | "default";
@@ -83,7 +78,7 @@ interface DashboardUpdate {
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 
-function getDashboardUpdate(matches: StoredCard[], intros: CandidateIntro[]): DashboardUpdate {
+function getDashboardUpdate(matches: StoredMatchCard[], intros: CandidateIntro[]): DashboardUpdate {
   const offers = intros.filter((i) => i.status === "offer");
   if (offers.length > 0) {
     const company = offers[0].company;
@@ -287,26 +282,50 @@ export function DashboardClient({
   greeting: string;
   waHref: string;
 }) {
-  const [matches, setMatches] = useState<StoredCard[]>([]);
+  const [matches, setMatches] = useState<StoredMatchCard[]>([]);
   const [intros, setIntros] = useState<CandidateIntro[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw =
-        localStorage.getItem(`mitra-matches-${userEmail}`) ??
-        localStorage.getItem("mitra-matches");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) setMatches(parsed);
-      }
-    } catch { /* ignore */ }
+    let cancelled = false;
+    (async () => {
+      let fromLs: StoredMatchCard[] = [];
+      try {
+        const raw =
+          localStorage.getItem(`mitra-matches-${userEmail}`) ??
+          localStorage.getItem("mitra-matches");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) fromLs = parsed;
+        }
+      } catch { /* ignore */ }
 
-    fetch(`${API_URL}/candidate/intros?session_id=${encodeURIComponent(userEmail)}`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data: CandidateIntro[]) => { if (Array.isArray(data)) setIntros(data); })
-      .catch(() => {})
-      .finally(() => setLoaded(true));
+      let introsData: CandidateIntro[] = [];
+      try {
+        const r = await fetch(
+          `${API_URL}/candidate/intros?session_id=${encodeURIComponent(userEmail)}`,
+        );
+        if (r.ok) {
+          const data = await r.json();
+          if (Array.isArray(data)) introsData = data;
+        }
+      } catch { /* ignore */ }
+
+      if (cancelled) return;
+
+      if (fromLs.length === 0 && introsData.length > 0) {
+        const derived = deriveMatchCardsFromIntros(introsData);
+        setMatches(derived);
+        try {
+          localStorage.setItem(`mitra-matches-${userEmail}`, JSON.stringify(derived));
+        } catch { /* ignore */ }
+      } else {
+        setMatches(fromLs);
+      }
+      setIntros(introsData);
+      setLoaded(true);
+    })();
+    return () => { cancelled = true; };
   }, [userEmail]);
 
   const hasMatches = matches.length > 0;

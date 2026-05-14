@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { introStatusMeta, isTerminalIntroStatus } from "./candidatePipeline";
 import type { CandidateIntro } from "./introTypes";
-
-interface StoredCard { id: string; title: string; description: string; why?: string }
+import { deriveMatchCardsFromIntros, type StoredMatchCard } from "./deriveMatchCards";
 
 function parseMatchCardDescription(description: string) {
   const parts = description.split(" · ").map((s) => s.trim()).filter(Boolean);
@@ -53,14 +52,26 @@ export function MatchesPanelClient({
       const raw = localStorage.getItem(matchesKey(userEmail))
         ?? localStorage.getItem("mitra-matches");
       if (raw) {
-        const parsed: StoredCard[] = JSON.parse(raw);
+        const parsed: StoredMatchCard[] = JSON.parse(raw);
         if (parsed.length > 0) {
           setCards(parsed);
           setMatchIds(parsed.map(c => c.id.replace(/^job_/, "")).join(","));
+          return;
         }
       }
     } catch { /* localStorage unavailable or corrupt */ }
-  }, [userEmail]);
+
+    if (introsLoaded && intros.length > 0) {
+      const derived = deriveMatchCardsFromIntros(intros);
+      if (derived.length > 0) {
+        setCards(derived);
+        setMatchIds(derived.map(c => c.id.replace(/^job_/, "")).join(","));
+        try {
+          localStorage.setItem(matchesKey(userEmail), JSON.stringify(derived));
+        } catch { /* ignore */ }
+      }
+    }
+  }, [userEmail, intros, introsLoaded]);
 
   const introByJobId = useMemo(() => {
     const m = new Map<string, { job_id: number; status: string }>();
