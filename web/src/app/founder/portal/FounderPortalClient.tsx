@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { UserMenu } from "@/app/dashboard/UserMenu";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
@@ -537,7 +538,13 @@ function EmptyState() {
 
 // ── Main portal ───────────────────────────────────────────────────────────────
 
-export function FounderPortalClient({ token }: { token: string }) {
+export function FounderPortalClient({
+  token,
+  sessionUser,
+}: {
+  token: string;
+  sessionUser?: { name?: string | null; email?: string | null; image?: string | null };
+}) {
   const [data, setData]             = useState<PortalData | null>(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string>("");
@@ -639,6 +646,13 @@ export function FounderPortalClient({ token }: { token: string }) {
             + Add role
           </a>
           <span className="fp2-topbar-pill">Founder Portal</span>
+          {sessionUser?.email ? (
+            <UserMenu
+              name={sessionUser.name}
+              email={sessionUser.email}
+              image={sessionUser.image}
+            />
+          ) : null}
         </div>
       </header>
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { auth } from "@/auth";
 import { FounderPortalClient } from "./FounderPortalClient";
 
 export const metadata: Metadata = {
@@ -13,5 +14,13 @@ export default async function FounderPortalPage({
 }) {
   const params = await searchParams;
   const token = params.token ?? "";
-  return <FounderPortalClient token={token} />;
+  const session = await auth();
+  const sessionUser = session?.user?.email
+    ? {
+        name: session.user.name,
+        email: session.user.email,
+        image: session.user.image,
+      }
+    : undefined;
+  return <FounderPortalClient token={token} sessionUser={sessionUser} />;
 }

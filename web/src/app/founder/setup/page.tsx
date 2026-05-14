@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { UserMenu } from "@/app/dashboard/UserMenu";
 import { TokenInput } from "./TokenInput";
 
 export const metadata: Metadata = {
@@ -91,14 +92,20 @@ export default async function FounderSetupPage({
     return (
       <main className="fp-setup-page">
         <div className="fp-setup-card fp-setup-card--wide">
-          {/* Logo */}
-          <div className="fp-setup-logo">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-              <rect width="32" height="32" rx="8" fill="#111" />
-              <path d="M8 24V10l8-3 8 3v14l-8 3-8-3Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-              <path d="M16 7v17M8 10l8 3 8-3" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-            </svg>
-            <span className="fp-setup-brand">Mitra</span>
+          <div className="fp-setup-header">
+            <div className="fp-setup-logo">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                <rect width="32" height="32" rx="8" fill="#111" />
+                <path d="M8 24V10l8-3 8 3v14l-8 3-8-3Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+                <path d="M16 7v17M8 10l8 3 8-3" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+              </svg>
+              <span className="fp-setup-brand">Mitra</span>
+            </div>
+            <UserMenu
+              name={session.user.name}
+              email={session.user.email}
+              image={session.user.image}
+            />
           </div>
 
           <div>
@@ -159,13 +166,20 @@ export default async function FounderSetupPage({
   return (
     <main className="fp-setup-page">
       <div className="fp-setup-card">
-        <div className="fp-setup-logo">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-            <rect width="32" height="32" rx="8" fill="#111" />
-            <path d="M8 24V10l8-3 8 3v14l-8 3-8-3Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-            <path d="M16 7v17M8 10l8 3 8-3" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
-          </svg>
-          <span className="fp-setup-brand">Mitra</span>
+        <div className="fp-setup-header">
+          <div className="fp-setup-logo">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <rect width="32" height="32" rx="8" fill="#111" />
+              <path d="M8 24V10l8-3 8 3v14l-8 3-8-3Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+              <path d="M16 7v17M8 10l8 3 8-3" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+            </svg>
+            <span className="fp-setup-brand">Mitra</span>
+          </div>
+          <UserMenu
+            name={session.user.name}
+            email={session.user.email}
+            image={session.user.image}
+          />
         </div>
 
         <h1 className="fp-setup-title">Hi {name}, welcome to Mitra</h1>

@@ -4380,6 +4380,30 @@ body {
   gap: 10px;
 }
 
+.fp-setup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.fp-setup-header .dash-user-menu {
+  flex-shrink: 0;
+}
+
+.fp-setup-header .dash-topbar-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 520px) {
+  .fp-setup-header .dash-topbar-name {
+    max-width: 180px;
+  }
+}
+
 .fp-setup-brand {
   font-size: 18px;
   font-weight: 700;
@@ -7253,6 +7277,23 @@ img.wchat-av--user { border-radius: 50%; }
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.fp2-topbar-right .dash-user-menu {
+  margin-left: 4px;
+}
+
+.fp2-topbar-right .dash-topbar-name {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .fp2-topbar-right .dash-topbar-name {
+    max-width: 160px;
+  }
 }
 
 .fp2-topbar-link {
