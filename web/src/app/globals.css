@@ -5189,6 +5189,57 @@ img.wchat-av--user { border-radius: 50%; }
   to { transform: rotate(90deg); }
 }
 
+.wc-web-sources {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(60, 52, 44, 0.18);
+}
+.wc-web-sources-heading {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(60, 52, 44, 0.55);
+  margin-bottom: 8px;
+}
+.wc-web-sources-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wc-web-source-link {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--amber);
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(94, 106, 210, 0.2);
+  background: rgba(94, 106, 210, 0.06);
+  transition: border-color 0.15s, background 0.15s;
+}
+.wc-web-source-link:hover {
+  border-color: rgba(94, 106, 210, 0.45);
+  background: rgba(94, 106, 210, 0.1);
+}
+.wc-web-source-title {
+  line-height: 1.4;
+  word-break: break-word;
+}
+.wc-web-source-icon {
+  flex-shrink: 0;
+  opacity: 0.65;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 /* User message — pill bubble, right aligned */
 .wc-msg-user-wrap { display: flex; justify-content: flex-end; }
 .wc-msg-user {
@@ -5359,6 +5410,21 @@ img.wchat-av--user { border-radius: 50%; }
 [data-theme="dark"] .wc-tool-call { color: rgba(255,255,255,0.55); }
 [data-theme="dark"] .wc-tool-spinner {
   border-color: rgba(255,255,255,0.45);
+}
+[data-theme="dark"] .wc-web-sources {
+  border-top-color: rgba(255,255,255,0.12);
+}
+[data-theme="dark"] .wc-web-sources-heading {
+  color: rgba(255,255,255,0.45);
+}
+[data-theme="dark"] .wc-web-source-link {
+  border-color: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: rgba(180, 186, 240, 1);
+}
+[data-theme="dark"] .wc-web-source-link:hover {
+  border-color: rgba(180, 186, 240, 0.35);
+  background: rgba(255,255,255,0.06);
 }
 [data-theme="dark"] .wc-input { color: rgba(255,255,255,0.92); }
 [data-theme="dark"] .wc-input::placeholder { color: rgba(255,255,255,0.3); }

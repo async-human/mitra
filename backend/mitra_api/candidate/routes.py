@@ -347,14 +347,22 @@ async def candidate_chat(
     )
 
 
-async def _sse_stream_reply(reply: str, job_cards: list[dict]) -> AsyncIterator[str]:
+async def _sse_stream_reply(
+    reply: str,
+    job_cards: list[dict],
+    *,
+    web_sources: list[dict[str, str]] | None = None,
+) -> AsyncIterator[str]:
     """Yield SSE events: one token per word, then a done event with job cards."""
     words = reply.split(" ")
     for i, word in enumerate(words):
         chunk = word if i == 0 else f" {word}"
         yield f"data: {json.dumps({'t': 'tok', 'v': chunk})}\n\n"
         await asyncio.sleep(0.035)  # ~28 words / sec — natural reading pace
-    yield f"data: {json.dumps({'t': 'end', 'cards': job_cards})}\n\n"
+    payload: dict[str, Any] = {"t": "end", "cards": job_cards}
+    if web_sources:
+        payload["webSources"] = web_sources
+    yield f"data: {json.dumps(payload)}\n\n"
 
 
 async def _sse_stream_with_tools(
@@ -367,6 +375,8 @@ async def _sse_stream_with_tools(
     settings: Settings,
 ) -> AsyncIterator[str]:
     """Run agent turn while forwarding tool start/end as SSE, then stream reply tokens."""
+    # SSE comment event — encourages proxies/clients to flush before the long agent turn.
+    yield ": mitra-stream\n\n"
     q: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
     turn_box: dict[str, Any] = {}
 
@@ -416,7 +426,12 @@ async def _sse_stream_with_tools(
         {"id": c.id, "title": c.title, "description": c.description, "why": c.why}
         for c in _build_job_cards(turn)
     ]
-    async for chunk in _sse_stream_reply(reply_text, cards_data):
+    web_sources = list(turn.web_research_sources)
+    async for chunk in _sse_stream_reply(
+        reply_text,
+        cards_data,
+        web_sources=web_sources if web_sources else None,
+    ):
         yield chunk
 
 

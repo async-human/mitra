@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, Fragment } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -14,7 +15,36 @@ function parseJobCard(card: JobCard): { company: string; fit: string; tags: stri
   const tags = parts.filter((_, i) => i !== 0 && i !== fitIdx);
   return { company, fit, tags };
 }
-interface Message { role: "mitra" | "user"; text: string; jobCards?: JobCard[]; pendingToolLabel?: string }
+interface WebSource { title: string; url: string }
+
+function safeExternalUrl(raw: string): string | null {
+  try {
+    const u = new URL(raw.trim());
+    if (u.protocol === "http:" || u.protocol === "https:") return u.toString();
+  } catch { /* ignore */ }
+  return null;
+}
+
+function normalizeWebSources(raw: unknown): WebSource[] {
+  if (!Array.isArray(raw)) return [];
+  const out: WebSource[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const rec = item as { url?: unknown; title?: unknown };
+    const url = safeExternalUrl(String(rec.url ?? ""));
+    if (!url) continue;
+    const title = String(rec.title ?? "").trim() || new URL(url).hostname;
+    out.push({ title: title.slice(0, 400), url });
+  }
+  return out;
+}
+interface Message {
+  role: "mitra" | "user";
+  text: string;
+  jobCards?: JobCard[];
+  pendingToolLabel?: string;
+  webSources?: WebSource[];
+}
 
 const TOOL_DISPLAY: Record<string, string> = {
   search_jobs: "search jobs",
@@ -121,9 +151,11 @@ export function MitraChat({
       let cards: JobCard[] = [];
 
       // Insert an empty mitra message — we'll stream text into it
-      setMessages(prev => {
-        placeholderIdx.current = prev.length;
-        return [...prev, { role: "mitra", text: "" }];
+      flushSync(() => {
+        setMessages(prev => {
+          placeholderIdx.current = prev.length;
+          return [...prev, { role: "mitra", text: "" }];
+        });
       });
       setLoading(false);
 
@@ -167,27 +199,26 @@ export function MitraChat({
                   }
                   return next;
                 });
-              } else if (phase === "end") {
-                setMessages(prev => {
-                  const next = [...prev];
-                  const idx = placeholderIdx.current;
-                  if (idx >= 0 && next[idx]) {
-                    next[idx] = { ...next[idx], pendingToolLabel: undefined };
-                  }
-                  return next;
-                });
               }
+              // Keep spinner visible until reply tokens stream (phase "end" is ignored on purpose).
             } else if (event.t === "end") {
               cards = event.cards ?? [];
+              const webSources = normalizeWebSources(event.webSources);
+              setMessages(prev => {
+                if (cards.length === 0 && webSources.length === 0) return prev;
+                const next = [...prev];
+                const idx = placeholderIdx.current;
+                if (idx >= 0 && next[idx]) {
+                  const cur = next[idx];
+                  next[idx] = {
+                    ...cur,
+                    ...(cards.length > 0 ? { jobCards: cards } : {}),
+                    ...(webSources.length > 0 ? { webSources } : {}),
+                  };
+                }
+                return next;
+              });
               if (cards.length > 0) {
-                setMessages(prev => {
-                  const next = [...prev];
-                  const idx = placeholderIdx.current;
-                  if (idx >= 0 && next[idx]) {
-                    next[idx] = { ...next[idx], jobCards: cards };
-                  }
-                  return next;
-                });
                 const now = new Date().toISOString();
                 const stamped = cards.map(c => ({ ...c, recommended_at: now }));
                 localStorage.setItem(matchesKey(userEmail), JSON.stringify(stamped));
@@ -340,6 +371,26 @@ export function MitraChat({
                     </div>
                   )}
                   <p className="wc-msg-mitra-text">{renderText(msg.text)}</p>
+                  {msg.webSources && msg.webSources.length > 0 && (
+                    <div className="wc-web-sources">
+                      <div className="wc-web-sources-heading">Sources</div>
+                      <ul className="wc-web-sources-list">
+                        {msg.webSources.map((s, i) => (
+                          <li key={`${s.url}-${i}`}>
+                            <a
+                              className="wc-web-source-link"
+                              href={s.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <span className="wc-web-source-title">{s.title}</span>
+                              <span className="wc-web-source-icon" aria-hidden>↗</span>
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   {msg.jobCards && msg.jobCards.length > 0 && (
                     <div className="wc-job-cards">
                       {msg.jobCards.map(card => {

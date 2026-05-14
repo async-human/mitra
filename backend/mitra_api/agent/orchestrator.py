@@ -99,6 +99,7 @@ class AgentTurn:
     whatsapp_outro: tuple[str, ...]
     whatsapp_fallback_plain_parts: tuple[str, ...]
     job_whys: dict[str, str] = field(default_factory=dict)
+    web_research_sources: tuple[dict[str, str], ...] = ()
 
 
 # ── TOOL DEFINITIONS ─────────────────────────────────────────────────────────
@@ -1105,6 +1106,8 @@ async def run_agent_turn(
     }
 
     last_search_jobs_payload: dict[str, Any] | None = None
+    web_research_accum: list[dict[str, str]] = []
+    web_research_seen_urls: set[str] = set()
     final_text: str | None = None
     rounds = 0
 
@@ -1177,6 +1180,27 @@ async def run_agent_turn(
                             )
                         except json.JSONDecodeError:
                             log.warning("[agent:%s] search_jobs result was not valid JSON", whatsapp_sender_id)
+                    elif tc.name == "web_market_research":
+                        try:
+                            payload = json.loads(out)
+                            if payload.get("ok") and isinstance(payload.get("results"), list):
+                                for r in payload["results"]:
+                                    if not isinstance(r, dict):
+                                        continue
+                                    url = str(r.get("url") or "").strip()
+                                    if not url or url in web_research_seen_urls:
+                                        continue
+                                    web_research_seen_urls.add(url)
+                                    title = str(r.get("title") or "").strip() or url
+                                    web_research_accum.append(
+                                        {"title": title[:400], "url": url[:800]}
+                                    )
+                        except json.JSONDecodeError:
+                            log.debug(
+                                "[agent:%s] web_market_research result not JSON",
+                                whatsapp_sender_id,
+                            )
+                        log.info("[agent:%s] tool web_market_research completed OK", whatsapp_sender_id)
                     else:
                         log.info("[agent:%s] tool %s completed OK", whatsapp_sender_id, tc.name)
                 except Exception as exc:
@@ -1303,6 +1327,7 @@ async def run_agent_turn(
         whatsapp_outro=whats_outro,
         whatsapp_fallback_plain_parts=tuple(fallback_parts),
         job_whys=job_whys,
+        web_research_sources=tuple(web_research_accum),
     )
 
 
