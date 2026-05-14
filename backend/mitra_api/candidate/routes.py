@@ -36,6 +36,7 @@ class CandidateChatRequest(BaseModel):
     session_id: str = Field(..., min_length=1, max_length=200)
     message: str = Field(default="", max_length=4000)
     user_name: str | None = Field(default=None, max_length=100)
+    web_intent: str | None = Field(default=None, max_length=64)
 
 
 class JobCard(BaseModel):
@@ -337,6 +338,7 @@ async def candidate_chat(
         sessions=store,
         settings=settings,
         fresh_start=fresh_start,
+        web_intent=body.web_intent,
     )
     return CandidateChatResponse(
         reply=turn.history_assistant_text,
@@ -374,6 +376,7 @@ async def candidate_chat_stream(
             sessions=store,
             settings=settings,
             fresh_start=fresh_start,
+            web_intent=body.web_intent,
         )
         reply_text = turn.history_assistant_text
         cards_data = [

@@ -164,8 +164,25 @@ function IntroDetailModal({ intro, onClose }: { intro: CandidateIntro; onClose: 
         )}
 
         <div className="dash-modal-footer">
-          <p className="dash-modal-footer-note">Questions? Chat with Mitra — we&apos;ll help you decide.</p>
-          <Link href="/chat" className="dash-modal-chat-btn" onClick={onClose}>Chat with Mitra →</Link>
+          <p className="dash-modal-footer-note">
+            {intro.status === "offer"
+              ? "Mitra can help you think through terms, tradeoffs, and how to reply — not legal advice."
+              : "Questions? Chat with Mitra — we&apos;ll help you decide."}
+          </p>
+          <div className="dash-modal-footer-row">
+            {intro.status === "offer" ? (
+              <Link
+                href="/chat?intent=offer_coach"
+                className="dash-modal-chat-btn dash-modal-chat-btn--primary"
+                onClick={onClose}
+              >
+                Help with this offer →
+              </Link>
+            ) : null}
+            <Link href="/chat" className="dash-modal-chat-btn" onClick={onClose}>
+              Chat with Mitra →
+            </Link>
+          </div>
         </div>
       </div>
     </div>

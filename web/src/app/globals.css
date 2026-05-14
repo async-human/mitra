@@ -2770,6 +2770,16 @@ body {
 .dash-hero-action--solid svg {
   opacity: 1;
 }
+.dash-hero-action--emph {
+  border-color: rgba(27, 94, 90, 0.35);
+  color: var(--teal);
+  background: rgba(27, 94, 90, 0.06);
+}
+.dash-hero-action--emph:hover {
+  border-color: var(--teal);
+  background: rgba(27, 94, 90, 0.1);
+  color: var(--teal-2);
+}
 
 /* Command card — update + stats + pipeline in one surface */
 .dash-command-card {
@@ -3225,6 +3235,20 @@ body {
   transition: color 0.15s;
 }
 .dash-pipeline-update:hover { color: var(--foreground); }
+.dash-pipeline-update--accent {
+  color: var(--teal);
+  font-weight: 600;
+}
+.dash-pipeline-update--accent:hover {
+  color: var(--teal-2);
+}
+.dash-pipeline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 20px;
+  flex-shrink: 0;
+}
 
 /* Journey steps */
 .dash-journey {
@@ -3876,9 +3900,16 @@ body {
 .dash-modal-footer {
   padding: 14px 20px 18px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: 12px;
+}
+.dash-modal-footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
 }
 .dash-modal-footer-note {
   font-size: 12px;
@@ -3899,6 +3930,13 @@ body {
   white-space: nowrap;
 }
 .dash-modal-chat-btn:hover { background: #E5E7EB; }
+.dash-modal-chat-btn--primary {
+  background: var(--teal);
+  color: #fff;
+}
+.dash-modal-chat-btn--primary:hover {
+  background: var(--teal-2);
+}
 @keyframes statusPop {
   from { transform: scale(0.85); opacity: 0; }
   to   { transform: scale(1);    opacity: 1; }

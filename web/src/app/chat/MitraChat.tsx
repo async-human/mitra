@@ -82,7 +82,7 @@ export function MitraChat({
     } catch { /* ignore */ }
   }, [userEmail]);
 
-  const callApi = useCallback(async (message: string) => {
+  const callApi = useCallback(async (message: string, opts?: { web_intent?: string }) => {
     setLoading(true);
     // Add a placeholder message that we'll fill in as tokens arrive
     const placeholderIdx = { current: -1 };
@@ -90,7 +90,12 @@ export function MitraChat({
       const res = await fetch(`${API_URL}/candidate/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session_id: userEmail, message, user_name: userName }),
+        body: JSON.stringify({
+          session_id: userEmail,
+          message,
+          user_name: userName,
+          ...(opts?.web_intent ? { web_intent: opts.web_intent } : {}),
+        }),
       });
       if (!res.ok || !res.body) throw new Error("failed");
 
@@ -174,6 +179,11 @@ export function MitraChat({
         const msg = "I want to update my job search preferences";
         setMessages([{ role: "user", text: msg }]);
         callApi(msg);
+      } else if (intent === "offer_coach") {
+        const msg =
+          "I'd like help thinking through an offer — what to ask for, how to compare terms, or how to word a reply to the company. I'm not looking for legal advice.";
+        setMessages([{ role: "user", text: msg }]);
+        callApi(msg, { web_intent: "offer_coach" });
       } else if (intent === "strengthen_intro" && strengthenIntro) {
         const { jobId, company, role, missing } = strengthenIntro;
         const missingLine =

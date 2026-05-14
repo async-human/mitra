@@ -361,9 +361,16 @@ export function DashboardClient({
           </p>
         </div>
       </div>
-      <Link href="/chat?intent=update" className="dash-pipeline-update">
-        Update preferences →
-      </Link>
+      <div className="dash-pipeline-actions">
+        {offerCount > 0 ? (
+          <Link href="/chat?intent=offer_coach" className="dash-pipeline-update dash-pipeline-update--accent">
+            Help with offer →
+          </Link>
+        ) : null}
+        <Link href="/chat?intent=update" className="dash-pipeline-update">
+          Update preferences →
+        </Link>
+      </div>
     </>
   );
 
@@ -375,15 +382,22 @@ export function DashboardClient({
             <p className="dash-hero-eyebrow">{greeting}</p>
             <h1 className="dash-hero-name">{firstName}.</h1>
           </div>
-          {hasMatches ? (
+          {(hasMatches || (loaded && offerCount > 0)) ? (
             <div className="dash-hero-actions">
               <Link href="/chat" className="dash-hero-action dash-hero-action--solid">
                 <ChatIcon />
                 Chat
               </Link>
-              <Link href="/matches" className="dash-hero-action">
-                Shortlist
-              </Link>
+              {loaded && offerCount > 0 ? (
+                <Link href="/chat?intent=offer_coach" className="dash-hero-action dash-hero-action--emph">
+                  Offer help
+                </Link>
+              ) : null}
+              {hasMatches ? (
+                <Link href="/matches" className="dash-hero-action">
+                  Shortlist
+                </Link>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -424,6 +438,13 @@ export function DashboardClient({
                   </p>
                 </div>
               </div>
+              {offerCount > 0 ? (
+                <div className="dash-pipeline-actions">
+                  <Link href="/chat?intent=offer_coach" className="dash-pipeline-update dash-pipeline-update--accent">
+                    Help with offer →
+                  </Link>
+                </div>
+              ) : null}
             </div>
           ) : null}
           {hasMatches && loaded && !hasIntros ? (

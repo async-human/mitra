@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
 from mitra_api.agent.memory import build_candidate_memory, inject_memory_into_context
-from mitra_api.agent.prompts import SYSTEM_PROMPT
+from mitra_api.agent.prompts import OFFER_COACH_WEB_INTENT_OVERRIDE, SYSTEM_PROMPT
 from mitra_api.agent.session_store import AgentSessionStore
 from mitra_api.config import Settings, get_settings
 from mitra_api.db.engine import get_session_factory
@@ -608,6 +608,7 @@ async def run_agent_turn(
     media_url: str | None = None,     # set if WhatsApp message has a PDF attachment
     media_type: str | None = None,    # "application/pdf" etc
     fresh_start: bool = False,        # True when user explicitly asked to start over
+    web_intent: str | None = None,    # e.g. "offer_coach" from Mitra web app
 ) -> AgentTurn:
     """
     Process one inbound WhatsApp message and return the agent's response.
@@ -919,6 +920,10 @@ async def run_agent_turn(
         weak_note = await _load_weak_intros_note(whatsapp_sender_id, db_factory)
         if weak_note:
             msgs.append(ChatMessage(role="system", content=weak_note))
+
+    if web_intent == "offer_coach":
+        msgs.append(ChatMessage(role="system", content=OFFER_COACH_WEB_INTENT_OVERRIDE))
+        log.info("[agent:%s] web_intent=offer_coach — injected offer coaching override", whatsapp_sender_id)
 
     # Auto-parse PDF resume before the LLM turn so the agent gets structured data,
     # not a raw URL it has to figure out what to do with.
