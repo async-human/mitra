@@ -624,6 +624,12 @@ async def run_agent_turn(
         sessions=sessions,
     )
 
+    if fresh_start:
+        await sessions.merge_signals(whatsapp_sender_id, {"_offer_coach_thread": False})
+        offer_coach_thread = False
+    else:
+        offer_coach_thread = bool(known_signals.get("_offer_coach_thread"))
+
     # Separate internal meta-keys — never exposed in the raw signals dump
     candidate_memory     = known_signals.pop("_memory", None)
     last_interpretation  = known_signals.pop("_last_interpretation", None)
@@ -920,6 +926,31 @@ async def run_agent_turn(
         weak_note = await _load_weak_intros_note(whatsapp_sender_id, db_factory)
         if weak_note:
             msgs.append(ChatMessage(role="system", content=weak_note))
+
+    if web_intent == "offer_coach":
+        await sessions.merge_signals(whatsapp_sender_id, {"_offer_coach_thread": True})
+        offer_coach_thread = True
+
+    if whatsapp_sender_id.startswith("web:") and offer_coach_thread:
+        try:
+            from mitra_api.tools.candidate_offer_context import build_offer_coaching_context_block
+
+            offer_block = await build_offer_coaching_context_block(whatsapp_sender_id, db_factory)
+            if offer_block:
+                msgs.append(ChatMessage(role="system", content=offer_block))
+            elif web_intent == "offer_coach":
+                msgs.append(
+                    ChatMessage(
+                        role="system",
+                        content=(
+                            "[CANDIDATE PIPELINE — FACTS ON FILE (Mitra DB)]\n"
+                            "No candidate record was found or the database could not be read. "
+                            "Ask what offer details they have; they can also check Mitra → Introductions."
+                        ),
+                    )
+                )
+        except Exception:
+            log.exception("[agent:%s] offer coaching context load failed", whatsapp_sender_id)
 
     if web_intent == "offer_coach":
         msgs.append(ChatMessage(role="system", content=OFFER_COACH_WEB_INTENT_OVERRIDE))
