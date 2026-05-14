@@ -5188,17 +5188,17 @@ img.wchat-av--user { border-radius: 50%; }
 }
 
 .wc-web-sources {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px dashed rgba(60, 52, 44, 0.18);
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(94, 106, 210, 0.28);
 }
 .wc-web-sources-heading {
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(60, 52, 44, 0.55);
-  margin-bottom: 8px;
+  letter-spacing: 0.07em;
+  color: rgba(60, 52, 44, 0.5);
+  margin-bottom: 10px;
 }
 .wc-web-sources-list {
   list-style: none;
@@ -5206,36 +5206,39 @@ img.wchat-av--user { border-radius: 50%; }
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .wc-web-source-link {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--amber);
+  position: relative;
+  display: block;
+  padding: 11px 38px 11px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(94, 106, 210, 0.22);
+  background: rgba(94, 106, 210, 0.09);
   text-decoration: none;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(94, 106, 210, 0.2);
-  background: rgba(94, 106, 210, 0.06);
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 .wc-web-source-link:hover {
-  border-color: rgba(94, 106, 210, 0.45);
-  background: rgba(94, 106, 210, 0.1);
+  border-color: rgba(94, 106, 210, 0.38);
+  background: rgba(94, 106, 210, 0.12);
+  box-shadow: 0 1px 8px rgba(94, 106, 210, 0.12);
 }
 .wc-web-source-title {
-  line-height: 1.4;
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
   word-break: break-word;
+  color: #3a3766;
 }
 .wc-web-source-icon {
-  flex-shrink: 0;
-  opacity: 0.65;
+  position: absolute;
+  top: 11px;
+  right: 12px;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 /* User message — pill bubble, right aligned */
@@ -5410,19 +5413,25 @@ img.wchat-av--user { border-radius: 50%; }
   color: rgba(255,255,255,0.75);
 }
 [data-theme="dark"] .wc-web-sources {
-  border-top-color: rgba(255,255,255,0.12);
+  border-top-color: rgba(180, 186, 240, 0.22);
 }
 [data-theme="dark"] .wc-web-sources-heading {
   color: rgba(255,255,255,0.45);
 }
 [data-theme="dark"] .wc-web-source-link {
-  border-color: rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  color: rgba(180, 186, 240, 1);
+  border-color: rgba(180, 186, 240, 0.2);
+  background: rgba(94, 106, 210, 0.14);
 }
 [data-theme="dark"] .wc-web-source-link:hover {
-  border-color: rgba(180, 186, 240, 0.35);
-  background: rgba(255,255,255,0.06);
+  border-color: rgba(180, 186, 240, 0.38);
+  background: rgba(94, 106, 210, 0.2);
+  box-shadow: 0 1px 12px rgba(0,0,0,0.25);
+}
+[data-theme="dark"] .wc-web-source-title {
+  color: rgba(200, 204, 245, 0.95);
+}
+[data-theme="dark"] .wc-web-source-icon {
+  opacity: 0.6;
 }
 [data-theme="dark"] .wc-input { color: rgba(255,255,255,0.92); }
 [data-theme="dark"] .wc-input::placeholder { color: rgba(255,255,255,0.3); }

@@ -25,6 +25,8 @@ from typing import Any, Awaitable, Callable
 
 # phase: "start" | "end", name: tool function name from the catalog.
 OnToolProgress = Callable[[str, str], Awaitable[None]]
+# Deduped list of {title, url} after each web_market_research tool completes (web UI).
+OnWebResearchSources = Callable[[list[dict[str, str]]], Awaitable[None]]
 
 from mitra_api.agent.memory import build_candidate_memory, inject_memory_into_context
 from mitra_api.agent.prompts import OFFER_COACH_WEB_INTENT_OVERRIDE, SYSTEM_PROMPT
@@ -651,6 +653,7 @@ async def run_agent_turn(
     fresh_start: bool = False,        # True when user explicitly asked to start over
     web_intent: str | None = None,    # e.g. "offer_coach" from Mitra web app
     on_tool_progress: OnToolProgress | None = None,
+    on_web_research_sources: OnWebResearchSources | None = None,
 ) -> AgentTurn:
     """
     Process one inbound WhatsApp message and return the agent's response.
@@ -1183,24 +1186,43 @@ async def run_agent_turn(
                     elif tc.name == "web_market_research":
                         try:
                             payload = json.loads(out)
-                            if payload.get("ok") and isinstance(payload.get("results"), list):
-                                for r in payload["results"]:
-                                    if not isinstance(r, dict):
-                                        continue
-                                    url = str(r.get("url") or "").strip()
-                                    if not url or url in web_research_seen_urls:
-                                        continue
-                                    web_research_seen_urls.add(url)
-                                    title = str(r.get("title") or "").strip() or url
-                                    web_research_accum.append(
-                                        {"title": title[:400], "url": url[:800]}
+                            results = payload.get("results")
+                            if not isinstance(results, list):
+                                results = []
+                            for r in results:
+                                if not isinstance(r, dict):
+                                    continue
+                                url = str(
+                                    r.get("url")
+                                    or r.get("link")
+                                    or r.get("href")
+                                    or ""
+                                ).strip()
+                                if not url or url in web_research_seen_urls:
+                                    continue
+                                web_research_seen_urls.add(url)
+                                title = str(r.get("title") or "").strip() or url
+                                web_research_accum.append(
+                                    {"title": title[:400], "url": url[:800]}
+                                )
+                            if on_web_research_sources and web_research_accum:
+                                try:
+                                    await on_web_research_sources(list(web_research_accum))
+                                except Exception:
+                                    log.debug(
+                                        "on_web_research_sources failed",
+                                        exc_info=True,
                                     )
                         except json.JSONDecodeError:
                             log.debug(
                                 "[agent:%s] web_market_research result not JSON",
                                 whatsapp_sender_id,
                             )
-                        log.info("[agent:%s] tool web_market_research completed OK", whatsapp_sender_id)
+                        log.info(
+                            "[agent:%s] tool web_market_research completed (%d sources)",
+                            whatsapp_sender_id,
+                            len(web_research_accum),
+                        )
                     else:
                         log.info("[agent:%s] tool %s completed OK", whatsapp_sender_id, tc.name)
                 except Exception as exc:

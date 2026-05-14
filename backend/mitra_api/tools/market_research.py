@@ -85,7 +85,9 @@ async def web_market_research(query: str, settings: Settings) -> dict[str, Any]:
         if not isinstance(r, dict):
             continue
         title = str(r.get("title") or "")[:400]
-        url = str(r.get("url") or "")[:800]
+        url = str(r.get("url") or r.get("link") or r.get("href") or "").strip()[:800]
+        if not url:
+            continue
         snippet = str(r.get("content") or "").strip().replace("\n", " ")
         if len(snippet) > 500:
             snippet = snippet[:497] + "…"

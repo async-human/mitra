@@ -47,9 +47,15 @@ class JobCard(BaseModel):
     why: str = ""    # personalised 1-2 sentence fit explanation from LLM reranker
 
 
+class WebSourceItem(BaseModel):
+    title: str = ""
+    url: str
+
+
 class CandidateChatResponse(BaseModel):
     reply: str
     job_cards: list[JobCard]
+    web_sources: list[WebSourceItem] = Field(default_factory=list)
 
 
 class FullJobCard(BaseModel):
@@ -344,6 +350,11 @@ async def candidate_chat(
     return CandidateChatResponse(
         reply=turn.history_assistant_text,
         job_cards=_build_job_cards(turn),
+        web_sources=[
+            WebSourceItem(title=str(s.get("title") or ""), url=str(s.get("url") or ""))
+            for s in turn.web_research_sources
+            if (s.get("url") or "").strip()
+        ],
     )
 
 
@@ -383,6 +394,10 @@ async def _sse_stream_with_tools(
     async def on_tool_progress(phase: str, name: str) -> None:
         await q.put({"t": "tool", "phase": phase, "name": name})
 
+    async def on_web_research_sources(items: list[dict[str, str]]) -> None:
+        if items:
+            await q.put({"t": "sources", "items": items})
+
     async def run_agent() -> None:
         try:
             turn = await run_agent_turn(
@@ -393,6 +408,7 @@ async def _sse_stream_with_tools(
                 fresh_start=fresh_start,
                 web_intent=web_intent,
                 on_tool_progress=on_tool_progress,
+                on_web_research_sources=on_web_research_sources,
             )
             turn_box["turn"] = turn
         except Exception:

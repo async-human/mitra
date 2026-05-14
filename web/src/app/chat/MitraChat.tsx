@@ -218,6 +218,17 @@ export function MitraChat({
                 });
               }
               // Keep spinner visible until reply tokens stream (phase "end" is ignored on purpose).
+            } else if (event.t === "sources") {
+              const webSources = normalizeWebSources(event.items);
+              if (webSources.length === 0) continue;
+              setMessages(prev => {
+                const next = [...prev];
+                const idx = placeholderIdx.current;
+                if (idx >= 0 && next[idx]) {
+                  next[idx] = { ...next[idx], webSources };
+                }
+                return next;
+              });
             } else if (event.t === "end") {
               cards = event.cards ?? [];
               const webSources = normalizeWebSources(event.webSources);
