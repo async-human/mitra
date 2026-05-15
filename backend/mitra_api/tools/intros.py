@@ -11,6 +11,7 @@ Delivery:
 from __future__ import annotations
 
 import logging
+import re
 import secrets
 from datetime import datetime, timezone
 from typing import Any
@@ -23,6 +24,53 @@ from mitra_api.tools.candidates import upsert_candidate
 from mitra_api.tools.fit_score import compute_fit_scores
 
 log = logging.getLogger(__name__)
+
+
+def normalize_why_note_for_founder(text: str, candidate_name: str | None) -> str:
+    """
+    Ensure intro "why" blurbs read as the founder being addressed *about* the candidate.
+
+    Model output sometimes uses second person ("your background… you would…") as if speaking
+    to the candidate; founders and the portal expect third person (name / they / their).
+    """
+    if not text or not str(text).strip():
+        return text
+    t = str(text)
+    poss = (
+        f"{candidate_name.strip()}'s"
+        if candidate_name and str(candidate_name).strip()
+        else "Their"
+    )
+    si = r"(^|[.!?][\"']?\s+)"
+    t = re.sub(si + r"Your\b", lambda m: m.group(1) + poss, t)
+    for label, repl in (
+        (r"You're\b", "They're"),
+        (r"You've\b", "They've"),
+        (r"You'd\b", "They'd"),
+        (r"You'll\b", "They'll"),
+        (r"You would\b", "They would"),
+        (r"You will\b", "They will"),
+        (r"You are\b", "They are"),
+        (r"You\b", "They"),
+    ):
+        t = re.sub(si + label, lambda m, r=repl: m.group(1) + r, t)
+    mid = (
+        (r"\bmakes you an\b", "makes them an"),
+        (r"\bmakes you a\b", "makes them a"),
+        (r"\byou would\b", "they would"),
+        (r"\byou'll\b", "they'll"),
+        (r"\byou've\b", "they've"),
+        (r"\byou'd\b", "they'd"),
+        (r"\byou're an\b", "they're an"),
+        (r"\byou're a\b", "they're a"),
+        (r"\byou're\b", "they're"),
+        (r"\byou will\b", "they will"),
+        (r"\byou are\b", "they are"),
+        (r"\byour (background|experience|expertise|skills|strengths?|track record|work)\b", r"their \1"),
+    )
+    for pat, rep in mid:
+        t = re.sub(pat, rep, t, flags=re.IGNORECASE)
+    return t
 
 # ── Intro gate ─────────────────────────────────────────────────────────────────
 
@@ -136,7 +184,7 @@ def _build_intro(
         f"I only make an introduction when I'm confident about the fit.\n\n"
         f"I'd like to introduce you to *{name}*, for your *{job.title}* role at {job.company}.\n\n"
         f"*Why I'm making this intro:*\n"
-        f"{why_note.strip()}\n\n"
+        f"{normalize_why_note_for_founder(why_note.strip(), name)}\n\n"
         f"*{name}'s profile:*\n"
         f"{profile_block}\n\n"
         f"I've spent time understanding both {name}'s goals and what you're building at {job.company}. "

@@ -20,6 +20,7 @@ from mitra_api.founder.jd_parser import extract_jd_signals, extract_jd_text
 from mitra_api.founder.prompts import FOUNDER_SYSTEM_PROMPT
 from mitra_api.llm.factory import get_llm_adapter
 from mitra_api.llm.types import ChatMessage, ToolDefinition
+from mitra_api.tools.intros import normalize_why_note_for_founder
 
 log = logging.getLogger(__name__)
 
@@ -1236,7 +1237,7 @@ def _compose_founders_match_dossier(
     sections: list[str] = []
     why = _extract_why_fit_from_intro_note(intro_note)
     if why:
-        sections.append(why)
+        why = normalize_why_note_for_founder(why, signals.name)
     profile = _extract_profile_block_from_intro_note(intro_note)
     if profile:
         sections.append(

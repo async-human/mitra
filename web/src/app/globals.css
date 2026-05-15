@@ -5164,6 +5164,49 @@ img.wchat-av--user { border-radius: 50%; }
   font-weight: 400;
 }
 
+/* Mitra chat markdown blocks */
+.wc-md-root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55em;
+}
+.wc-md-p {
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+.wc-md-heading {
+  margin: 0.15em 0 0;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.wc-md-heading--1 { font-size: 1.15em; }
+.wc-md-heading--2 { font-size: 1.1em; }
+.wc-md-heading--3 { font-size: 1.05em; }
+.wc-md-heading--4 { font-size: 1.02em; }
+.wc-md-heading--5,
+.wc-md-heading--6 { font-size: 1em; }
+.wc-md-ul, .wc-md-ol {
+  margin: 0.15em 0 0.35em;
+  padding-left: 1.35em;
+}
+.wc-md-ul { list-style: disc; }
+.wc-md-ol { list-style: decimal; }
+.wc-md-li {
+  margin: 0.2em 0;
+  line-height: 1.55;
+  padding-left: 0.15em;
+}
+.wc-md-li::marker { color: rgba(60, 52, 44, 0.45); }
+.wc-md-hr {
+  border: none;
+  border-top: 1px solid rgba(60, 52, 44, 0.12);
+  margin: 0.35em 0;
+}
+
 .wc-tool-call {
   display: flex;
   align-items: center;
@@ -5408,6 +5451,9 @@ img.wchat-av--user { border-radius: 50%; }
 [data-theme="dark"] .wc-logo-mark { background: #fff; color: var(--ink); }
 [data-theme="dark"] .wc-logo-text { color: #fff; }
 [data-theme="dark"] .wc-msg-mitra-text { color: rgba(255,255,255,0.92); }
+[data-theme="dark"] .wc-md-heading { color: rgba(255,255,255,0.92); }
+[data-theme="dark"] .wc-md-li::marker { color: rgba(255,255,255,0.4); }
+[data-theme="dark"] .wc-md-hr { border-top-color: rgba(255,255,255,0.12); }
 [data-theme="dark"] .wc-tool-call { color: rgba(255,255,255,0.55); }
 [data-theme="dark"] .wc-tool-spinner-char {
   color: rgba(255,255,255,0.75);

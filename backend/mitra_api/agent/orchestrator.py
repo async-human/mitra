@@ -170,10 +170,12 @@ def tool_catalog() -> list[ToolDefinition]:
         ToolDefinition(
             name="get_salary_benchmark",
             description=(
-                "Return India startup salary benchmarks (P25/median/P75 in LPA) "
-                "for a given role, startup stage, and seniority level. "
-                "Use when a candidate asks about expected salary, whether an offer "
-                "is fair, or how much they should ask for."
+                "Return Mitra's curated India startup salary benchmarks (P25/median/P75 in LPA) "
+                "for a given role, startup stage, and seniority level. This is Mitra's internal "
+                "benchmark dataset — not a live web search. Use when a candidate asks about "
+                "expected salary, whether an offer is fair, or how much they should ask for. "
+                "If they ask where data came from or want third-party web sources, also call "
+                "web_market_research unless disabled."
             ),
             parameters={
                 "type": "object",
@@ -240,8 +242,10 @@ def tool_catalog() -> list[ToolDefinition]:
                     "why_note": {
                         "type": "string",
                         "description": (
-                            "1-2 sentences explaining why this candidate fits this specific role. "
-                            "Reference their specific background and the role's requirements."
+                            "1-2 sentences FOR THE FOUNDER on why this candidate fits this role. "
+                            "Third person only (candidate's name or they/their/them). "
+                            "Never address the candidate as 'you' or 'your' — this text is inserted into the founder's intro email."
+                            " Reference specific background and role requirements."
                         ),
                     },
                     "candidate_name": {

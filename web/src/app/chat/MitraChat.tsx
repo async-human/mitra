@@ -141,14 +141,106 @@ function renderInline(line: string): React.ReactNode[] {
   return nodes;
 }
 
-function renderText(text: string) {
-  const lines = text.split("\n");
-  return lines.map((line, i) => (
-    <Fragment key={i}>
-      {i > 0 && <br />}
-      {renderInline(line)}
-    </Fragment>
-  ));
+/** Headings, lists, and paragraphs — common Mitra markdown (not full CommonMark). */
+function renderMitraMarkdown(text: string): React.ReactNode {
+  if (!text.trim()) return null;
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  const blocks: React.ReactNode[] = [];
+  let i = 0;
+  let blockKey = 0;
+
+  while (i < lines.length) {
+    const trimmed = lines[i].trim();
+    if (!trimmed) {
+      i += 1;
+      continue;
+    }
+    if (/^---+$/u.test(trimmed)) {
+      blocks.push(<hr key={`md-${blockKey++}`} className="wc-md-hr" />);
+      i += 1;
+      continue;
+    }
+    const hm = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    if (hm) {
+      const depth = hm[1].length;
+      blocks.push(
+        <div
+          key={`md-${blockKey++}`}
+          className={`wc-md-heading wc-md-heading--${depth}`}
+          role="heading"
+          aria-level={Math.min(depth + 1, 6)}
+        >
+          {renderInline(hm[2])}
+        </div>
+      );
+      i += 1;
+      continue;
+    }
+    if (/^[-*+]\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length) {
+        const t = lines[i].trim();
+        if (/^[-*+]\s+/.test(t)) {
+          items.push(t.replace(/^[-*+]\s+/, ""));
+          i += 1;
+        } else if (t === "") {
+          i += 1;
+          break;
+        } else break;
+      }
+      blocks.push(
+        <ul key={`md-${blockKey++}`} className="wc-md-ul">
+          {items.map((item, j) => (
+            <li key={j} className="wc-md-li">{renderInline(item)}</li>
+          ))}
+        </ul>
+      );
+      continue;
+    }
+    if (/^\d+\.\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length) {
+        const t = lines[i].trim();
+        if (/^\d+\.\s+/.test(t)) {
+          items.push(t.replace(/^\d+\.\s+/, ""));
+          i += 1;
+        } else if (t === "") {
+          i += 1;
+          break;
+        } else break;
+      }
+      blocks.push(
+        <ol key={`md-${blockKey++}`} className="wc-md-ol">
+          {items.map((item, j) => (
+            <li key={j} className="wc-md-li">{renderInline(item)}</li>
+          ))}
+        </ol>
+      );
+      continue;
+    }
+    const para: string[] = [];
+      while (i < lines.length) {
+        const t = lines[i].trim();
+        if (!t) break;
+        if (/^---+\s*$/.test(t)) break;
+        if (/^(#{1,6})\s+/.test(t)) break;
+      if (/^[-*+]\s+/.test(t)) break;
+      if (/^\d+\.\s+/.test(t)) break;
+      para.push(lines[i]);
+      i += 1;
+    }
+    blocks.push(
+      <p key={`md-${blockKey++}`} className="wc-md-p">
+        {para.map((ln, li) => (
+          <Fragment key={li}>
+            {li > 0 && <br />}
+            {renderInline(ln)}
+          </Fragment>
+        ))}
+      </p>
+    );
+  }
+  return <>{blocks}</>;
 }
 
 function matchesKey(email: string) {
@@ -480,7 +572,7 @@ export function MitraChat({
                     </div>
                   )}
                   {(msg.text || (!msg.awaitingReply && !msg.pendingToolLabel)) && (
-                    <p className="wc-msg-mitra-text">{renderText(msg.text)}</p>
+                    <div className="wc-msg-mitra-text wc-md-root">{renderMitraMarkdown(msg.text)}</div>
                   )}
                   {msg.webSources && msg.webSources.length > 0 && (
                     <div className="wc-web-sources">
