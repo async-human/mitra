@@ -85,6 +85,13 @@ async def create_all() -> None:
         """))
         log.info("intros.decline_reason column ready")
 
+        # decline_reason_code — structured enumerated pass category for machine-readable signal
+        await conn.execute(text("""
+            ALTER TABLE intros
+            ADD COLUMN IF NOT EXISTS decline_reason_code VARCHAR(40)
+        """))
+        log.info("intros.decline_reason_code column ready")
+
         # matches table — every recommendation decision, gated or sent
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS matches (

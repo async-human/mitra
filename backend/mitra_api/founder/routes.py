@@ -920,6 +920,7 @@ class PortalResponse(BaseModel):
     job: PortalJob
     candidates: list[PortalCandidate]
     stats: PortalStats
+    pass_reason_codes: dict[str, str] = {}  # code → label, for rendering decline UI
 
 
 class PortalActionRequest(BaseModel):
@@ -929,6 +930,7 @@ class PortalActionRequest(BaseModel):
     interview_details: dict | None = None  # {"scheduled_at","format","link","notes"}
     offer_details: dict | None = None      # {"salary_lpa","equity_percent","start_date","notes"}
     decline_reason: str | None = None      # optional free text when action == "not_a_fit"
+    decline_reason_code: str | None = None # structured category — see PASS_REASON_CODES
 
 
 class PortalActionResponse(BaseModel):
@@ -1622,7 +1624,13 @@ async def founder_portal(
         company_info=sigs.get("company_info") if isinstance(sigs.get("company_info"), dict) else {},
     )
 
-    return PortalResponse(job=job_out, candidates=candidates_out, stats=stats)
+    from mitra_api.tools.intelligence import PASS_REASON_CODES
+    return PortalResponse(
+        job=job_out,
+        candidates=candidates_out,
+        stats=stats,
+        pass_reason_codes=PASS_REASON_CODES,
+    )
 
 
 @router.post("/portal/action", response_model=PortalActionResponse)
@@ -1684,8 +1692,13 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
                 intro.offer_details = body.offer_details
         elif body.action == "hired" and intro.hired_at is None:
             intro.hired_at = now
-        elif body.action == "not_a_fit" and body.decline_reason:
-            intro.decline_reason = body.decline_reason.strip()
+        elif body.action == "not_a_fit":
+            if body.decline_reason:
+                intro.decline_reason = body.decline_reason.strip()
+            if body.decline_reason_code:
+                from mitra_api.tools.intelligence import PASS_REASON_CODES
+                if body.decline_reason_code in PASS_REASON_CODES:
+                    intro.decline_reason_code = body.decline_reason_code
         # Consume response_token (same link should not double-trigger)
         if intro.response_token:
             intro.response_token = None
@@ -1724,6 +1737,7 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
                 response_hours=response_hours if responded else None,
                 candidate_signals=candidate_signals_for_learning,
                 passed_reason=body.decline_reason if body.action == "not_a_fit" else None,
+                passed_reason_code=body.decline_reason_code if body.action == "not_a_fit" else None,
             )
             new_job_signals = dict(job.signals) if isinstance(job.signals, dict) else {}
             new_job_signals["_founder_profile"] = updated_profile

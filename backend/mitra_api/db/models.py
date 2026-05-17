@@ -189,8 +189,9 @@ class Intro(Base):
     hired_at:          Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
     interview_details: Mapped[Any|None]      = mapped_column(JSONB)  # {"scheduled_at","format","link","notes"}
     offer_details:     Mapped[Any|None]      = mapped_column(JSONB)  # {"salary_lpa","equity_percent","start_date","notes"}
-    decline_reason:    Mapped[str|None]      = mapped_column(Text)   # founder's stated reason for declining
-    updated_at:        Mapped[datetime]      = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    decline_reason:      Mapped[str|None] = mapped_column(Text)         # founder's free-text reason
+    decline_reason_code: Mapped[str|None] = mapped_column(String(40))   # structured category (see PASS_REASON_CODES)
+    updated_at:          Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     candidate: Mapped[Candidate] = relationship(back_populates="intros")
     job:       Mapped[Job]       = relationship(back_populates="intros")

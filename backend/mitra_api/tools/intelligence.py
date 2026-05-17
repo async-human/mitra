@@ -90,6 +90,20 @@ async def infer_candidate_trajectory(
 
 # ── 2. FOUNDER BEHAVIOUR LEARNING ────────────────────────────────────────────
 
+# Valid structured pass-reason codes — used by the founder portal and analytics.
+# Free text (decline_reason) is still captured alongside for nuance.
+PASS_REASON_CODES: dict[str, str] = {
+    "skill_gap":          "Tech stack doesn't match the role",
+    "seniority_mismatch": "Too junior or too senior",
+    "salary_mismatch":    "Salary expectations too high",
+    "notice_too_long":    "Notice period is too long",
+    "ownership_lacking":  "Insufficient ownership track record",
+    "culture_fit":        "Culture or values misalignment",
+    "timing":             "Role paused or not hiring right now",
+    "other":              "Other reason",
+}
+
+
 def update_founder_response_pattern(
     existing_profile: dict[str, Any],
     *,
@@ -97,28 +111,20 @@ def update_founder_response_pattern(
     response_hours: float | None,
     candidate_signals: dict[str, Any],
     passed_reason: str | None = None,
+    passed_reason_code: str | None = None,
 ) -> dict[str, Any]:
     """
     Update a founder's behavioural profile after they respond (or don't) to an intro.
 
-    Accumulates signals over time:
-    - Response velocity
-    - What candidate profiles they respond to vs pass on
-    - What their stated pass reasons reveal about their real bar
-
-    Args:
-        existing_profile: Current founder profile dict (from DB or empty {})
-        responded:         Did they respond at all?
-        response_hours:    Hours to first response (None if no response)
-        candidate_signals: The candidate's signals for this intro
-        passed_reason:     If they passed, what they said
-
-    Returns:
-        Updated profile dict to be stored in DB.
+    Accumulates over time:
+    - Response velocity (how fast they reply)
+    - Pass-reason code frequency (their real bar, machine-readable)
+    - Candidate profiles they respond to vs pass on (stack, YoE, company)
+    - Fast-response profiles (who excites them within 12h)
     """
     profile = dict(existing_profile)
 
-    total          = profile.get("total_intros_sent", 0) + 1
+    total           = profile.get("total_intros_sent", 0) + 1
     responded_count = profile.get("total_responded", 0) + (1 if responded else 0)
     profile["total_intros_sent"] = total
     profile["total_responded"]   = responded_count
@@ -131,15 +137,31 @@ def update_founder_response_pattern(
         profile["response_times_hours"] = velocities
         profile["avg_response_hours"]   = round(sum(velocities) / len(velocities), 1)
 
-    if not responded and passed_reason:
-        implicit = profile.get("implicit_filters", [])
-        implicit.append({
-            "reason":            passed_reason[:200],
-            "candidate_stack":   candidate_signals.get("primary_stack", []),
-            "candidate_yoe":     candidate_signals.get("years_experience"),
-            "candidate_company": candidate_signals.get("current_company"),
-        })
-        profile["implicit_filters"] = implicit[-10:]
+    if not responded:
+        # Track structured code frequency — e.g. {"skill_gap": 3, "salary_mismatch": 1}
+        if passed_reason_code and passed_reason_code in PASS_REASON_CODES:
+            freq = dict(profile.get("pass_reason_freq", {}))
+            freq[passed_reason_code] = freq.get(passed_reason_code, 0) + 1
+            profile["pass_reason_freq"] = freq
+
+            # Surface the top rejection pattern for the agent's context injection
+            top_code = max(freq, key=lambda k: freq[k])
+            profile["top_pass_reason"] = {
+                "code":  top_code,
+                "label": PASS_REASON_CODES[top_code],
+                "count": freq[top_code],
+            }
+
+        if passed_reason:
+            implicit = profile.get("implicit_filters", [])
+            implicit.append({
+                "reason":            passed_reason[:200],
+                "reason_code":       passed_reason_code,
+                "candidate_stack":   candidate_signals.get("primary_stack", []),
+                "candidate_yoe":     candidate_signals.get("years_experience"),
+                "candidate_company": candidate_signals.get("current_company"),
+            })
+            profile["implicit_filters"] = implicit[-10:]
 
     if responded and response_hours is not None and response_hours < 12:
         fast_profiles = profile.get("fast_response_profiles", [])

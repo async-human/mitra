@@ -242,17 +242,38 @@ async def get_acknowledged_no_interview(
 
 
 def build_acknowledged_nudge_message(intro_data: dict[str, Any]) -> str:
-    founder   = intro_data.get("founder_name", "there")
-    candidate = intro_data.get("candidate_name", "the candidate")
-    role      = intro_data.get("job_title", "the role")
+    founder        = intro_data.get("founder_name", "there")
+    candidate      = intro_data.get("candidate_name", "the candidate")
+    candidate_first = candidate.split()[0] if candidate and candidate != "the candidate" else candidate
+    role           = intro_data.get("job_title", "the role")
 
     return (
         f"Hi {founder},\n\n"
-        f"Just checking in — you expressed interest in {candidate} for {role}. "
-        f"Have you had a chance to connect yet?\n\n"
-        f"If you'd like to move forward, I can help coordinate availability. "
-        f"Or if your requirements have shifted, just let me know and I'll "
-        f"adjust what I send next.\n\n"
+        f"You showed interest in {candidate} for {role} — I want to make sure this "
+        f"doesn't stall in scheduling.\n\n"
+        f"Share 2–3 windows that work for you this week (30 min each) and I'll reach "
+        f"out to {candidate_first} directly to lock in a time. No calendar ping-pong "
+        f"needed on your end.\n\n"
+        f"If your requirements have shifted, just say so — I'll adjust.\n\n"
+        f"— Mitra"
+    )
+
+
+def build_candidate_scheduling_message(intro_data: dict[str, Any]) -> str:
+    """
+    Sent to the candidate when the founder has acknowledged interest but no
+    interview is booked. Asks for availability so Mitra can coordinate directly.
+    """
+    name    = (intro_data.get("candidate_name") or "").split()[0] or "hey"
+    company = intro_data.get("company", "the company")
+    role    = intro_data.get("job_title", "the role")
+
+    return (
+        f"Hey {name}!\n\n"
+        f"The founder at {company} is keen to connect with you about the {role} role — "
+        f"things are moving on their end.\n\n"
+        f"What times work for you this week for a 30-minute call? Send me 2–3 windows "
+        f"and I'll coordinate with them directly to get it locked in.\n\n"
         f"— Mitra"
     )
 

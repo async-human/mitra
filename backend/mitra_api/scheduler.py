@@ -169,13 +169,18 @@ async def run_placement_checkins(days: int = 30) -> None:
 
 
 async def run_acknowledged_nudge() -> None:
-    """Nudge founders who expressed interest but haven't booked an interview."""
+    """
+    Dual-side scheduling coordination:
+    - Founder: ask for 2-3 availability windows so Mitra can book the call
+    - Candidate: let them know the founder is keen, collect their availability too
+    """
     log.info("scheduler: acknowledged_nudge starting")
     try:
         from mitra_api.db.engine import get_session_factory
         from mitra_api.tools.proactive import (
             get_acknowledged_no_interview,
             build_acknowledged_nudge_message,
+            build_candidate_scheduling_message,
             send_proactive_message,
         )
         from mitra_api.tools.email import send_email
@@ -186,21 +191,49 @@ async def run_acknowledged_nudge() -> None:
             intros = await get_acknowledged_no_interview(db, hours_since_acknowledged=hours)
             log.info("scheduler: found %d acknowledged-no-interview intros", len(intros))
             for intro in intros[:10]:
-                msg = build_acknowledged_nudge_message(intro)
+                # ── Founder side — ask for availability windows ───────────────
+                founder_msg = build_acknowledged_nudge_message(intro)
                 if intro.get("founder_wa"):
                     await send_proactive_message(
-                        intro["founder_wa"], msg, label="acknowledged-nudge"
+                        intro["founder_wa"], founder_msg, label="acknowledged-nudge-founder"
                     )
                 elif intro.get("founder_email"):
                     await send_email(
                         to=intro["founder_email"],
                         subject=(
-                            f"Following up: {intro['candidate_name']} — "
+                            f"Let's get this scheduled: {intro['candidate_name']} — "
                             f"{intro['job_title']}"
                         ),
-                        text=msg,
+                        text=founder_msg,
                         reply_context={"type": "founder", "intro_id": intro["intro_id"]},
                     )
+
+                # ── Candidate side — notify interest, collect their windows ───
+                candidate_phone = intro.get("candidate_phone", "")
+                if candidate_phone and not candidate_phone.startswith("web:"):
+                    candidate_msg = build_candidate_scheduling_message(intro)
+                    await send_proactive_message(
+                        candidate_phone, candidate_msg, label="acknowledged-nudge-candidate"
+                    )
+                elif candidate_phone.startswith("web:"):
+                    candidate_email = candidate_phone[4:]
+                    candidate_msg   = build_candidate_scheduling_message(intro)
+                    await send_email(
+                        to=candidate_email,
+                        subject=(
+                            f"Next step: {intro['company']} wants to connect — "
+                            f"{intro['job_title']}"
+                        ),
+                        text=candidate_msg,
+                        reply_context={"type": "candidate", "session_id": candidate_phone},
+                    )
+
+                log.info(
+                    "scheduler: acknowledged-nudge sent both sides — intro=%d founder=%s candidate=%s",
+                    intro["intro_id"],
+                    intro.get("founder_wa") or intro.get("founder_email"),
+                    candidate_phone,
+                )
     except Exception:
         log.exception("scheduler: acknowledged_nudge failed")
 

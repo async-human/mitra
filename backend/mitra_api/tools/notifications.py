@@ -6,10 +6,11 @@ a real talent agent instead of a passive chatbot.
 
 When a new job is added (or its content changes), this module:
   1. Loads all active candidates with enough signals to match against
-  2. Scores each candidate against the job via fast signal-based matching
-  3. Sends a WhatsApp alert to every match (skips anyone already intro'd)
+  2. Gates on fast signal matching (stack overlap, salary, dealbreakers)
+  3. Scores qualifiers with dimensional fit scoring (salary/location/skill)
+  4. Ranks by overall_fit and sends the top matches — quality over quantity
 
-No LLM calls — pure signal matching keeps this fast and cheap at scale.
+No LLM calls — pure signal + fit scoring keeps this fast and cheap at scale.
 """
 
 from __future__ import annotations
@@ -24,8 +25,9 @@ from mitra_api.db.models import Candidate, CandidateSignal, Intro, Job, JobStatu
 
 log = logging.getLogger(__name__)
 
-# Maximum alerts per job per run — safety cap for early stage
+# Send top N by fit score — quality gate replaces a blunt count cap
 _MAX_ALERTS_PER_JOB = 30
+_MIN_OVERALL_FIT = 0.45  # don't send alerts below this overall fit score
 
 
 # ── Signal-based match scoring ────────────────────────────────────────────────
@@ -109,11 +111,48 @@ def _score_candidate_for_job(
 
 # ── Alert message builder ─────────────────────────────────────────────────────
 
+def _build_fit_why_line(
+    signals: dict[str, Any],
+    job: Job,
+    fit_scores: dict[str, float],
+    signal_why: str,
+) -> str:
+    """
+    Build a personalised why-line from dimensional fit scores.
+    Picks the strongest dimension to lead with for specificity.
+    """
+    salary_fit   = fit_scores.get("salary_fit", 0.5)
+    location_fit = fit_scores.get("location_fit", 0.5)
+    skill_fit    = fit_scores.get("skill_fit", 0.5)
+
+    # Lead with the strongest dimension
+    if skill_fit >= 0.75 and signal_why:
+        return signal_why  # specific tech match beats generic
+    if salary_fit >= 0.85:
+        sal = signals.get("salary_target_lpa") or signals.get("salary_floor_lpa")
+        if sal and job.salary_max_lpa:
+            return f"the ₹{job.salary_max_lpa}L ceiling fits your expectations well"
+    if location_fit >= 0.85:
+        pref = signals.get("location_preference")
+        if pref:
+            loc = pref[0] if isinstance(pref, list) else str(pref)
+            return f"the {loc} setup matches what you told me you need"
+    if signal_why:
+        return signal_why
+    stage_pref = signals.get("startup_stage_pref")
+    if stage_pref and job.stage:
+        stages = stage_pref if isinstance(stage_pref, list) else [stage_pref]
+        if any(job.stage.lower() in s.lower() for s in stages):
+            return f"matches your preference for {job.stage} companies"
+    return "strong overall fit based on your full profile"
+
+
 def _build_alert_message(
     *,
     name: str,
     job: Job,
     why_line: str,
+    fit_scores: dict[str, float] | None = None,
 ) -> str:
     greeting = f"Hey {name.split()[0]}!" if name else "Hey!"
 
@@ -141,6 +180,11 @@ def _build_alert_message(
         if tags:
             stack_tags = f"\nStack: {', '.join(tags)}"
 
+    # Fit confidence line — only show if notably strong
+    fit_note = ""
+    if fit_scores and fit_scores.get("overall_fit", 0) >= 0.75:
+        fit_note = "\n✓ Strong match across salary, location, and stack."
+
     body = (
         f"{greeting}\n\n"
         f"New role just in — I think this one fits you:\n\n"
@@ -150,9 +194,10 @@ def _build_alert_message(
         body += f"{meta_line}\n"
     body += salary_line
     body += stack_tags
+    body += fit_note
     body += (
         f"\n\n{why_line.capitalize()}.\n\n"
-        f"Interested? Just message me back and I'll make the intro.\n\n"
+        f"Interested? Just reply and I'll make the intro.\n\n"
         f"— Mitra"
     )
     return body.strip()
@@ -190,43 +235,79 @@ async def notify_matching_candidates(job_id: int, db: AsyncSession) -> int:
         .order_by(Candidate.updated_at.desc())
     )).scalars().all()
 
-    sent = 0
-    for candidate in candidates:
-        if sent >= _MAX_ALERTS_PER_JOB:
-            log.info(
-                "notify_matching_candidates: hit cap (%d) for job=%d",
-                _MAX_ALERTS_PER_JOB, job_id,
-            )
-            break
+    from mitra_api.tools.fit_score import compute_fit_scores
 
-        # Skip candidates already intro'd
+    # ── Phase 1: Signal gate + fit scoring ───────────────────────────────────
+    # Score all candidates, collect qualified matches ranked by overall_fit.
+    qualified: list[dict[str, Any]] = []
+
+    for candidate in candidates:
         if candidate.id in already_intro_ids:
             continue
-
-        # Skip web candidates (email-only — not on WhatsApp)
         if not candidate.phone or candidate.phone.startswith("web:"):
             continue
 
-        # Load signals
         sig_rows = (await db.execute(
             select(CandidateSignal).where(CandidateSignal.candidate_id == candidate.id)
         )).scalars().all()
         signals: dict[str, Any] = {row.key: row.value for row in sig_rows}
 
-        # Mirror top-level fields into signals dict
         if candidate.name:
             signals.setdefault("candidate_name", candidate.name)
         if candidate.current_role:
             signals.setdefault("current_role", candidate.current_role)
 
-        is_match, why_line = _score_candidate_for_job(signals, job)
+        # Fast signal gate — eliminates obvious mismatches cheaply
+        is_match, signal_why = _score_candidate_for_job(signals, job)
         if not is_match:
             continue
 
-        name = candidate.name or signals.get("candidate_name") or ""
-        message = _build_alert_message(name=name, job=job, why_line=why_line)
+        # Dimensional fit scoring for ranking and message personalisation
+        fit_scores = compute_fit_scores(
+            signals=signals,
+            job_salary_min=job.salary_min_lpa,
+            job_salary_max=job.salary_max_lpa,
+            job_location=job.location,
+            job_remote_policy=job.remote_policy,
+            job_stack=job.stack if isinstance(job.stack, list) else None,
+        )
 
-        # Normalise phone to whatsapp:+XXXXXXXXXX
+        if fit_scores["overall_fit"] < _MIN_OVERALL_FIT:
+            log.debug(
+                "notify: skipping candidate=%s overall_fit=%.2f < threshold",
+                candidate.phone, fit_scores["overall_fit"],
+            )
+            continue
+
+        why_line = _build_fit_why_line(signals, job, fit_scores, signal_why)
+
+        qualified.append({
+            "candidate": candidate,
+            "signals":   signals,
+            "fit_scores": fit_scores,
+            "why_line":  why_line,
+        })
+
+    # ── Phase 2: Rank by overall_fit, take top N ─────────────────────────────
+    qualified.sort(key=lambda x: x["fit_scores"]["overall_fit"], reverse=True)
+    to_send = qualified[:_MAX_ALERTS_PER_JOB]
+
+    log.info(
+        "notify_matching_candidates: job=%d qualified=%d sending=%d",
+        job_id, len(qualified), len(to_send),
+    )
+
+    # ── Phase 3: Send alerts ──────────────────────────────────────────────────
+    sent = 0
+    for item in to_send:
+        candidate  = item["candidate"]
+        fit_scores = item["fit_scores"]
+        why_line   = item["why_line"]
+        name       = candidate.name or item["signals"].get("candidate_name") or ""
+        message    = _build_alert_message(
+            name=name, job=job, why_line=why_line, fit_scores=fit_scores,
+        )
+
         digits = "".join(c for c in candidate.phone if c.isdigit())
         wa_to  = f"whatsapp:+{digits}"
 
@@ -235,8 +316,9 @@ async def notify_matching_candidates(job_id: int, db: AsyncSession) -> int:
             await send_whatsapp_reply(to_whatsapp_from_value=wa_to, body=message)
             sent += 1
             log.info(
-                "job alert sent: job=%d (%s @ %s) → candidate=%s (%s)",
-                job_id, job.title, job.company, candidate.phone, name or "unnamed",
+                "job alert sent: job=%d (%s @ %s) → candidate=%s fit=%.2f",
+                job_id, job.title, job.company,
+                candidate.phone, fit_scores["overall_fit"],
             )
         except Exception:
             log.exception(
@@ -244,8 +326,8 @@ async def notify_matching_candidates(job_id: int, db: AsyncSession) -> int:
             )
 
     log.info(
-        "notify_matching_candidates complete: job=%d sent=%d / %d candidates",
-        job_id, sent, len(candidates),
+        "notify_matching_candidates complete: job=%d sent=%d / %d qualified",
+        job_id, sent, len(qualified),
     )
     return sent
 
