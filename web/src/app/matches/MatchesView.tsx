@@ -19,6 +19,7 @@ interface FullJob {
   salary_min_lpa: number | null; salary_max_lpa: number | null;
   stack: string[]; summary: string | null;
   signals: Record<string, string>;
+  full_jd: string | null;
 }
 interface MergedJob extends FullJob {
   external_id: string;
@@ -155,7 +156,7 @@ function basicToMerged(cards: BasicCard[]): MergedJob[] {
       title: b.title, company,
       stage: null, sector: null, location: null, remote_policy: null,
       employment: null, salary_min_lpa: null, salary_max_lpa: null,
-      stack: extra, summary: null, signals: {},
+      stack: extra, summary: null, signals: {}, full_jd: null,
       fit, fit_pct,
       why: b.why ?? "",
       recommended_at: b.recommended_at,
@@ -185,6 +186,36 @@ function remoteLabel(policy: string | null) {
 function employmentLabel(e: string | null) {
   if (!e) return null;
   return e === "full_time" ? "Full-time" : e === "contract" ? "Contract" : e;
+}
+
+function stageBadgeVariant(stage: string): string {
+  const s = stage.toLowerCase();
+  if (s.includes("seed")) return "seed";
+  if (/series\s*[ab]/i.test(s)) return "early";
+  if (/series\s*[c-z]/i.test(s) || s.includes("growth") || s.includes("late")) return "late";
+  return "default";
+}
+
+function StageBadge({ stage }: { stage: string }) {
+  return (
+    <span className={`match-stage-badge match-stage-badge--${stageBadgeVariant(stage)}`}>
+      {stage.toUpperCase()}
+    </span>
+  );
+}
+
+function FullJDSection({ jd }: { jd: string }) {
+  return (
+    <details className="match-jd">
+      <summary className="match-jd-toggle">
+        <span>Full job description</span>
+        <span className="match-jd-chevron" aria-hidden>›</span>
+      </summary>
+      <div className="match-jd-content">
+        <p className="match-jd-text">{jd}</p>
+      </div>
+    </details>
+  );
 }
 
 function StarRating({ pct }: { pct: number }) {
@@ -452,7 +483,7 @@ function IntroSuccessFooter({ company, already }: { company: string; already?: b
 }
 
 function JobCard({
-  job, idx, userEmail, introStatus, introError, introMissing, onRequestIntro, onShowWeakIntro,
+  job, idx, userEmail, introStatus, introError, introMissing: _introMissing, onRequestIntro, onShowWeakIntro, onDismiss,
 }: {
   job: MergedJob;
   idx: number;
@@ -462,6 +493,7 @@ function JobCard({
   introMissing: string[];
   onRequestIntro: (job: MergedJob) => void;
   onShowWeakIntro?: () => void;
+  onDismiss: (id: number) => void;
 }) {
   const salary = salaryLabel(job.salary_min_lpa, job.salary_max_lpa);
   const remote = remoteLabel(job.remote_policy);
@@ -492,7 +524,10 @@ function JobCard({
           </div>
           <div className="match-card-meta">
             <h2 className="match-role">{job.title}</h2>
-            <p className="match-company">{job.company}</p>
+            <div className="match-company-row">
+              <p className="match-company">{job.company}</p>
+              {job.stage && <StageBadge stage={job.stage} />}
+            </div>
           </div>
           {job.fit && (
             <div className={`match-fit ${fitColor(job.fit_pct)}`}>
@@ -528,9 +563,19 @@ function JobCard({
         <WhyFits job={job} />
       </div>
 
+      {job.full_jd && <FullJDSection jd={job.full_jd} />}
+
       {/* Actions — weak intro uses same row + modal */}
       {!isSent ? (
         <div className="match-actions">
+          <button
+            type="button"
+            className="match-btn match-btn--dismiss"
+            onClick={() => onDismiss(job.id)}
+            title="Remove this role from your list"
+          >
+            Not for me
+          </button>
           <Link href={`/chat?about=${encodeURIComponent(job.title)}`} className="match-btn match-btn--ghost">
             Ask Mitra →
           </Link>
@@ -577,6 +622,10 @@ function matchesKey(email?: string) {
   return email ? `mitra-matches-${email}` : "mitra-matches";
 }
 
+function dismissedKey(email?: string) {
+  return email ? `mitra-dismissed-${email}` : "mitra-dismissed";
+}
+
 export function MatchesView({ userName, userEmail, urlIds }: { userName?: string; userEmail?: string; urlIds?: string }) {
   const [jobs, setJobs] = useState<MergedJob[]>([]);
   const [loading, setLoading] = useState(true);
@@ -584,7 +633,24 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
   const [introErrors, setIntroErrors] = useState<Record<number, string>>({});
   const [introMissingByJob, setIntroMissingByJob] = useState<Record<number, string[]>>({});
   const [weakIntroModal, setWeakIntroModal] = useState<null | { job: MergedJob; missing: string[] }>(null);
+  const [dismissedIds, setDismissedIds] = useState<Set<number>>(() => {
+    try {
+      const raw = localStorage.getItem(dismissedKey(userEmail));
+      return raw ? new Set<number>(JSON.parse(raw)) : new Set<number>();
+    } catch { return new Set<number>(); }
+  });
   const firstName = userName?.split(" ")[0];
+
+  const handleDismiss = useCallback((id: number) => {
+    setDismissedIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      try {
+        localStorage.setItem(dismissedKey(userEmail), JSON.stringify([...next]));
+      } catch { /* ignore */ }
+      return next;
+    });
+  }, [userEmail]);
 
   useEffect(() => {
     async function load() {
@@ -767,7 +833,15 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
             <Link href="/chat" className="match-btn match-btn--primary">Start the conversation →</Link>
           </div>
         ) : (() => {
-          const groups = groupAndSort(jobs);
+          const visibleJobs = jobs.filter(j => !dismissedIds.has(j.id));
+          if (visibleJobs.length === 0) return (
+            <div className="match-empty">
+              <p className="match-empty-title">You&apos;ve reviewed all your matches</p>
+              <p className="match-empty-sub">Chat with Mitra to discover more roles.</p>
+              <Link href="/chat" className="match-btn match-btn--primary">Back to chat →</Link>
+            </div>
+          );
+          const groups = groupAndSort(visibleJobs);
           const showHeaders = groups.length > 1 || groups[0]?.label !== "Today";
           let globalIdx = 0;
           return (
@@ -797,6 +871,7 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
                         onShowWeakIntro={() =>
                           setWeakIntroModal({ job, missing: introMissingByJob[job.id] ?? [] })
                         }
+                        onDismiss={handleDismiss}
                       />
                     );
                   })}

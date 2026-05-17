@@ -74,6 +74,7 @@ class FullJobCard(BaseModel):
     stack: list[str]
     summary: str | None
     signals: dict[str, Any]
+    full_jd: str | None = None
 
 
 @router.get("/jobs", response_model=list[FullJobCard])
@@ -122,6 +123,7 @@ async def get_jobs_by_ids(
             remote_policy=job.remote_policy, employment=job.employment,
             salary_min_lpa=job.salary_min_lpa, salary_max_lpa=job.salary_max_lpa,
             stack=stack, summary=job.summary, signals=sigs,
+            full_jd=job.full_jd,
         )
 
     result = [_make_card(j) for j in rows]
