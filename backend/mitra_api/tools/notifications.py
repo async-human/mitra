@@ -244,8 +244,10 @@ async def notify_matching_candidates(job_id: int, db: AsyncSession) -> int:
     for candidate in candidates:
         if candidate.id in already_intro_ids:
             continue
-        if not candidate.phone or candidate.phone.startswith("web:"):
+        if not candidate.phone:
             continue
+        # web: candidates get email alerts; WhatsApp candidates get WA messages
+        is_web = candidate.phone.startswith("web:")
 
         sig_rows = (await db.execute(
             select(CandidateSignal).where(CandidateSignal.candidate_id == candidate.id)
@@ -286,6 +288,7 @@ async def notify_matching_candidates(job_id: int, db: AsyncSession) -> int:
             "signals":   signals,
             "fit_scores": fit_scores,
             "why_line":  why_line,
+            "is_web":    is_web,
         })
 
     # ── Phase 2: Rank by overall_fit, take top N ─────────────────────────────
@@ -303,23 +306,42 @@ async def notify_matching_candidates(job_id: int, db: AsyncSession) -> int:
         candidate  = item["candidate"]
         fit_scores = item["fit_scores"]
         why_line   = item["why_line"]
+        is_web     = item["is_web"]
         name       = candidate.name or item["signals"].get("candidate_name") or ""
         message    = _build_alert_message(
             name=name, job=job, why_line=why_line, fit_scores=fit_scores,
         )
 
-        digits = "".join(c for c in candidate.phone if c.isdigit())
-        wa_to  = f"whatsapp:+{digits}"
-
         try:
-            from mitra_api.twilio_whatsapp.client import send_whatsapp_reply
-            await send_whatsapp_reply(to_whatsapp_from_value=wa_to, body=message)
-            sent += 1
-            log.info(
-                "job alert sent: job=%d (%s @ %s) → candidate=%s fit=%.2f",
-                job_id, job.title, job.company,
-                candidate.phone, fit_scores["overall_fit"],
-            )
+            if is_web:
+                # web:email@domain → send via Resend
+                from mitra_api.tools.email import send_email
+                candidate_email = candidate.phone[4:]  # strip "web:" prefix
+                ok = await send_email(
+                    to=candidate_email,
+                    subject=f"New role for you: {job.title} at {job.company}",
+                    text=message,
+                    reply_context={"type": "candidate", "session_id": candidate.phone},
+                )
+                if ok:
+                    sent += 1
+                    log.info(
+                        "job alert emailed: job=%d (%s @ %s) → %s fit=%.2f",
+                        job_id, job.title, job.company,
+                        candidate_email, fit_scores["overall_fit"],
+                    )
+            else:
+                # WhatsApp candidate
+                from mitra_api.twilio_whatsapp.client import send_whatsapp_reply
+                digits = "".join(c for c in candidate.phone if c.isdigit())
+                wa_to  = f"whatsapp:+{digits}"
+                await send_whatsapp_reply(to_whatsapp_from_value=wa_to, body=message)
+                sent += 1
+                log.info(
+                    "job alert sent: job=%d (%s @ %s) → candidate=%s fit=%.2f",
+                    job_id, job.title, job.company,
+                    candidate.phone, fit_scores["overall_fit"],
+                )
         except Exception:
             log.exception(
                 "job alert failed: job=%d → candidate=%s", job_id, candidate.phone
