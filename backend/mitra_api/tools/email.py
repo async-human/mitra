@@ -19,13 +19,16 @@ async def send_email(
     subject: str,
     text: str,
     reply_context: dict | None = None,
+    bcc_ops: bool = False,
 ) -> bool:
     """
     Send a plain-text email via Resend.
 
-    If reply_context is provided, a unique reply token is generated and
-    stored in Redis. The reply-to address is set to reply+TOKEN@domain so
-    inbound replies are routed back to the correct agent conversation.
+    reply_context: generates a tokenised reply-to address so inbound replies
+                   route back to the correct conversation.
+    bcc_ops:       when True, BCC MITRA_OPS_EMAIL so the company inbox gets
+                   a copy. Use for intros, interview confirmations, and other
+                   events the operator should see.
     """
     s         = get_settings()
     api_key   = s.resend_api_key.strip()
@@ -38,7 +41,14 @@ async def send_email(
         log.warning("email send skipped: MITRA_FROM_EMAIL not set")
         return False
 
+    ops_email = (s.mitra_ops_email or "").strip()
+
     payload: dict = {"from": from_addr, "to": [to], "subject": subject, "text": text}
+
+    # BCC ops inbox for visibility on key transactional emails
+    # Skip BCC if ops_email is the same as the recipient (avoid duplicate)
+    if bcc_ops and ops_email and ops_email != to:
+        payload["bcc"] = [ops_email]
 
     # Build reply-to: tokenised address if context given, else ops inbox
     reply_to_addr: str | None = None
@@ -54,10 +64,8 @@ async def send_email(
 
     if reply_to_addr:
         payload["reply_to"] = [reply_to_addr]
-    else:
-        ops_email = (s.mitra_ops_email or "").strip()
-        if ops_email:
-            payload["reply_to"] = [ops_email]
+    elif ops_email:
+        payload["reply_to"] = [ops_email]
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         resp = await client.post(
@@ -70,5 +78,5 @@ async def send_email(
         log.error("resend error %s: %s", resp.status_code, resp.text)
         return False
 
-    log.info("email sent to %s (subject: %s)", to, subject)
+    log.info("email sent to=%s bcc_ops=%s subject=%s", to, bcc_ops, subject)
     return True

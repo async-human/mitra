@@ -164,6 +164,7 @@ async def _send_candidate_confirmation(info: dict[str, Any]) -> None:
     await send_email(
         to=cand_email,
         subject=f"Interview confirmed: {company} — {time_fmt}",
+        bcc_ops=True,
         text=(
             f"Hey {cand_first}!\n\n"
             f"Your interview with {company} for the {role} role is confirmed.\n\n"
@@ -203,6 +204,7 @@ async def _send_founder_confirmation(
     await send_email(
         to=founder_email,
         subject=f"Interview booked: {cand_name} — {time_fmt}",
+        bcc_ops=True,
         text=(
             f"Your intro call with {cand_name} for {role} is confirmed.\n\n"
             f"When: {time_fmt}"

@@ -281,16 +281,11 @@ async def _send_intro(*, founder_wa: str | None, founder_email: str | None,
 
     if founder_email and not sent:
         try:
-            sent = await send_email(to=founder_email, subject=subject, text=email_body)
+            sent = await send_email(
+                to=founder_email, subject=subject, text=email_body, bcc_ops=True,
+            )
         except Exception:
             log.exception("email intro send failed for %s", founder_email)
-
-    # BCC ops on every successful founder delivery
-    if sent and ops_email and ops_email not in (founder_email or ""):
-        try:
-            await send_email(to=ops_email, subject=f"[BCC] {subject}", text=email_body)
-        except Exception:
-            log.warning("ops BCC email failed (non-critical)")
 
     # Fallback: no founder channel — route to ops inbox so intro is not lost
     if not sent and ops_email:
@@ -602,6 +597,7 @@ async def request_intro(
                 to=candidate_email,
                 subject=f"Your intro to {job.company} has been sent · Mitra",
                 text=confirmation_body,
+                bcc_ops=True,
             )
         except Exception:
             log.warning("candidate confirmation email failed for %s (non-critical)", candidate_email)
