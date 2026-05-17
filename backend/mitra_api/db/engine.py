@@ -77,6 +77,8 @@ async def run_schema_migrations() -> None:
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_jobs_founder_access_token ON jobs(founder_access_token) WHERE founder_access_token IS NOT NULL",
         # Intro.decline_reason — founder's reason when passing on a candidate
         "ALTER TABLE intros ADD COLUMN IF NOT EXISTS decline_reason TEXT",
+        # Intro.decline_reason_code — structured enumerated pass category
+        "ALTER TABLE intros ADD COLUMN IF NOT EXISTS decline_reason_code VARCHAR(40)",
         # Intro.updated_at — last-modified timestamp
         "ALTER TABLE intros ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ",
         # matches table — dimensional fit scores + founder outcome tracking
