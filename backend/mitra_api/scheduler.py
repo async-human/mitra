@@ -145,6 +145,7 @@ async def run_placement_checkins(days: int = 30) -> None:
                         subject=f"{days}-day check-in: How's {p.get('company')} going?",
                         text=msg,
                         reply_context={"type": "candidate", "session_id": phone},
+                        bcc_ops=True,
                     )
 
                 # Message founder
@@ -163,6 +164,7 @@ async def run_placement_checkins(days: int = 30) -> None:
                             ),
                             text=msg,
                             reply_context={"type": "founder", "intro_id": p.get("intro_id")},
+                            bcc_ops=True,
                         )
     except Exception:
         log.exception("scheduler: placement_checkins(%dd) failed", days)
@@ -306,6 +308,7 @@ async def run_interview_outcome_check() -> None:
                         subject=f"How did the interview go? — {intro['job_title']} at {intro['company']}",
                         text=msg,
                         reply_context={"type": "candidate", "session_id": intro["candidate_phone"]},
+                        bcc_ops=True,
                     )
                 # Ask founder
                 msg = build_interview_outcome_founder(intro)
@@ -319,6 +322,7 @@ async def run_interview_outcome_check() -> None:
                         subject=f"How did the interview go? {intro['candidate_name']} — {intro['job_title']}",
                         text=msg,
                         reply_context={"type": "founder", "intro_id": intro["intro_id"]},
+                        bcc_ops=True,
                     )
     except Exception:
         log.exception("scheduler: interview_outcome_check failed")
@@ -353,6 +357,7 @@ async def run_offer_pending_check() -> None:
                         subject=f"Your offer from {offer['company']} — {offer['job_title']}",
                         text=msg,
                         reply_context={"type": "candidate", "session_id": offer["candidate_phone"]},
+                        bcc_ops=True,
                     )
     except Exception:
         log.exception("scheduler: offer_pending_check failed")
