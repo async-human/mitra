@@ -259,14 +259,31 @@ def build_acknowledged_nudge_message(intro_data: dict[str, Any]) -> str:
     )
 
 
-def build_candidate_scheduling_message(intro_data: dict[str, Any]) -> str:
+def build_candidate_scheduling_message(
+    intro_data: dict[str, Any],
+    booking_link: str = "",
+) -> str:
     """
-    Sent to the candidate when the founder has acknowledged interest but no
-    interview is booked. Asks for availability so Mitra can coordinate directly.
+    Sent to the candidate when the founder has acknowledged interest.
+    If a Cal.com booking_link is provided, the candidate self-serves —
+    they see real availability and book directly (meeting link auto-created).
+    Without a booking link, falls back to asking for manual availability.
     """
     name    = (intro_data.get("candidate_name") or "").split()[0] or "hey"
     company = intro_data.get("company", "the company")
     role    = intro_data.get("job_title", "the role")
+
+    if booking_link:
+        return (
+            f"Hey {name}!\n\n"
+            f"Great news — the founder at {company} is keen to connect with you "
+            f"about the {role} role.\n\n"
+            f"Book a 30-minute call directly at a time that works for you:\n"
+            f"{booking_link}\n\n"
+            f"Once you pick a slot, you'll get a calendar invite and meeting link "
+            f"automatically. No back-and-forth needed.\n\n"
+            f"— Mitra"
+        )
 
     return (
         f"Hey {name}!\n\n"

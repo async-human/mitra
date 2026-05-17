@@ -166,6 +166,25 @@ class Settings(BaseSettings):
         description="Shared secret between Cloudflare Email Worker and this API — validates inbound email webhooks.",
     )
 
+    # ── SCHEDULING (Cal.com) ──────────────────────────────────────────────────
+    cal_booking_url: str = Field(
+        default="",
+        validation_alias="CAL_BOOKING_URL",
+        description=(
+            "Base URL of your Cal.com event type, e.g. https://cal.com/mitra/intro-call. "
+            "When set, candidate scheduling emails include a self-service booking link. "
+            "Leave empty to fall back to email-based slot coordination."
+        ),
+    )
+    cal_webhook_secret: str = Field(
+        default="",
+        validation_alias="CAL_WEBHOOK_SECRET",
+        description=(
+            "HMAC secret configured in Cal.com → Settings → Webhooks. "
+            "Used to validate incoming booking confirmation webhooks."
+        ),
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:

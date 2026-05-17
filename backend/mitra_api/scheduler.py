@@ -176,7 +176,9 @@ async def run_acknowledged_nudge() -> None:
     """
     log.info("scheduler: acknowledged_nudge starting")
     try:
+        from mitra_api.config import get_settings
         from mitra_api.db.engine import get_session_factory
+        from mitra_api.tools.cal import build_booking_link
         from mitra_api.tools.proactive import (
             get_acknowledged_no_interview,
             build_acknowledged_nudge_message,
@@ -185,14 +187,41 @@ async def run_acknowledged_nudge() -> None:
         )
         from mitra_api.tools.email import send_email
 
+        s     = get_settings()
         hours = 0 if _TEST_MODE else 120
         factory = get_session_factory()
         async with factory() as db:
             intros = await get_acknowledged_no_interview(db, hours_since_acknowledged=hours)
             log.info("scheduler: found %d acknowledged-no-interview intros", len(intros))
             for intro in intros[:10]:
-                # ── Founder side — ask for availability windows ───────────────
-                founder_msg = build_acknowledged_nudge_message(intro)
+                candidate_phone = intro.get("candidate_phone", "")
+                candidate_name  = intro.get("candidate_name", "Candidate")
+                candidate_email_addr = candidate_phone[4:] if candidate_phone.startswith("web:") else ""
+
+                # ── Build Cal.com booking link (if configured) ────────────────
+                booking_link = build_booking_link(
+                    s.cal_booking_url,
+                    intro_id=intro["intro_id"],
+                    candidate_name=candidate_name,
+                    candidate_email=candidate_email_addr,
+                    company=intro.get("company", ""),
+                    role=intro.get("job_title", ""),
+                ) if s.cal_booking_url else ""
+
+                # ── Founder side ──────────────────────────────────────────────
+                # If Cal.com is set up, founder doesn't need to share times —
+                # the candidate books directly. Just notify the founder.
+                if booking_link:
+                    founder_msg = (
+                        f"Hi {intro.get('founder_name', 'there')},\n\n"
+                        f"I've sent {candidate_name} a link to book a 30-minute intro call "
+                        f"directly based on your Cal.com availability. You'll receive a "
+                        f"calendar invite as soon as they pick a slot.\n\n"
+                        f"— Mitra"
+                    )
+                else:
+                    founder_msg = build_acknowledged_nudge_message(intro)
+
                 if intro.get("founder_wa"):
                     await send_proactive_message(
                         intro["founder_wa"], founder_msg, label="acknowledged-nudge-founder"
@@ -201,31 +230,38 @@ async def run_acknowledged_nudge() -> None:
                     await send_email(
                         to=intro["founder_email"],
                         subject=(
-                            f"Let's get this scheduled: {intro['candidate_name']} — "
+                            f"Interview being scheduled: {candidate_name} — "
+                            f"{intro['job_title']}"
+                            if booking_link else
+                            f"Let's get this scheduled: {candidate_name} — "
                             f"{intro['job_title']}"
                         ),
                         text=founder_msg,
                         reply_context={"type": "founder", "intro_id": intro["intro_id"]},
                     )
 
-                # ── Candidate side — notify interest, collect their windows ───
-                candidate_phone = intro.get("candidate_phone", "")
+                # ── Candidate side ────────────────────────────────────────────
+                candidate_msg = build_candidate_scheduling_message(intro, booking_link=booking_link)
+
                 if candidate_phone and not candidate_phone.startswith("web:"):
-                    candidate_msg = build_candidate_scheduling_message(intro)
                     await send_proactive_message(
                         candidate_phone, candidate_msg, label="acknowledged-nudge-candidate"
                     )
                 elif candidate_phone.startswith("web:"):
-                    candidate_email = candidate_phone[4:]
-                    candidate_msg   = build_candidate_scheduling_message(intro)
                     await send_email(
-                        to=candidate_email,
+                        to=candidate_email_addr,
                         subject=(
-                            f"Next step: {intro['company']} wants to connect — "
-                            f"{intro['job_title']}"
+                            f"Book your call with {intro['company']} — {intro['job_title']}"
+                            if booking_link else
+                            f"Next step: {intro['company']} wants to connect — {intro['job_title']}"
                         ),
                         text=candidate_msg,
-                        reply_context={"type": "candidate", "session_id": candidate_phone},
+                        reply_context={
+                            "type":       "candidate",
+                            "session_id": candidate_phone,
+                            "intro_id":   intro["intro_id"],
+                            "scheduling": True,
+                        },
                     )
 
                 log.info(
