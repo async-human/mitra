@@ -204,17 +204,38 @@ function StageBadge({ stage }: { stage: string }) {
   );
 }
 
-function FullJDSection({ jd }: { jd: string }) {
-  return (
-    <details className="match-jd">
-      <summary className="match-jd-toggle">
-        <span>Full job description</span>
-        <span className="match-jd-chevron" aria-hidden>›</span>
-      </summary>
-      <div className="match-jd-content">
-        <p className="match-jd-text">{jd}</p>
+function JDModal({ title, company, jd, onClose }: {
+  title: string;
+  company: string;
+  jd: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div className="jd-modal-backdrop" onClick={onClose} role="dialog" aria-modal aria-label="Full job description">
+      <div className="jd-modal" onClick={e => e.stopPropagation()}>
+        <div className="jd-modal-header">
+          <div className="jd-modal-title-group">
+            <h2 className="jd-modal-role">{title}</h2>
+            <p className="jd-modal-company">{company}</p>
+          </div>
+          <button className="jd-modal-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="jd-modal-body">
+          <pre className="jd-modal-text">{jd}</pre>
+        </div>
       </div>
-    </details>
+    </div>,
+    document.body,
   );
 }
 
@@ -483,7 +504,7 @@ function IntroSuccessFooter({ company, already }: { company: string; already?: b
 }
 
 function JobCard({
-  job, idx, userEmail, introStatus, introError, introMissing: _introMissing, onRequestIntro, onShowWeakIntro, onDismiss,
+  job, idx, userEmail, introStatus, introError, introMissing: _introMissing, onRequestIntro, onShowWeakIntro, onDismiss, onViewJD,
 }: {
   job: MergedJob;
   idx: number;
@@ -494,6 +515,7 @@ function JobCard({
   onRequestIntro: (job: MergedJob) => void;
   onShowWeakIntro?: () => void;
   onDismiss: (id: number) => void;
+  onViewJD: (job: MergedJob) => void;
 }) {
   const salary = salaryLabel(job.salary_min_lpa, job.salary_max_lpa);
   const remote = remoteLabel(job.remote_policy);
@@ -563,7 +585,11 @@ function JobCard({
         <WhyFits job={job} />
       </div>
 
-      {job.full_jd && <FullJDSection jd={job.full_jd} />}
+      {job.full_jd && (
+        <button className="match-jd-trigger" onClick={() => onViewJD(job)}>
+          Full job description <span className="match-jd-chevron" aria-hidden>›</span>
+        </button>
+      )}
 
       {/* Actions — weak intro uses same row + modal */}
       {!isSent ? (
@@ -633,6 +659,10 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
   const [introErrors, setIntroErrors] = useState<Record<number, string>>({});
   const [introMissingByJob, setIntroMissingByJob] = useState<Record<number, string[]>>({});
   const [weakIntroModal, setWeakIntroModal] = useState<null | { job: MergedJob; missing: string[] }>(null);
+  const [jdModal, setJdModal] = useState<null | { title: string; company: string; jd: string }>(null);
+  const handleViewJD = useCallback((job: MergedJob) => {
+    if (job.full_jd) setJdModal({ title: job.title, company: job.company, jd: job.full_jd });
+  }, []);
   const [dismissedIds, setDismissedIds] = useState<Set<number>>(() => {
     try {
       const raw = localStorage.getItem(dismissedKey(userEmail));
@@ -797,6 +827,14 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
           onRetry={handleRequestIntro}
         />
       )}
+      {jdModal && (
+        <JDModal
+          title={jdModal.title}
+          company={jdModal.company}
+          jd={jdModal.jd}
+          onClose={() => setJdModal(null)}
+        />
+      )}
       <header className="match-topbar">
         <Logo />
         <nav className="match-topbar-nav">
@@ -872,6 +910,7 @@ export function MatchesView({ userName, userEmail, urlIds }: { userName?: string
                           setWeakIntroModal({ job, missing: introMissingByJob[job.id] ?? [] })
                         }
                         onDismiss={handleDismiss}
+                        onViewJD={handleViewJD}
                       />
                     );
                   })}
