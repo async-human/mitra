@@ -4,6 +4,7 @@ import { useState } from "react";
 import { NavV2 } from "./NavV2";
 import { HeroV2 } from "./HeroV2";
 import { HowItWorksV2 } from "./HowItWorksV2";
+import { PhilosophySectionV2 } from "./PhilosophySectionV2";
 import { MemorySectionV2 } from "./MemorySectionV2";
 import { RoadmapSectionV2 } from "./RoadmapSectionV2";
 import { ProofV2 } from "./ProofV2";
@@ -22,6 +23,7 @@ export function LandingV2() {
       <main>
         <HeroV2 audience={audience} />
         <HowItWorksV2 audience={audience} />
+        <PhilosophySectionV2 />
         <MemorySectionV2 audience={audience} />
         <RoadmapSectionV2 />
         <ProofV2 audience={audience} />

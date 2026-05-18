@@ -952,6 +952,94 @@ details[open] .faqIcon {
   z-index: 0;
 }
 
+/* ── Philosophy ────────────────────────────────────────────── */
+
+.philosophy {
+  background: var(--dark);
+  padding: clamp(4rem, 8vw, 7rem) clamp(1.25rem, 4vw, 3rem);
+}
+
+.philosophyInner {
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.philosophyLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.32);
+  margin: 0 0 2rem;
+}
+
+.philosophyQuote {
+  font-size: clamp(1.9rem, 4vw, 3.1rem);
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.03em;
+  line-height: 1.22;
+  color: rgba(255, 255, 255, 0.88);
+  margin: 0 0 1.75rem;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+
+.philosophyQuoteAccent {
+  color: var(--accent);
+  font-style: italic;
+}
+
+.philosophySub {
+  font-size: 0.94rem;
+  color: rgba(255, 255, 255, 0.42);
+  line-height: 1.72;
+  max-width: 580px;
+  margin: 0 auto 3.5rem;
+}
+
+.philosophyPrinciples {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.philosophyCard {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1.75rem;
+  transition: background 0.2s;
+}
+
+.philosophyCard:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.philosophyCardTitle {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0 0.7rem;
+  letter-spacing: -0.01em;
+}
+
+.philosophyCardBody {
+  font-size: 0.83rem;
+  color: rgba(255, 255, 255, 0.42);
+  line-height: 1.7;
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .philosophyPrinciples {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Roadmap ───────────────────────────────────────────────── */
 
 .roadmapIntro {
