@@ -407,6 +407,10 @@ export function DashboardClient({
                 <ChatIcon />
                 Chat
               </Link>
+              <a href={waHref} target="_blank" rel="noopener noreferrer" className="dash-hero-action">
+                <WhatsAppIcon size={15} />
+                WhatsApp
+              </a>
               {loaded && offerCount > 0 ? (
                 <Link href="/chat?intent=offer_coach" className="dash-hero-action dash-hero-action--emph">
                   Offer help
