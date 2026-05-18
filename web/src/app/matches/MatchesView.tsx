@@ -204,6 +204,94 @@ function StageBadge({ stage }: { stage: string }) {
   );
 }
 
+// ── JD structured renderer ────────────────────────────────────────────────────
+
+type JDBlock =
+  | { kind: "heading"; text: string }
+  | { kind: "bullets"; items: string[] }
+  | { kind: "para"; text: string };
+
+function parseJD(raw: string): JDBlock[] {
+  const lines = raw.split("\n");
+  const blocks: JDBlock[] = [];
+  let bulletBuffer: string[] = [];
+
+  const flushBullets = () => {
+    if (bulletBuffer.length) {
+      blocks.push({ kind: "bullets", items: bulletBuffer });
+      bulletBuffer = [];
+    }
+  };
+
+  const isBullet = (l: string) => /^[•\-–*]\s/.test(l.trim()) || /^\d+[.)]\s/.test(l.trim());
+  const isHeading = (l: string) => {
+    const t = l.trim();
+    if (!t || t.length > 120) return false;
+    // ends with colon, or is ALL CAPS (3+ words), or matches known section keywords
+    if (t.endsWith(":")) return true;
+    if (t === t.toUpperCase() && t.replace(/\s/g, "").length > 4) return true;
+    return /^(about|role|responsibilities|requirements|qualifications|skills|experience|preferred|benefits|what you|who you|nice to have|perks|compensation|location|work mode)/i.test(t);
+  };
+
+  for (const raw_line of lines) {
+    const line = raw_line.trimEnd();
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      flushBullets();
+      continue;
+    }
+
+    if (isHeading(trimmed)) {
+      flushBullets();
+      blocks.push({ kind: "heading", text: trimmed.replace(/:$/, "") });
+      continue;
+    }
+
+    if (isBullet(trimmed)) {
+      // strip leading bullet character
+      const text = trimmed.replace(/^[•\-–*]\s+/, "").replace(/^\d+[.)]\s+/, "");
+      bulletBuffer.push(text);
+      continue;
+    }
+
+    // plain text — if previous block was also a para, append; else new block
+    flushBullets();
+    const last = blocks[blocks.length - 1];
+    if (last?.kind === "para") {
+      (last as { kind: "para"; text: string }).text += " " + trimmed;
+    } else {
+      blocks.push({ kind: "para", text: trimmed });
+    }
+  }
+
+  flushBullets();
+  return blocks.filter(b => b.kind !== "para" || (b as { kind: "para"; text: string }).text.trim());
+}
+
+function JDBody({ jd }: { jd: string }) {
+  const blocks = parseJD(jd);
+  return (
+    <div className="jd-body">
+      {blocks.map((block, i) => {
+        if (block.kind === "heading") {
+          return <h3 key={i} className="jd-section-heading">{block.text}</h3>;
+        }
+        if (block.kind === "bullets") {
+          return (
+            <ul key={i} className="jd-bullet-list">
+              {block.items.map((item, j) => (
+                <li key={j} className="jd-bullet-item">{item}</li>
+              ))}
+            </ul>
+          );
+        }
+        return <p key={i} className="jd-para">{block.text}</p>;
+      })}
+    </div>
+  );
+}
+
 function JDModal({ title, company, jd, onClose }: {
   title: string;
   company: string;
@@ -231,7 +319,7 @@ function JDModal({ title, company, jd, onClose }: {
           <button className="jd-modal-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
         <div className="jd-modal-body">
-          <pre className="jd-modal-text">{jd}</pre>
+          <JDBody jd={jd} />
         </div>
       </div>
     </div>,

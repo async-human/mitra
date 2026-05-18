@@ -6750,17 +6750,52 @@ img.wchat-av--user { border-radius: 50%; }
 .jd-modal-close:hover { background: rgba(0, 0, 0, 0.12); color: #111827; }
 .jd-modal-body {
   overflow-y: auto;
-  padding: 22px 24px;
+  padding: 24px 28px 32px;
   flex: 1;
 }
-.jd-modal-text {
+.jd-body { display: flex; flex-direction: column; gap: 0; }
+.jd-section-heading {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7C3AED;
+  margin: 22px 0 10px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.12);
+}
+.jd-section-heading:first-child { margin-top: 0; }
+.jd-bullet-list {
+  margin: 0 0 6px 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jd-bullet-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   font-size: 13.5px;
-  line-height: 1.75;
+  line-height: 1.65;
   color: #374151;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: inherit;
-  margin: 0;
+}
+.jd-bullet-item::before {
+  content: "";
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #7C3AED;
+  margin-top: 7px;
+  opacity: 0.6;
+}
+.jd-para {
+  font-size: 13.5px;
+  line-height: 1.72;
+  color: #374151;
+  margin: 0 0 10px;
 }
 
 /* ── dismiss button ── */
@@ -7104,7 +7139,10 @@ img.wchat-av--user { border-radius: 50%; }
 [data-theme="dark"] .jd-modal-company { color: rgba(245,240,234,0.5); }
 [data-theme="dark"] .jd-modal-close { background: rgba(255,255,255,0.08); color: rgba(245,240,234,0.6); }
 [data-theme="dark"] .jd-modal-close:hover { background: rgba(255,255,255,0.15); color: #F5F0EA; }
-[data-theme="dark"] .jd-modal-text { color: rgba(245,240,234,0.8); }
+[data-theme="dark"] .jd-section-heading { color: #A78BFA; border-bottom-color: rgba(167,139,250,0.15); }
+[data-theme="dark"] .jd-bullet-item { color: rgba(245,240,234,0.8); }
+[data-theme="dark"] .jd-bullet-item::before { background: #A78BFA; }
+[data-theme="dark"] .jd-para { color: rgba(245,240,234,0.75); }
 [data-theme="dark"] .match-btn--dismiss { border-color: rgba(255,255,255,0.1); color: rgba(245,240,234,0.35); }
 [data-theme="dark"] .match-btn--dismiss:hover { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3); color: #F87171; }
 [data-theme="dark"] .match-stack-tag {
