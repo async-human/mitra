@@ -300,27 +300,56 @@ def build_candidate_scheduling_message(
 async def get_stalled_interviews(
     db: AsyncSession,
     *,
-    hours_since_interview: int = 72,  # 3 days
+    hours_since_interview: int = 72,  # 3 days after scheduled interview time
 ) -> list[dict[str, Any]]:
     """
-    Find intros with an interview booked but no status update after
-    hours_since_interview. Ask both sides how it went.
+    Find intros in 'interview' status where:
+      1. The actual scheduled interview time (interview_details.scheduled_at_iso)
+         has passed by at least hours_since_interview hours.
+      2. outcome_nudge_sent_at has NOT already been stamped (dedup guard).
+
+    Falls back to updated_at-based logic if scheduled_at_iso is absent.
     """
-    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_since_interview)
+    now = datetime.now(timezone.utc)
 
     rows = (await db.execute(
         select(Intro, Job, Candidate)
         .join(Job,       Intro.job_id       == Job.id)
         .join(Candidate, Intro.candidate_id == Candidate.id)
-        .where(
-            Intro.status     == IntroStatus.interview,
-            Intro.updated_at <= cutoff,
-        )
+        .where(Intro.status == IntroStatus.interview)
         .order_by(Intro.updated_at)
     )).all()
 
     results = []
     for intro, job, candidate in rows:
+        details: dict = intro.interview_details or {}
+
+        # Skip if we already sent an outcome nudge for this intro
+        if details.get("outcome_nudge_sent_at"):
+            continue
+
+        # Determine when the interview was (or was due)
+        scheduled_at: datetime | None = None
+        raw_iso = details.get("scheduled_at_iso") or details.get("scheduled_at")
+        if raw_iso:
+            try:
+                scheduled_at = datetime.fromisoformat(raw_iso.replace("Z", "+00:00"))
+                if scheduled_at.tzinfo is None:
+                    scheduled_at = scheduled_at.replace(tzinfo=timezone.utc)
+            except (ValueError, AttributeError):
+                scheduled_at = None
+
+        if scheduled_at is not None:
+            # Only fire after the interview has actually happened + buffer
+            elapsed_hours = (now - scheduled_at).total_seconds() / 3600
+            if elapsed_hours < hours_since_interview:
+                continue
+        else:
+            # No scheduled time recorded — fall back to updated_at (booking time)
+            cutoff = now - timedelta(hours=hours_since_interview)
+            if not intro.updated_at or intro.updated_at > cutoff:
+                continue
+
         candidate_email = (
             candidate.phone[4:] if candidate.phone.startswith("web:") else None
         )

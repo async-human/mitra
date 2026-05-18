@@ -167,7 +167,7 @@ def _merge_job(base: dict, update: dict) -> dict:
     return result
 
 
-async def _create_job(job: dict, auth_email: str | None, session_id: str) -> tuple[int, str, str, str | None, str | None]:
+async def _create_job(job: dict, auth_email: str | None, session_id: str, full_jd: str | None = None) -> tuple[int, str, str, str | None, str | None]:
     """Create a Job record in DB. Returns (job_id, portal_url, company, sector, location). Idempotent."""
     from sqlalchemy import select
     from mitra_api.db.engine import get_session_factory
@@ -225,6 +225,7 @@ async def _create_job(job: dict, auth_email: str | None, session_id: str) -> tup
             stack=stack or None,
             signals=extra_signals or None,
             summary=job.get("summary"),
+            full_jd=full_jd,
             founder_email=auth_email,
             founder_access_token=_secrets.token_urlsafe(32),
         )
@@ -350,7 +351,8 @@ async def job_builder_chat(
     if current_stage == "confirming" and not is_init and _is_confirmation(body.message.strip()):
         try:
             from mitra_api.founder.company_enricher import enrich_company
-            job_id, portal_url, _company, _sector, _location = await _create_job(current_job, body.auth_email, body.session_id)
+            raw_jd = signals.get("_raw_jd") or None
+            job_id, portal_url, _company, _sector, _location = await _create_job(current_job, body.auth_email, body.session_id, full_jd=raw_jd)
             background_tasks.add_task(
                 enrich_company,
                 company_name=_company,
@@ -417,7 +419,11 @@ async def job_builder_chat(
     merged_job = _merge_job(current_job, extracted)
     new_stage  = "confirming" if ready else "collecting"
 
-    await store.merge_signals(sid, {"_stage": new_stage, "_job": json.dumps(merged_job)})
+    sig_update: dict = {"_stage": new_stage, "_job": json.dumps(merged_job)}
+    # Capture the raw JD text from the first substantial paste (>150 chars), once only
+    if not is_init and not signals.get("_raw_jd") and len(body.message.strip()) > 150:
+        sig_update["_raw_jd"] = body.message.strip()[:12000]
+    await store.merge_signals(sid, sig_update)
 
     return JobBuilderChatResponse(
         reply=reply,
@@ -575,7 +581,11 @@ async def job_builder_upload(
     final_job = _merge_job(merged_job, llm_job)
     new_stage = "confirming" if ready else "collecting"
 
-    await store.merge_signals(sid, {"_stage": new_stage, "_job": json.dumps(final_job)})
+    sig_update_upload: dict = {"_stage": new_stage, "_job": json.dumps(final_job)}
+    # Store raw extracted text as the canonical JD for this session (once only)
+    if not signals.get("_raw_jd"):
+        sig_update_upload["_raw_jd"] = text[:12000]
+    await store.merge_signals(sid, sig_update_upload)
 
     # Override transcript anchor to show filename
     await store.append_messages(sid, [ChatMessage(role="user", content=f"[Uploaded: {filename}]")])

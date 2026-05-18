@@ -36,7 +36,7 @@ from sqlalchemy.orm import selectinload
 
 from mitra_api.config import get_settings
 from mitra_api.db.engine import get_db
-from mitra_api.db.models import Candidate, Intro, Job, JobEmbedding, JobStatus
+from mitra_api.db.models import Candidate, Company, Intro, Job, JobEmbedding, JobStatus
 from mitra_api.tools.embeddings import EMBEDDING_DIM, embed_text, job_embed_text
 
 log = logging.getLogger(__name__)
@@ -533,3 +533,162 @@ async def get_metrics(db: AsyncSession = Depends(get_db)) -> MetricsResponse:
         avg_days_to_interview=round(float(avg_interview_raw), 1) if avg_interview_raw else None,
         avg_days_to_hire=round(float(avg_hire_raw), 1) if avg_hire_raw else None,
     )
+
+
+# ── COMPANY ADMIN ROUTER ──────────────────────────────────────────────────────
+
+company_router = APIRouter(prefix="/admin/companies", tags=["admin"])
+
+
+class CompanyIn(BaseModel):
+    name:              str
+    ashby_identifier:  str | None = None
+    founder_name:      str | None = None
+    founder_email:     str | None = None
+    founder_wa:        str | None = None
+    stage:             str | None = None
+    sector:            str | None = None
+    website:           str | None = None
+
+
+class CompanyOut(BaseModel):
+    id:                   int
+    name:                 str
+    ashby_identifier:     str | None
+    founder_name:         str | None
+    founder_email:        str | None
+    stage:                str | None
+    sector:               str | None
+    website:              str | None
+    ashby_last_synced_at: str | None
+    active_jobs:          int = 0
+
+    class Config:
+        from_attributes = True
+
+
+def _company_to_out(company: Company, active_jobs: int = 0) -> CompanyOut:
+    synced = company.ashby_last_synced_at
+    return CompanyOut(
+        id=company.id,
+        name=company.name,
+        ashby_identifier=company.ashby_identifier,
+        founder_name=company.founder_name,
+        founder_email=company.founder_email,
+        stage=company.stage,
+        sector=company.sector,
+        website=company.website,
+        ashby_last_synced_at=synced.isoformat() if synced else None,
+        active_jobs=active_jobs,
+    )
+
+
+@company_router.post("", response_model=CompanyOut, dependencies=[Depends(require_admin)])
+async def create_company(
+    payload: CompanyIn,
+    db: AsyncSession = Depends(get_db),
+) -> CompanyOut:
+    """Create a new company. Optionally include ashby_identifier to enable Ashby sync."""
+    import secrets
+    company = Company(
+        name=payload.name,
+        ashby_identifier=payload.ashby_identifier,
+        founder_name=payload.founder_name,
+        founder_email=payload.founder_email,
+        founder_wa=payload.founder_wa,
+        stage=payload.stage,
+        sector=payload.sector,
+        website=payload.website,
+        founder_access_token=secrets.token_urlsafe(32),
+    )
+    db.add(company)
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, f"Company with ashby_identifier '{payload.ashby_identifier}' already exists")
+    await db.commit()
+    log.info("Company created: id=%d name=%s ashby=%s", company.id, company.name, company.ashby_identifier)
+    return _company_to_out(company, 0)
+
+
+@company_router.get("", response_model=list[CompanyOut], dependencies=[Depends(require_admin)])
+async def list_companies(db: AsyncSession = Depends(get_db)) -> list[CompanyOut]:
+    """List all companies with their active job counts."""
+    rows = (await db.execute(
+        select(
+            Company,
+            func.count(Job.id).label("active_jobs"),
+        )
+        .outerjoin(Job, (Job.company_id == Company.id) & (Job.status == JobStatus.active))
+        .group_by(Company.id)
+        .order_by(Company.name)
+    )).all()
+    return [_company_to_out(row.Company, int(row.active_jobs or 0)) for row in rows]
+
+
+@company_router.put("/{company_id}", response_model=CompanyOut, dependencies=[Depends(require_admin)])
+async def update_company(
+    company_id: int,
+    payload: CompanyIn,
+    db: AsyncSession = Depends(get_db),
+) -> CompanyOut:
+    """Update company details."""
+    company = (await db.execute(select(Company).where(Company.id == company_id))).scalar_one_or_none()
+    if not company:
+        raise HTTPException(404, f"Company {company_id} not found")
+    for field, value in payload.model_dump(exclude_none=True).items():
+        setattr(company, field, value)
+    await db.commit()
+    return _company_to_out(company, 0)
+
+
+@company_router.post(
+    "/{company_id}/sync-ashby",
+    dependencies=[Depends(require_admin)],
+)
+async def sync_ashby(
+    company_id: int,
+    background_tasks: BackgroundTasks,
+) -> dict:
+    """
+    Trigger an Ashby job board sync for a company.
+    Runs in the background so the request returns immediately.
+    Poll GET /admin/companies to see ashby_last_synced_at update.
+    """
+    company = None
+    factory = get_session_factory()
+    async with factory() as db:
+        company = (await db.execute(
+            select(Company).where(Company.id == company_id)
+        )).scalar_one_or_none()
+
+    if not company:
+        raise HTTPException(404, f"Company {company_id} not found")
+    if not company.ashby_identifier:
+        raise HTTPException(400, "Company has no ashby_identifier — set it first via PUT /admin/companies/{id}")
+
+    async def _run_sync() -> None:
+        from mitra_api.tools.ashby import sync_company_from_ashby
+        try:
+            result = await sync_company_from_ashby(company_id)
+            log.info("ashby-sync triggered via API: company=%d result=%s", company_id, result)
+        except Exception:
+            log.exception("ashby-sync failed for company %d", company_id)
+
+    background_tasks.add_task(_run_sync)
+    return {"ok": True, "company_id": company_id, "message": "Ashby sync started in background"}
+
+
+@company_router.post(
+    "/{company_id}/sync-ashby/wait",
+    dependencies=[Depends(require_admin)],
+)
+async def sync_ashby_wait(company_id: int) -> dict:
+    """
+    Synchronous Ashby sync — waits for completion and returns the result.
+    Use for testing; prefer the background variant in production.
+    """
+    from mitra_api.tools.ashby import sync_company_from_ashby
+    result = await sync_company_from_ashby(company_id)
+    return {"ok": True, "company_id": company_id, **result}

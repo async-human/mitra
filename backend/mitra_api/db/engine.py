@@ -105,6 +105,37 @@ async def run_schema_migrations() -> None:
         "CREATE INDEX IF NOT EXISTS matches_candidate_idx ON matches(candidate_id)",
         "CREATE INDEX IF NOT EXISTS matches_job_idx ON matches(job_id)",
         "CREATE INDEX IF NOT EXISTS matches_intro_idx ON matches(intro_id)",
+        # companies table — one row per hiring company; holds ATS identifier + founder contact
+        """CREATE TABLE IF NOT EXISTS companies (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(200) NOT NULL,
+            ashby_identifier VARCHAR(100) UNIQUE,
+            ashby_last_synced_at TIMESTAMPTZ,
+            founder_name VARCHAR(200),
+            founder_email VARCHAR(200),
+            founder_wa VARCHAR(50),
+            founder_access_token VARCHAR(64) UNIQUE,
+            stage VARCHAR(100),
+            sector VARCHAR(100),
+            website VARCHAR(300),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )""",
+        "CREATE INDEX IF NOT EXISTS ix_companies_founder_access_token ON companies(founder_access_token) WHERE founder_access_token IS NOT NULL",
+        # jobs.company_id — FK to companies (nullable for existing jobs)
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id)",
+        "CREATE INDEX IF NOT EXISTS ix_jobs_company_id ON jobs(company_id) WHERE company_id IS NOT NULL",
+        # Backfill companies from distinct company names already in jobs
+        """INSERT INTO companies (name, founder_name, founder_email, founder_wa, stage, sector)
+           SELECT DISTINCT ON (company)
+               company, founder_name, founder_email, founder_wa, stage, sector
+           FROM jobs
+           WHERE company IS NOT NULL AND company != ''
+           ON CONFLICT DO NOTHING""",
+        # Wire company_id back to jobs
+        """UPDATE jobs j SET company_id = c.id
+           FROM companies c
+           WHERE j.company = c.name AND j.company_id IS NULL""",
     ]
     engine = _engine()
     async with engine.begin() as conn:

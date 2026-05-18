@@ -280,7 +280,9 @@ async def run_interview_outcome_check() -> None:
     """Ask both sides how the interview went after 3 days with no update."""
     log.info("scheduler: interview_outcome_check starting")
     try:
+        from sqlalchemy import select
         from mitra_api.db.engine import get_session_factory
+        from mitra_api.db.models import Intro
         from mitra_api.tools.proactive import (
             get_stalled_interviews,
             build_interview_outcome_candidate,
@@ -294,36 +296,58 @@ async def run_interview_outcome_check() -> None:
         async with factory() as db:
             intros = await get_stalled_interviews(db, hours_since_interview=hours)
             log.info("scheduler: found %d stalled interviews", len(intros))
-            for intro in intros[:10]:
+            for intro_data in intros[:10]:
+                intro_id = intro_data["intro_id"]
+
                 # Ask candidate — WhatsApp for phone users, email for web users
-                phone = intro.get("candidate_phone", "")
-                msg   = build_interview_outcome_candidate(intro)
+                phone = intro_data.get("candidate_phone", "")
+                msg   = build_interview_outcome_candidate(intro_data)
                 if phone and not phone.startswith("web:"):
                     await send_proactive_message(
                         phone, msg, label="interview-outcome-candidate"
                     )
-                elif intro.get("candidate_email"):
+                elif intro_data.get("candidate_email"):
                     await send_email(
-                        to=intro["candidate_email"],
-                        subject=f"How did the interview go? — {intro['job_title']} at {intro['company']}",
+                        to=intro_data["candidate_email"],
+                        subject=f"How did the interview go? — {intro_data['job_title']} at {intro_data['company']}",
                         text=msg,
-                        reply_context={"type": "candidate", "session_id": intro["candidate_phone"]},
+                        reply_context={"type": "candidate", "session_id": intro_data["candidate_phone"]},
                         bcc_ops=True,
                     )
+
                 # Ask founder
-                msg = build_interview_outcome_founder(intro)
-                if intro.get("founder_wa"):
+                msg = build_interview_outcome_founder(intro_data)
+                if intro_data.get("founder_wa"):
                     await send_proactive_message(
-                        intro["founder_wa"], msg, label="interview-outcome-founder"
+                        intro_data["founder_wa"], msg, label="interview-outcome-founder"
                     )
-                elif intro.get("founder_email"):
+                elif intro_data.get("founder_email"):
                     await send_email(
-                        to=intro["founder_email"],
-                        subject=f"How did the interview go? {intro['candidate_name']} — {intro['job_title']}",
+                        to=intro_data["founder_email"],
+                        subject=f"How did the interview go? {intro_data['candidate_name']} — {intro_data['job_title']}",
                         text=msg,
-                        reply_context={"type": "founder", "intro_id": intro["intro_id"]},
+                        reply_context={"type": "founder", "intro_id": intro_id},
                         bcc_ops=True,
                     )
+
+                # Stamp dedup guard so this intro is not re-sent next run
+                try:
+                    intro_row: Intro | None = (
+                        await db.execute(select(Intro).where(Intro.id == intro_id))
+                    ).scalar_one_or_none()
+                    if intro_row is not None:
+                        details = dict(intro_row.interview_details or {})
+                        details["outcome_nudge_sent_at"] = datetime.now(timezone.utc).isoformat()
+                        intro_row.interview_details = details
+                        await db.commit()
+                except Exception:
+                    log.exception(
+                        "scheduler: failed to stamp outcome_nudge_sent_at for intro=%d", intro_id
+                    )
+
+                log.info(
+                    "scheduler: interview-outcome sent both sides — intro=%d", intro_id
+                )
     except Exception:
         log.exception("scheduler: interview_outcome_check failed")
 

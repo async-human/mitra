@@ -21,7 +21,7 @@ from mitra_api.config import Settings, get_settings
 from mitra_api.candidate.routes import router as candidate_router
 from mitra_api.founder.routes import router as founder_router
 from mitra_api.founder.job_builder import router as job_builder_router
-from mitra_api.jobs.admin import admin_router, admin_meta_router
+from mitra_api.jobs.admin import admin_router, admin_meta_router, company_router
 from mitra_api.llm.factory import get_llm_adapter
 from mitra_api.llm.types import ChatMessage, ToolDefinition
 from mitra_api.twilio_whatsapp.routes import router as twilio_whatsapp_router
@@ -88,6 +88,7 @@ app.include_router(whatsapp_router)
 app.include_router(twilio_whatsapp_router)
 app.include_router(admin_router)
 app.include_router(admin_meta_router)
+app.include_router(company_router)
 app.include_router(founder_router)
 app.include_router(job_builder_router)
 app.include_router(candidate_router)

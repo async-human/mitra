@@ -88,6 +88,41 @@ class CandidateSignal(Base):
     candidate: Mapped[Candidate] = relationship(back_populates="signals")
 
 
+# ── COMPANIES ─────────────────────────────────────────────────────────────────
+
+class Company(Base):
+    """
+    One row per hiring company. A company has many Jobs.
+    Founder contact details and ATS integration live here.
+    """
+    __tablename__ = "companies"
+
+    id:   Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+
+    # ATS integration
+    ashby_identifier:    Mapped[str|None] = mapped_column(String(100), unique=True)
+    ashby_last_synced_at: Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+
+    # Founder contact
+    founder_name:  Mapped[str|None] = mapped_column(String(200))
+    founder_email: Mapped[str|None] = mapped_column(String(200))
+    founder_wa:    Mapped[str|None] = mapped_column(String(50))
+
+    # Founder portal token (company-level — gives access to all company jobs)
+    founder_access_token: Mapped[str|None] = mapped_column(String(64), unique=True, index=True)
+
+    # Company metadata
+    stage:   Mapped[str|None] = mapped_column(String(100))   # "Series A"
+    sector:  Mapped[str|None] = mapped_column(String(100))   # "Fintech"
+    website: Mapped[str|None] = mapped_column(String(300))
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    jobs: Mapped[list["Job"]] = relationship(back_populates="company_rel", cascade="all, delete-orphan")
+
+
 # ── JOBS ──────────────────────────────────────────────────────────────────────
 
 class JobStatus(str, enum.Enum):
@@ -103,6 +138,9 @@ class Job(Base):
     id:            Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
     external_id:   Mapped[str|None] = mapped_column(String(100), unique=True)  # your own ref
     status:        Mapped[str]      = mapped_column(String(20), default=JobStatus.active, index=True)
+
+    # Company FK (nullable for backward compat with existing jobs)
+    company_id: Mapped[int|None] = mapped_column(ForeignKey("companies.id"), index=True)
 
     # Core fields
     title:         Mapped[str]      = mapped_column(String(300), nullable=False)
@@ -123,16 +161,18 @@ class Job(Base):
     summary:        Mapped[str|None] = mapped_column(Text)    # shown in card "why"
     full_jd:        Mapped[str|None] = mapped_column(Text)    # full job description
 
-    # Founder contact — for warm intro
+    # Founder contact — kept on Job for backward compat; Company is source of truth for new jobs
     founder_name:   Mapped[str|None] = mapped_column(String(200))
     founder_email:  Mapped[str|None] = mapped_column(String(200))
-    founder_wa:     Mapped[str|None] = mapped_column(String(50))  # WA number for intro
+    founder_wa:     Mapped[str|None] = mapped_column(String(50))
 
     # Founder portal — persistent token that gives no-login access to /founder/portal
     founder_access_token: Mapped[str|None] = mapped_column(String(64), unique=True, index=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    company_rel: Mapped["Company|None"] = relationship(back_populates="jobs", foreign_keys=[company_id])
 
     embedding: Mapped[JobEmbedding|None] = relationship(
         back_populates="job", uselist=False, cascade="all, delete-orphan"
