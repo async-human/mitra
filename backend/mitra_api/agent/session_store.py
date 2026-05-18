@@ -43,6 +43,14 @@ class AgentSessionStore(ABC):
     async def get_signals(self, sid: str) -> dict[str, Any]:
         """Return all stored signals for this sender."""
 
+    @abstractmethod
+    async def store_wa_link_token(self, token: str, email: str, ttl_seconds: int) -> None:
+        """Store a short-lived WhatsApp account-linking token → email mapping."""
+
+    @abstractmethod
+    async def consume_wa_link_token(self, token: str) -> str | None:
+        """Atomically fetch-and-delete a link token. Returns email or None if expired/missing."""
+
     async def aclose(self) -> None:
         return
 
@@ -51,6 +59,7 @@ class InMemoryAgentSessionStore(AgentSessionStore):
     def __init__(self) -> None:
         self._signals: dict[str, dict[str, Any]] = {}
         self._history: dict[str, list[ChatMessage]] = {}
+        self._wa_tokens: dict[str, str] = {}
 
     async def get_transcript(self, sid: str) -> list[ChatMessage]:
         return list(self._history.get(sid, []))
@@ -69,6 +78,12 @@ class InMemoryAgentSessionStore(AgentSessionStore):
     async def get_signals(self, sid: str) -> dict[str, Any]:
         return dict(self._signals.get(sid, {}))
 
+    async def store_wa_link_token(self, token: str, email: str, ttl_seconds: int) -> None:
+        self._wa_tokens[token.upper()] = email
+
+    async def consume_wa_link_token(self, token: str) -> str | None:
+        return self._wa_tokens.pop(token.upper(), None)
+
 
 class RedisAgentSessionStore(AgentSessionStore):
     def __init__(self, *, client: Any, ttl_seconds: int, key_prefix: str) -> None:
@@ -81,6 +96,9 @@ class RedisAgentSessionStore(AgentSessionStore):
 
     def _sig_key(self, sid: str) -> str:
         return f"{self._pfx}:session:{sid}:signals"
+
+    def _wa_link_key(self, token: str) -> str:
+        return f"{self._pfx}:walink:{token.upper()}"
 
     async def get_transcript(self, sid: str) -> list[ChatMessage]:
         raw_list = await self._r.lrange(self._msg_key(sid), 0, -1)
@@ -127,6 +145,15 @@ class RedisAgentSessionStore(AgentSessionStore):
         except json.JSONDecodeError:
             log.warning("corrupted signals blob for sid=%s — returning empty", sid)
             return {}
+
+    async def store_wa_link_token(self, token: str, email: str, ttl_seconds: int) -> None:
+        await self._r.set(self._wa_link_key(token), email.encode("utf-8"), ex=ttl_seconds)
+
+    async def consume_wa_link_token(self, token: str) -> str | None:
+        raw = await self._r.getdel(self._wa_link_key(token))
+        if not raw:
+            return None
+        return raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
 
     async def aclose(self) -> None:
         await self._r.aclose()

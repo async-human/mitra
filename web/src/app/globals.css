@@ -2781,6 +2781,34 @@ body {
   color: var(--teal-2);
 }
 
+.dash-wa-sync {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dash-wa-sync-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--teal);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dash-wa-sync-btn:hover { color: var(--teal-2); }
+.dash-wa-sync-note {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+.dash-wa-sync-link {
+  color: var(--teal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dash-wa-sync-link:hover { color: var(--teal-2); }
+
 /* Command card — update + stats + pipeline in one surface */
 .dash-command-card {
   background: var(--white);

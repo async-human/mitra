@@ -285,6 +285,25 @@ export function DashboardClient({
   const [matches, setMatches] = useState<StoredMatchCard[]>([]);
   const [intros, setIntros] = useState<CandidateIntro[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [waLinkState, setWaLinkState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [waLinkUrl, setWaLinkUrl] = useState<string | null>(null);
+
+  async function handleSyncWhatsApp() {
+    setWaLinkState("loading");
+    try {
+      const res = await fetch(`${API_URL}/candidate/wa-link/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail }),
+      });
+      if (!res.ok) throw new Error("api error");
+      const data = await res.json() as { wa_url: string };
+      setWaLinkUrl(data.wa_url);
+      setWaLinkState("ready");
+    } catch {
+      setWaLinkState("error");
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -421,6 +440,29 @@ export function DashboardClient({
                   Shortlist
                 </Link>
               ) : null}
+            </div>
+          ) : null}
+          {(hasMatches || (loaded && offerCount > 0)) ? (
+            <div className="dash-wa-sync">
+              {waLinkState === "idle" && (
+                <button onClick={handleSyncWhatsApp} className="dash-wa-sync-btn">
+                  Sync WhatsApp account
+                </button>
+              )}
+              {waLinkState === "loading" && (
+                <span className="dash-wa-sync-note">Generating link…</span>
+              )}
+              {waLinkState === "error" && (
+                <span className="dash-wa-sync-note">Could not generate link — try again.</span>
+              )}
+              {waLinkState === "ready" && waLinkUrl && (
+                <span className="dash-wa-sync-note">
+                  <a href={waLinkUrl} target="_blank" rel="noopener noreferrer" className="dash-wa-sync-link">
+                    Open WhatsApp to send the link code ↗
+                  </a>
+                  {" — "}once sent, your history will sync automatically.
+                </span>
+              )}
             </div>
           ) : null}
         </div>

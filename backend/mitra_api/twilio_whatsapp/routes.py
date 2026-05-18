@@ -120,6 +120,27 @@ async def twilio_whatsapp_webhook(
             settings=settings,
         )
 
+    # Account-linking flow: candidate sends "LINK XXXXXX" from WhatsApp
+    upper_body = body_text.upper().strip()
+    if upper_body.startswith("LINK "):
+        token = upper_body[5:].strip()
+        if token:
+            email = await store.consume_wa_link_token(token)
+            if email:
+                web_sid = f"web:{email}"
+                await store.merge_signals(session_id, {"_linked_web_sid": web_sid})
+                log.info("WA link established: %s -> %s", session_id, web_sid)
+                await send_reply(
+                    "✅ Linked! Your WhatsApp is now connected to your Mitra account. "
+                    "I'll pick up right where you left off."
+                )
+            else:
+                await send_reply(
+                    "This link code has expired or was already used. "
+                    "Please generate a new one from your Mitra dashboard."
+                )
+            return {"status": "linked"}
+
     background.add_task(
         run_agent_reply,
         sender_id=session_id,

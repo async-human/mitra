@@ -7,6 +7,9 @@ import contextlib
 import json
 import logging
 import re
+import secrets
+import string
+import urllib.parse
 from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, Depends, Query
@@ -494,6 +497,39 @@ async def _sse_stream_with_tools(
         web_sources=web_sources if web_sources else None,
     ):
         yield chunk
+
+
+_WA_LINK_CHARS = string.ascii_uppercase + string.digits
+_WA_LINK_TTL   = 900  # 15 minutes
+
+
+class WaLinkRequest(BaseModel):
+    email: str = Field(..., min_length=1, max_length=200)
+
+
+class WaLinkResponse(BaseModel):
+    wa_url: str
+    expires_in: int
+
+
+@router.post("/wa-link/generate", response_model=WaLinkResponse)
+async def generate_wa_link(
+    body: WaLinkRequest,
+    settings: Settings = Depends(get_settings),
+) -> WaLinkResponse:
+    """Generate a one-time WhatsApp account-linking token for the given email."""
+    store = _get_store(settings)
+    token = "".join(secrets.choice(_WA_LINK_CHARS) for _ in range(6))
+    await store.store_wa_link_token(token, body.email.strip().lower(), _WA_LINK_TTL)
+    from_digits = (
+        settings.twilio_whatsapp_from
+        .removeprefix("whatsapp:")
+        .strip()
+        .lstrip("+")
+        .replace(" ", "")
+    )
+    wa_url = f"https://wa.me/{from_digits}?text={urllib.parse.quote(f'LINK {token}')}"
+    return WaLinkResponse(wa_url=wa_url, expires_in=_WA_LINK_TTL)
 
 
 @router.post("/chat/stream")

@@ -49,6 +49,28 @@ async def run_agent_reply(
 
     s = settings or get_settings()
     try:
+        # If this WhatsApp number is linked to a web account and hasn't been seeded yet,
+        # copy signals from the web session so the agent greets them as a returning user.
+        existing = await sessions.get_signals(sender_id)
+        linked_web_sid: str | None = existing.get("_linked_web_sid")
+        if linked_web_sid and not existing.get("_signals_seeded"):
+            web_signals = await sessions.get_signals(linked_web_sid)
+            if not web_signals and s.mitra_database_url:
+                try:
+                    from mitra_api.db.engine import get_session_factory as _sf
+                    from mitra_api.tools.candidates import get_signals as _get_db_signals
+                    factory = _sf()
+                    async with factory() as _db:
+                        web_signals = await _get_db_signals(linked_web_sid, session=_db)
+                except Exception:
+                    log.warning("could not load DB signals for linked web sid %s", linked_web_sid, exc_info=True)
+            if web_signals:
+                seed = {k: v for k, v in web_signals.items() if not k.startswith("_")}
+                seed["_linked_web_sid"] = linked_web_sid
+                seed["_signals_seeded"] = True
+                await sessions.merge_signals(sender_id, seed)
+                log.info("seeded WA session %s with %d signals from %s", sender_id, len(seed), linked_web_sid)
+
         turn = await run_agent_turn(
             whatsapp_sender_id=sender_id,
             user_text=user_text,
