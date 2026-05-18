@@ -49,6 +49,7 @@ export function NavV2({ audience, onAudienceChange }: NavV2Props) {
         <div className={s.navRight}>
           <ul className={s.navLinks}>
             <li><a href="#how-it-works">How it works</a></li>
+            <li><a href="#roadmap">Roadmap</a></li>
             <li><a href="#faq">FAQ</a></li>
           </ul>
           <Link href="/sign-in" className={s.navSignIn}>Sign in</Link>

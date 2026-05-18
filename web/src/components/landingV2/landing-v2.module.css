@@ -952,6 +952,267 @@ details[open] .faqIcon {
   z-index: 0;
 }
 
+/* ── Roadmap ───────────────────────────────────────────────── */
+
+.roadmapIntro {
+  font-size: 1rem;
+  color: var(--ink2);
+  line-height: 1.72;
+  max-width: 640px;
+  margin: 0 0 2.5rem;
+}
+
+.roadmapPhilosophy {
+  position: relative;
+  border-left: 2px solid var(--accent);
+  padding: 1.1rem 1.5rem 1.1rem 1.75rem;
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  border-radius: 0 12px 12px 0;
+  margin: 0 0 3rem;
+  max-width: 680px;
+}
+
+.roadmapPhilosophyQuote {
+  position: absolute;
+  top: -0.25rem;
+  left: 1rem;
+  font-size: 3.5rem;
+  font-weight: 900;
+  color: var(--accent);
+  opacity: 0.15;
+  line-height: 1;
+  font-family: Georgia, 'Times New Roman', serif;
+  user-select: none;
+}
+
+.roadmapPhilosophy p {
+  font-size: 0.88rem;
+  color: var(--ink);
+  line-height: 1.72;
+  margin: 0;
+}
+
+/* Timeline container */
+.roadmapTimeline {
+  position: relative;
+  margin-top: 0.5rem;
+}
+
+/* Vertical connecting line */
+.roadmapLine {
+  position: absolute;
+  left: 6px;          /* centre of the 13 px dot */
+  top: 20px;
+  bottom: 20px;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--border) 80%, transparent);
+  pointer-events: none;
+}
+
+/* Each phase row: scroll-reveal wrapper */
+.roadmapRow {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  align-items: flex-start;
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.roadmapRowIn {
+  opacity: 1;
+  transform: none;
+}
+
+/* Phase dot sitting on the vertical line */
+.roadmapDot {
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  margin-top: 0.42rem;
+  position: relative;
+  z-index: 2;
+}
+
+.roadmapDot--live {
+  border-color: #2D7A4F;
+  background: #2D7A4F;
+}
+
+.roadmapDot--building {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.roadmapDot--next {
+  border-color: var(--ink2);
+  background: var(--bg);
+}
+
+.roadmapDot--vision {
+  border-color: var(--border);
+  background: var(--bg);
+}
+
+/* Pulsing ring around the live dot */
+.roadmapDotCore {
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1.5px solid #2D7A4F;
+  animation: roadmapLivePulse 2.2s ease-in-out infinite;
+}
+
+@keyframes roadmapLivePulse {
+  0%, 100% { transform: scale(1);    opacity: 0.55; }
+  60%       { transform: scale(1.45); opacity: 0;    }
+}
+
+/* Phase card */
+.roadmapCard {
+  flex: 1;
+  background: var(--bgCard);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.6rem 1.75rem;
+  min-width: 0;
+}
+
+.roadmapCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.85rem;
+}
+
+.roadmapPhaseLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink2);
+}
+
+.roadmapStatusBadge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.22rem 0.6rem;
+  border-radius: 99px;
+  letter-spacing: 0.02em;
+}
+
+.roadmapBadge--live {
+  color: #2D7A4F;
+  background: rgba(45, 122, 79, 0.1);
+  border: 1px solid rgba(45, 122, 79, 0.22);
+}
+
+.roadmapBadge--building {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.roadmapBadge--next {
+  color: var(--ink2);
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border);
+}
+
+.roadmapBadge--vision {
+  color: var(--ink2);
+  background: transparent;
+  border: 1px solid var(--border);
+  opacity: 0.6;
+}
+
+.roadmapCardTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0 0 0.65rem;
+  line-height: 1.3;
+}
+
+.roadmapCardDesc {
+  font-size: 0.86rem;
+  color: var(--ink2);
+  line-height: 1.72;
+  margin: 0 0 1.1rem;
+}
+
+.roadmapFeatures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.roadmapFeatureTag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+}
+
+.roadmapTag--live {
+  color: #2D7A4F;
+  background: rgba(45, 122, 79, 0.08);
+}
+
+.roadmapTag--building {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.roadmapTag--next {
+  color: var(--ink2);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.roadmapTag--vision {
+  color: var(--ink2);
+  background: transparent;
+  border: 1px solid var(--border);
+  opacity: 0.65;
+}
+
+/* Dark mode overrides for roadmap */
+.root[data-audience="company"] .roadmapCard {
+  background: var(--bgCard);
+  border-color: var(--border);
+}
+
+.root[data-audience="company"] .roadmapPhilosophy {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.root[data-audience="company"] .roadmapBadge--next,
+.root[data-audience="company"] .roadmapBadge--vision {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.root[data-audience="company"] .roadmapTag--next,
+.root[data-audience="company"] .roadmapTag--vision {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Roadmap mobile */
+@media (max-width: 640px) {
+  .roadmapRow { gap: 1.25rem; }
+  .roadmapCard { padding: 1.25rem 1.25rem; }
+}
+
 /* ── Company mode — dark color scheme ─────────────────────── */
 /*
   When data-audience="company" is on .root, CSS custom properties
