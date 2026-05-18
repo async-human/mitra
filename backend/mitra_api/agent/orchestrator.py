@@ -113,6 +113,8 @@ def tool_catalog() -> list[ToolDefinition]:
                 "Search Mitra's job database using semantic vector search + AI reranking. "
                 "Call when you have enough context: motivation + role type + at least one "
                 "fit signal (stack, seniority, location, or sector). "
+                "If the candidate explicitly names a company (e.g. 'I want to work at Razorpay'), "
+                "always set company_filter to that company name — this guarantees their jobs appear. "
                 "Returns formatted_cards to paste in your reply verbatim."
             ),
             parameters={
@@ -121,6 +123,15 @@ def tool_catalog() -> list[ToolDefinition]:
                     "query": {
                         "type": "string",
                         "description": "Natural language description of what the candidate wants.",
+                    },
+                    "company_filter": {
+                        "type": "string",
+                        "description": (
+                            "Company name when the candidate explicitly asks about a specific company. "
+                            "e.g. 'Razorpay', 'Zepto', 'Sarvam AI'. "
+                            "Guarantees that company's active jobs are included in results. "
+                            "Leave empty for general searches."
+                        ),
                     },
                     "location_hint": {
                         "type": "string",
@@ -349,6 +360,7 @@ def build_tool_runner(
                     seniority=str(args.get("seniority", "unknown")),
                     location_hint=str(args.get("location_hint", "")),
                     employment_types=args.get("employment_types") or [],
+                    company_filter=str(args.get("company_filter") or ""),
                     limit=int(args.get("limit") or 5),
                 )
 

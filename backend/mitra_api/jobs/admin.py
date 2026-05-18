@@ -342,6 +342,69 @@ def _to_out(job: Job) -> JobOut:
     )
 
 
+@admin_router.post("/reembed-all", dependencies=[Depends(require_admin)])
+async def reembed_all_jobs(
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """
+    Regenerate embeddings for all active jobs using the current job_embed_text() format.
+    Run this after any change to job_embed_text (e.g. adding company name to the embedding).
+    Runs in the background — returns immediately with a job count.
+    """
+    rows = (await db.execute(
+        select(Job).where(Job.status == JobStatus.active)
+    )).scalars().all()
+
+    job_ids = [j.id for j in rows]
+    log.info("reembed-all: queued %d jobs", len(job_ids))
+
+    async def _do_reembed(ids: list[int]) -> None:
+        from mitra_api.db.engine import get_session_factory
+        factory = get_session_factory()
+        ok = err = 0
+        for jid in ids:
+            try:
+                async with factory() as session:
+                    job = (await session.execute(
+                        select(Job).where(Job.id == jid)
+                    )).scalar_one_or_none()
+                    if not job:
+                        continue
+                    embed_input = job_embed_text({
+                        "title":   job.title,
+                        "company": job.company,
+                        "sector":  job.sector,
+                        "stage":   job.stage,
+                        "stack":   job.stack or [],
+                        "summary": job.summary or "",
+                        "location": job.location or "",
+                    })
+                    vec = await embed_text(embed_input)
+
+                    existing = (await session.execute(
+                        select(JobEmbedding).where(JobEmbedding.job_id == jid)
+                    )).scalar_one_or_none()
+
+                    if existing:
+                        existing.embedding = vec
+                    else:
+                        session.add(JobEmbedding(
+                            job_id=jid,
+                            embedding=vec,
+                            dim=EMBEDDING_DIM,
+                        ))
+                    await session.commit()
+                    ok += 1
+            except Exception as exc:
+                log.error("reembed-all: job %d failed: %s", jid, exc)
+                err += 1
+        log.info("reembed-all: done — ok=%d err=%d", ok, err)
+
+    background_tasks.add_task(_do_reembed, job_ids)
+    return {"queued": len(job_ids), "status": "running in background"}
+
+
 # ── METRICS ROUTER ────────────────────────────────────────────────────────────
 
 admin_meta_router = APIRouter(prefix="/admin", tags=["admin"])

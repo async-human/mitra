@@ -62,10 +62,12 @@ async def embed_texts(texts: list[str], *, provider: EmbeddingProvider | None = 
 def job_embed_text(job: dict) -> str:
     """
     Produce the string that gets embedded for a job.
-    Combines the most discriminative fields — title, stack, summary, sector, stage.
+    Combines the most discriminative fields — company name is included so
+    candidate queries naming a specific company match via cosine similarity.
     """
     parts = [
         job.get("title", ""),
+        job.get("company", ""),
         job.get("sector", ""),
         job.get("stage", ""),
         " ".join(job.get("stack") or []),
