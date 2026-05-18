@@ -71,6 +71,14 @@ async def search_jobs(
         List of job dicts with added 'why' and 'fit_label' fields.
     """
     limit = min(limit, RERANK_TOP_N)
+
+    # ── Auto-detect company name from query when agent didn't pass company_filter ──
+    # Queries the live jobs table so it works even without a companies table row.
+    if not company_filter.strip():
+        company_filter = await _auto_detect_company(query, session)
+        if company_filter:
+            log.info("search_jobs: auto-detected company=%r from query", company_filter)
+
     has_explicit_intent = bool(company_filter.strip())
 
     # ── Stage 1: Vector recall ────────────────────────────────────────────────
@@ -141,6 +149,31 @@ async def search_jobs(
 
 
 # ── EXPLICIT COMPANY / ROLE LOOKUP ───────────────────────────────────────────
+
+async def _auto_detect_company(query: str, session: AsyncSession) -> str:
+    """
+    Check whether the query mentions any company that exists in the jobs DB.
+    Returns the matched company name (as stored in DB) or empty string.
+
+    This is the server-side fallback when the agent doesn't pass company_filter —
+    e.g. "I want to see roles at Tredence" → detects "Tredence".
+    """
+    if not query.strip():
+        return ""
+    # Fetch distinct company names from active jobs and check if any appear in the query.
+    # ILIKE on a small set is fast; parameter binding prevents injection.
+    result = await session.execute(
+        text(
+            "SELECT DISTINCT company FROM jobs "
+            "WHERE status = 'active' AND company IS NOT NULL AND company != '' "
+            "AND :q ILIKE '%' || company || '%' "
+            "LIMIT 1"
+        ),
+        {"q": query},
+    )
+    row = result.fetchone()
+    return row[0] if row else ""
+
 
 async def _explicit_lookup(
     *,
