@@ -1,6 +1,7 @@
 """Twilio Programmable Messaging (WhatsApp) webhook."""
 
 import logging
+import re
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
@@ -15,6 +16,10 @@ from mitra_api.twilio_whatsapp.client import (
 )
 
 log = logging.getLogger(__name__)
+
+_YES_PATTERN = re.compile(
+    r"^(yes|yeah|yep|sure|ok|okay|send it|yes send it|go ahead)[\s!.]*$", re.I
+)
 
 router = APIRouter(prefix="/webhook/twilio/whatsapp", tags=["twilio-whatsapp"])
 
@@ -140,6 +145,38 @@ async def twilio_whatsapp_webhook(
                     "Please generate a new one from your Mitra dashboard."
                 )
             return {"status": "linked"}
+
+    # Proactive match one-tap confirm: "yes" / "send it" / "yes send it"
+    if _YES_PATTERN.match(body_text.strip()):
+        signals_now = await store.get_signals(session_id)
+        pending_job_id = signals_now.get("_pending_proactive_job_id")
+        if pending_job_id:
+            async def _auto_intro() -> None:
+                try:
+                    from mitra_api.db.engine import get_session_factory
+                    from mitra_api.tools.intros import request_intro
+                    factory = get_session_factory()
+                    async with factory() as db:
+                        result = await request_intro(
+                            candidate_phone=session_id,
+                            job_external_id=str(pending_job_id),
+                            why_note="Candidate confirmed interest via proactive match notification.",
+                            session=db,
+                        )
+                    # Clear the pending signal
+                    await store.merge_signals(session_id, {
+                        "_pending_proactive_job_id": None,
+                        "_pending_proactive_score": None,
+                    })
+                    msg = result.get("message") or "Your intro has been sent!"
+                    await send_reply(msg)
+                except Exception:
+                    log.exception("auto-intro failed for %s pending_job=%s", session_id, pending_job_id)
+                    await send_reply(
+                        "I hit a snag sending your intro — just reply and I'll sort it out manually."
+                    )
+            background.add_task(_auto_intro)
+            return {"status": "ok"}
 
     background.add_task(
         run_agent_reply,

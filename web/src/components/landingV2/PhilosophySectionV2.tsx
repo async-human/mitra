@@ -22,16 +22,14 @@ export function PhilosophySectionV2() {
         <p className={s.philosophyLabel}>The product philosophy</p>
 
         <h2 className={s.philosophyQuote}>
-          &ldquo;The agent should not replace humans.<br />
-          It should{" "}
-          <em className={s.philosophyQuoteAccent}>represent</em>{" "}
-          them intelligently.&rdquo;
+          &ldquo;The professional internet deserved better infrastructure than this.&rdquo;
         </h2>
 
         <p className={s.philosophySub}>
-          Mitra is not automation for automation&apos;s sake. The candidate still decides
-          whether to take the role. The founder still decides whether to make the offer.
-          Everything between those two moments&nbsp;&mdash; that&apos;s what Mitra owns.
+          Mitra is that infrastructure. The candidate still decides whether to take
+          the role. The founder still decides whether to make the offer.
+          Everything between those two moments&nbsp;&mdash; the signal, the context,
+          the introduction&nbsp;&mdash; that&apos;s what Mitra owns.
         </p>
 
         <div className={s.philosophyPrinciples}>

@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from mitra_api.db.models import Candidate, CandidateSignal, Intro, IntroStatus, Job, Match
 from mitra_api.tools.candidates import upsert_candidate
+from mitra_api.tools.compatibility import compute_compatibility
 from mitra_api.tools.fit_score import compute_fit_scores
 
 log = logging.getLogger(__name__)
@@ -467,49 +468,72 @@ async def request_intro(
             ),
         }
 
-    # ── Compute dimensional fit scores ───────────────────────────────────────
-    fit = compute_fit_scores(
-        signals=signals,
-        job_salary_min=job.salary_min_lpa,
-        job_salary_max=job.salary_max_lpa,
-        job_location=job.location,
-        job_remote_policy=job.remote_policy,
-        job_stack=job.stack if isinstance(job.stack, list) else [],
-    )
-    log.info(
-        "fit scores: candidate=%s job=%s salary=%.2f location=%.2f skill=%.2f overall=%.2f",
-        candidate_phone, job_external_id,
-        fit["salary_fit"], fit["location_fit"], fit["skill_fit"], fit["overall_fit"],
+    # ── Compatibility assessment (replaces advisory confidence) ──────────────
+    # Phase 2: prefer dedicated founder_profile column; fall back to legacy signals location
+    founder_profile = (
+        job.founder_profile
+        if job.founder_profile
+        else (job.signals.get("_founder_profile", {}) if isinstance(job.signals, dict) else {})
     )
 
-    # ── Score intro confidence (advisory) ────────────────────────────────────
-    confidence: dict | None = None
-    try:
-        from mitra_api.tools.intelligence import score_intro_confidence
-        founder_profile = (
-            job.signals.get("_founder_profile", {})
-            if isinstance(job.signals, dict) else {}
+    job_dict = {
+        "title":          job.title,
+        "company":        job.company,
+        "stage":          job.stage,
+        "sector":         job.sector,
+        "stack":          job.stack,
+        "salary_min_lpa": job.salary_min_lpa,
+        "salary_max_lpa": job.salary_max_lpa,
+        "location":       job.location,
+        "remote_policy":  job.remote_policy,
+    }
+    compat = compute_compatibility(signals, job_dict, founder_profile)
+    dims   = compat["dimensions"]
+    fit    = {
+        "salary_fit":   dims["salary_fit"],
+        "location_fit": dims["location_fit"],
+        "skill_fit":    dims["skill_fit"],
+        "overall_fit":  compat["overall_score"],
+    }
+
+    log.info(
+        "compatibility: candidate=%s job=%s score=%.2f decision=%s risk=%s",
+        candidate_phone, job_external_id,
+        compat["overall_score"], compat["decision"], compat["risk_flags"],
+    )
+
+    # ── Compatibility hard gate — block fundamentally mismatched intros ───────
+    if compat["decision"] == "block":
+        blocked_match = Match(
+            candidate_id=candidate.id,
+            job_id=job.id,
+            gate_blocked=True,
+            gate_missing=["compatibility_block"],
+            intro_sent=False,
+            compatibility_score=compat["overall_score"],
+            compatibility_dimensions=dims,
         )
-        confidence = score_intro_confidence(
-            candidate_signals=signals,
-            job={
-                "title":          job.title,
-                "company":        job.company,
-                "sector":         job.sector,
-                "stack":          job.stack,
-                "salary_max_lpa": job.salary_max_lpa,
-            },
-            founder_profile=founder_profile,
-        )
+        session.add(blocked_match)
+        await session.commit()
+        block_reason = compat["why"] or "This role isn't the right fit based on your profile."
+        return {
+            "ok": False,
+            "needs_more_info": False,
+            "message": (
+                f"I don't think this intro would serve you well right now — {block_reason} "
+                f"I'd rather focus on roles where you're genuinely set up to win. "
+                f"Want me to search for better matches?"
+            ),
+        }
+
+    # ── Compatibility advisory — prompt for more signals before sending ───────
+    if compat["decision"] == "collect_more":
+        # Don't block — proceed if the candidate explicitly confirms they want to send.
+        # The agent will surface the note so they can strengthen first.
         log.info(
-            "intro confidence: candidate=%s job=%s score=%.2f recommendation=%s reasons=%s",
+            "compatibility collect_more for candidate=%s job=%s — proceeding but noting gaps",
             candidate_phone, job_external_id,
-            confidence["confidence"],
-            confidence["send_recommendation"],
-            confidence["reasons"],
         )
-    except Exception:
-        log.debug("confidence scoring failed (non-critical)")
 
     # ── Build intro message ───────────────────────────────────────────────────
     intro_note = _build_intro(
@@ -540,6 +564,9 @@ async def request_intro(
         location_fit=fit["location_fit"],
         skill_fit=fit["skill_fit"],
         overall_fit=fit["overall_fit"],
+        compatibility_score=compat["overall_score"],
+        compatibility_dimensions=dims,
+        decision_policy_version="v1",
         intro_sent=True,
         gate_blocked=False,
     )
@@ -611,15 +638,16 @@ async def request_intro(
             f"Check your inbox — I've sent you a copy of what was shared."
         ),
         "founder_contacted": founder_contacted,
+        "compatibility_score": compat["overall_score"],
+        "compatibility_decision": compat["decision"],
     }
-    if confidence:
-        result["intro_confidence"] = confidence["confidence"]
-        # Surface a confidence note to the agent only when the score is borderline
-        if confidence["send_recommendation"] == "collect_more_signals" and confidence["reasons"]:
-            result["confidence_note"] = (
-                f"Confidence score: {int(confidence['confidence'] * 100)}%. "
-                + " ".join(confidence["reasons"][:2])
-            )
+    # Surface a note when the intro was sent on collect_more to prompt follow-up collection
+    if compat["decision"] == "collect_more" and compat.get("risk_flags"):
+        result["confidence_note"] = (
+            f"Compatibility score: {int(compat['overall_score'] * 100)}%. "
+            f"Gaps: {'; '.join(compat['risk_flags'][:2])}. "
+            f"Gathering more signals would improve the response rate."
+        )
     return result
 
 

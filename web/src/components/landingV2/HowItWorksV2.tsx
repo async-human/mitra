@@ -99,7 +99,7 @@ const STEPS = {
     {
       num: "Step 01", Icon: IconChat,
       title: "Talk to Mitra — it listens and learns",
-      body: "A WhatsApp conversation that goes deeper than your CV. Mitra captures your motivation, risk appetite, what you want to own, and what would make you say yes. It remembers all of it — and builds on it every time you return.",
+      body: "A WhatsApp conversation that goes deeper than your CV. Mitra captures your motivation, risk appetite, what you want to own, and what would make you say yes. It remembers all of it — and builds on it every time you return. Every role you're introduced to is one a founder has personally briefed Mitra on. No ghost jobs.",
     },
     {
       num: "Step 02", Icon: IconSearch,

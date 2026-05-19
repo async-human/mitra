@@ -125,6 +125,39 @@ async def create_all() -> None:
         await conn.execute(text("CREATE INDEX IF NOT EXISTS matches_intro_idx ON matches(intro_id)"))
         log.info("matches table and indexes ready")
 
+        # Phase 1 — Compatibility engine columns on matches
+        for col_ddl in (
+            "ALTER TABLE matches ADD COLUMN IF NOT EXISTS compatibility_score FLOAT",
+            "ALTER TABLE matches ADD COLUMN IF NOT EXISTS compatibility_dimensions JSONB",
+            "ALTER TABLE matches ADD COLUMN IF NOT EXISTS decision_policy_version VARCHAR(20)",
+        ):
+            await conn.execute(text(col_ddl))
+        log.info("matches compatibility columns ready")
+
+        # Phase 2 — Founder intelligence persistence column on jobs
+        await conn.execute(text(
+            "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS founder_profile JSONB"
+        ))
+        log.info("jobs.founder_profile column ready")
+
+        # Phase 5 — Agent memory snapshots table (version history)
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS agent_memory_snapshots (
+                id            SERIAL PRIMARY KEY,
+                subject_type  VARCHAR(20) NOT NULL,
+                subject_id    INTEGER NOT NULL,
+                memory_type   VARCHAR(40) NOT NULL,
+                payload       JSONB NOT NULL,
+                policy_version VARCHAR(20),
+                created_at    TIMESTAMPTZ DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS ams_subject_idx "
+            "ON agent_memory_snapshots(subject_type, subject_id)"
+        ))
+        log.info("agent_memory_snapshots table ready")
+
     await engine.dispose()
     log.info("Migrations complete")
 

@@ -6,7 +6,7 @@ const STATS = {
   candidate: [
     { num: "50+",    label: "Engineers placed" },
     { num: "8 days", label: "Avg. time to first interview" },
-    { num: "3×",     label: "Response rate vs cold apply" },
+    { num: "90%+",   label: "Founder response rate" },
     { num: "₹0",     label: "Cost to candidates" },
   ],
   company: [

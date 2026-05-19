@@ -1727,9 +1727,11 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
                 response_hours = delta.total_seconds() / 3600
 
             responded = body.action in ("interested", "schedule", "offer", "hired")
+            # Phase 2: use dedicated founder_profile column; fall back to legacy signals location
             existing_profile = (
-                job.signals.get("_founder_profile", {})
-                if isinstance(job.signals, dict) else {}
+                job.founder_profile
+                if job.founder_profile
+                else (job.signals.get("_founder_profile", {}) if isinstance(job.signals, dict) else {})
             )
             updated_profile = update_founder_response_pattern(
                 existing_profile,
@@ -1739,9 +1741,8 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
                 passed_reason=body.decline_reason if body.action == "not_a_fit" else None,
                 passed_reason_code=body.decline_reason_code if body.action == "not_a_fit" else None,
             )
-            new_job_signals = dict(job.signals) if isinstance(job.signals, dict) else {}
-            new_job_signals["_founder_profile"] = updated_profile
-            job.signals = new_job_signals
+            # Persist to dedicated column (source of truth going forward)
+            job.founder_profile = updated_profile
             log.info(
                 "founder profile updated: job=%d action=%s response_rate=%.0f%%",
                 job.id, body.action,
@@ -1749,6 +1750,18 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
             )
         except Exception:
             log.debug("founder pattern learning failed (non-critical)")
+
+        # Phase 5 — outcome learning: update trust score + snapshot for future calibration
+        try:
+            from mitra_api.tools.intelligence import learn_from_outcome
+            await learn_from_outcome(
+                intro_id=intro.id,
+                outcome=body.action,
+                decline_reason_code=body.decline_reason_code if body.action == "not_a_fit" else None,
+                session=db,
+            )
+        except Exception:
+            log.debug("learn_from_outcome failed (non-critical)")
 
         await db.commit()
 

@@ -182,6 +182,75 @@ async def build_founder_memory(
         return None
 
 
+_EPISODIC_SUMMARY_PROMPT = """\
+You are building a compact episodic memory for a recruiting agent.
+
+Earlier turns of the conversation have been compressed. Summarise what happened
+so the agent can continue coherently without re-reading the full history.
+
+Return ONLY a JSON object (no markdown, no explanation):
+{
+  "summary": "2-3 sentences covering what was discussed and where things stand",
+  "key_facts_mentioned": ["list of important facts the candidate revealed"],
+  "what_candidate_wants": "one sentence",
+  "outstanding_questions": ["any open questions the agent still needs to answer"],
+  "stage": "exploring|active_search|interviewing|negotiating"
+}"""
+
+
+async def build_episodic_summary(
+    older_turns: list[Any],
+    known_signals: dict[str, Any],
+) -> str | None:
+    """
+    Compress older transcript turns into a JSON episodic summary.
+    Stored as _episodic_summary in signals and injected into the context
+    when the active transcript window doesn't include those turns.
+    """
+    if not older_turns:
+        return None
+
+    try:
+        from mitra_api.config import get_settings
+        from mitra_api.llm.factory import get_llm_adapter
+        from mitra_api.llm.types import ChatMessage as CM
+
+        s       = get_settings()
+        adapter = get_llm_adapter(s)
+
+        # Build a compact transcript text for the LLM
+        turn_text = "\n".join(
+            f"{m.role.upper()}: {(m.content or '')[:300]}"
+            for m in older_turns
+            if hasattr(m, "role") and m.role in ("user", "assistant")
+        )
+
+        user_content = (
+            f"TRANSCRIPT (older turns):\n{turn_text[:3000]}\n\n"
+            f"KNOWN_SIGNALS:\n{json.dumps({k: v for k, v in known_signals.items() if not k.startswith('_')}, ensure_ascii=False)[:800]}"
+        )
+
+        result = await adapter.complete(
+            model=s.mitra_llm_model,
+            messages=[
+                CM(role="system", content=_EPISODIC_SUMMARY_PROMPT),
+                CM(role="user",   content=user_content),
+            ],
+            tools=[],
+            max_tokens=384,
+            temperature=0.0,
+        )
+        raw = (result.content or "").strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1].lstrip("json").strip()
+        json.loads(raw)  # validate
+        log.info("memory: built episodic summary (%d chars)", len(raw))
+        return raw
+    except Exception:
+        log.exception("memory: build_episodic_summary failed")
+        return None
+
+
 def inject_memory_into_context(
     system_prompt: str,
     memory: str | None,

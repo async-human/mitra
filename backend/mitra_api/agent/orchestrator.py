@@ -617,6 +617,23 @@ async def _build_and_persist_memory(
         log.exception("_build_and_persist_memory failed for %s", session_id)
 
 
+async def _persist_episodic_summary(
+    session_id: str,
+    older_turns: list[Any],
+    known_signals: dict[str, Any],
+    sessions: AgentSessionStore,
+) -> None:
+    """Background task: build + store episodic summary for a session."""
+    try:
+        from mitra_api.agent.memory import build_episodic_summary
+        summary_json = await build_episodic_summary(older_turns, known_signals)
+        if summary_json:
+            await sessions.merge_signals(session_id, {"_episodic_summary": summary_json})
+            log.info("memory: episodic summary persisted for %s", session_id)
+    except Exception:
+        log.exception("_persist_episodic_summary failed for %s", session_id)
+
+
 async def _load_candidate_signals(
     *,
     session_id: str,
@@ -811,12 +828,48 @@ async def run_agent_turn(
         log.info("[agent:%s] fresh_start=True — skipping old transcript", whatsapp_sender_id)
     else:
         try:
-            transcript = await sessions.get_transcript(whatsapp_sender_id)
+            transcript, has_older_turns = await sessions.get_transcript_windowed(
+                whatsapp_sender_id, window=12
+            )
+
+            # If older turns exist, inject episodic summary so agent has prior context
+            if has_older_turns:
+                episodic_raw = known_signals.get("_episodic_summary")
+                if episodic_raw:
+                    try:
+                        ep = json.loads(episodic_raw) if isinstance(episodic_raw, str) else episodic_raw
+                        summary_text = ep.get("summary", "")
+                        if summary_text:
+                            msgs.append(ChatMessage(
+                                role="system",
+                                content=(
+                                    "[EPISODIC MEMORY — earlier conversation compressed]\n"
+                                    + summary_text
+                                    + "\n[END EPISODIC MEMORY]"
+                                ),
+                            ))
+                    except Exception:
+                        log.debug("could not parse episodic summary for %s", whatsapp_sender_id)
+                else:
+                    # Trigger background summary build for next turn
+                    try:
+                        from mitra_api.agent.memory import build_episodic_summary
+                        import asyncio
+                        full_transcript = await sessions.get_transcript(whatsapp_sender_id)
+                        older_turns = full_transcript[:-24]  # everything before last 12 turns
+                        if older_turns:
+                            asyncio.create_task(
+                                _persist_episodic_summary(
+                                    whatsapp_sender_id, older_turns, known_signals, sessions
+                                )
+                            )
+                    except Exception:
+                        log.debug("episodic summary trigger failed for %s", whatsapp_sender_id)
+
             # Put a cache breakpoint on the last stable user message in the transcript
             # (everything before the final two turns is stable and can be cached).
             if len(transcript) > 4:
                 stable_boundary = len(transcript) - 4
-                # Find the last user message at or before the stable boundary
                 for i in range(stable_boundary, -1, -1):
                     if transcript[i].role == "user" and not transcript[i].cache_control:
                         transcript[i] = transcript[i].model_copy(
@@ -1025,7 +1078,11 @@ async def run_agent_turn(
                 parse_resume_from_url,
                 twilio_media_auth,
             )
-            auth = twilio_media_auth(s)
+            if "graph.facebook.com" in media_url or "lookaside.fbsbx.com" in media_url:
+                wa_token = (s.whatsapp_access_token or "").strip()
+                auth = {"Authorization": f"Bearer {wa_token}"} if wa_token else {}
+            else:
+                auth = twilio_media_auth(s)
             parsed = await parse_resume_from_url(media_url, auth_headers=auth)
 
             if parsed:

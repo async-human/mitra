@@ -277,6 +277,132 @@ def score_intro_confidence(
     }
 
 
+# ── 3b. OUTCOME LEARNING (Phase 5) ───────────────────────────────────────────
+
+async def learn_from_outcome(
+    intro_id: int,
+    outcome: str,
+    decline_reason_code: str | None,
+    session: Any,
+) -> None:
+    """
+    Learn from a founder's response to an intro.
+
+    - accepted / interview / offer / hired → reinforce high-scoring dimensions
+    - declined with reason → record which dimensions predicted the decline
+    - ghost (no reply after N days) → reduce founder trust_score
+
+    Results are stored as agent_memory_snapshots for future calibration.
+    Updates job.founder_profile with the latest trust_score.
+    """
+    from datetime import datetime, timezone
+    from sqlalchemy import select
+
+    try:
+        from mitra_api.db.models import Intro, Match, Job, CandidateSignal
+
+        intro: Any = (await session.execute(
+            select(Intro).where(Intro.id == intro_id)
+        )).scalar_one_or_none()
+        if not intro:
+            log.warning("learn_from_outcome: intro %d not found", intro_id)
+            return
+
+        job: Any = (await session.execute(
+            select(Job).where(Job.id == intro.job_id)
+        )).scalar_one_or_none()
+        if not job:
+            return
+
+        # Load the match record to get stored compatibility dimensions
+        match: Any = (await session.execute(
+            select(Match).where(Match.intro_id == intro_id)
+        )).scalar_one_or_none()
+
+        compat_dims: dict[str, Any] = {}
+        if match and match.compatibility_dimensions:
+            compat_dims = match.compatibility_dimensions
+
+        # Load candidate signals
+        sig_rows = (await session.execute(
+            select(CandidateSignal).where(CandidateSignal.candidate_id == intro.candidate_id)
+        )).scalars().all()
+        candidate_signals: dict[str, Any] = {r.key: r.value for r in sig_rows}
+
+        # ── Update founder trust score ────────────────────────────────────────
+        fp = job.founder_profile or (
+            job.signals.get("_founder_profile", {}) if isinstance(job.signals, dict) else {}
+        )
+        fp = dict(fp)
+
+        positive = outcome in ("interested", "interview", "offer", "hired")
+        ghost = outcome == "ghosted"
+
+        total = fp.get("total_intros", 0) + 1
+        fp["total_intros"] = total
+        if positive:
+            fp["total_responses"] = fp.get("total_responses", 0) + 1
+        response_rate = fp.get("total_responses", 0) / max(total, 1)
+        fp["response_rate"] = round(response_rate, 3)
+
+        # Trust score: weighted toward recent behavior
+        current_trust = fp.get("trust_score", 0.5)
+        if positive:
+            fp["trust_score"] = round(min(1.0, current_trust * 0.85 + 0.15), 3)
+        elif ghost:
+            fp["trust_score"] = round(max(0.1, current_trust * 0.90), 3)
+        else:
+            # Declined with reason — neutral impact
+            fp["trust_score"] = round(max(0.2, current_trust * 0.95), 3)
+
+        fp["last_updated"] = datetime.now(timezone.utc).isoformat()
+
+        # Persist updated profile
+        job.founder_profile = fp
+
+        # ── Snapshot outcome for learning (Phase 5 dataset) ──────────────────
+        try:
+            from sqlalchemy import text
+            payload: dict[str, Any] = {
+                "outcome":            outcome,
+                "decline_reason_code": decline_reason_code,
+                "compat_dims":        compat_dims,
+                "candidate_signals":  {
+                    k: v for k, v in candidate_signals.items()
+                    if k in ("primary_stack", "years_experience", "salary_floor_lpa",
+                             "ownership_mindset", "motivation", "location_preference",
+                             "risk_tolerance", "startup_stage_pref")
+                },
+                "trust_score_after":  fp["trust_score"],
+                "job_stage":          job.stage,
+                "job_sector":         job.sector,
+            }
+            await session.execute(
+                text("""
+                    INSERT INTO agent_memory_snapshots
+                        (subject_type, subject_id, memory_type, payload, policy_version)
+                    VALUES (:st, :sid, :mt, :pl::jsonb, :pv)
+                """),
+                {
+                    "st": "founder",
+                    "sid": job.id,
+                    "mt": "outcome_signal",
+                    "pl": json.dumps(payload),
+                    "pv": "v1",
+                },
+            )
+        except Exception:
+            log.debug("learn_from_outcome: snapshot insert failed (non-critical)")
+
+        await session.flush()
+        log.info(
+            "learn_from_outcome: intro=%d outcome=%s trust=%.2f",
+            intro_id, outcome, fp["trust_score"],
+        )
+    except Exception:
+        log.exception("learn_from_outcome failed for intro=%d", intro_id)
+
+
 # ── 4. POST-TURN REFLECTION ───────────────────────────────────────────────────
 
 _REFLECTION_SYSTEM = """You are an internal analyst for an AI talent agent.

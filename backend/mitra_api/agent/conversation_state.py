@@ -659,6 +659,24 @@ def load_asked_log(raw: Any) -> list[AskedQuestion]:
     return out
 
 
+def _token_similarity(a: str, b: str) -> float:
+    """
+    Jaccard similarity on word tokens (stopwords removed).
+    Used as a lightweight semantic dedup when regex produces no topic match.
+    """
+    _stop = frozenset({"what", "how", "why", "can", "do", "you", "your", "me", "a", "an",
+                        "the", "is", "are", "was", "were", "i", "my", "we", "to", "of",
+                        "in", "on", "at", "for", "with", "about", "and", "or", "that"})
+    tok_a = {w for w in re.sub(r"[^a-z ]", "", a.lower()).split() if w not in _stop and len(w) > 2}
+    tok_b = {w for w in re.sub(r"[^a-z ]", "", b.lower()).split() if w not in _stop and len(w) > 2}
+    if not tok_a or not tok_b:
+        return 0.0
+    return len(tok_a & tok_b) / len(tok_a | tok_b)
+
+
+_SEMANTIC_DEDUP_THRESHOLD = 0.50  # Jaccard ≥ 0.50 → treat as duplicate topic
+
+
 def append_asked(
     asked_log: list[AskedQuestion],
     *,
@@ -670,11 +688,24 @@ def append_asked(
     Tag the assistant's last question and append to the log.
     Returns (new_log, topic_tagged_or_None).
     De-dupes consecutive entries on the same topic.
+    Falls back to token-similarity dedup when regex yields no topic match.
     """
     last_q = _extract_last_question(assistant_text)
     if not last_q:
         return asked_log, None
     topic = tag_question(last_q)
+
+    if topic is None:
+        # Semantic fallback: compare against stored raw questions
+        for prev in asked_log[-20:]:  # only compare against recent entries
+            if prev.raw_text and _token_similarity(last_q, prev.raw_text) >= _SEMANTIC_DEDUP_THRESHOLD:
+                try:
+                    topic = TopicId.from_value(prev.topic)
+                except Exception:
+                    pass
+                if topic:
+                    break
+
     if topic is None:
         return asked_log, None
 

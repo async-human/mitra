@@ -32,6 +32,7 @@ from mitra_api.config import get_settings
 from mitra_api.db.models import Job, JobEmbedding
 from mitra_api.llm.factory import get_llm_adapter
 from mitra_api.llm.types import ChatMessage
+from mitra_api.tools.compatibility import compute_compatibility
 from mitra_api.tools.embeddings import EMBEDDING_DIM, embed_text, query_embed_text
 
 log = logging.getLogger(__name__)
@@ -132,6 +133,15 @@ async def search_jobs(
         # Not enough candidates to warrant reranking — add basic fit labels and return
         return _add_fit_labels(candidates, base_pct=88)
 
+    # ── Compatibility pre-sort — sort recall pool before LLM reranking ────────
+    # Injects dimensional scores so the LLM gets a pre-ranked context and is less
+    # likely to miss the best match due to prompt order bias.
+    _inject_compat_scores(candidates, candidate_signals)
+    candidates.sort(
+        key=lambda j: j.get("_compat_score", 0.5),
+        reverse=True,
+    )
+
     # ── Stage 2: LLM reranking ────────────────────────────────────────────────
     try:
         reranked = await _llm_rerank(
@@ -146,6 +156,24 @@ async def search_jobs(
     except Exception:
         log.exception("LLM reranking failed — returning vector results directly")
         return _add_fit_labels(candidates[:limit], base_pct=88)
+
+
+# ── Compatibility pre-scoring helper ─────────────────────────────────────────
+
+def _inject_compat_scores(jobs: list[dict[str, Any]], signals: dict[str, Any]) -> None:
+    """Annotate each job dict with _compat_score in-place (used for pre-sort)."""
+    for job in jobs:
+        try:
+            founder_profile = (
+                job.get("signals", {}).get("_founder_profile", {})
+                if isinstance(job.get("signals"), dict) else {}
+            )
+            compat = compute_compatibility(signals, job, founder_profile)
+            job["_compat_score"]    = compat["overall_score"]
+            job["_compat_decision"] = compat["decision"]
+            job["_compat_dims"]     = compat["dimensions"]
+        except Exception:
+            job["_compat_score"] = 0.5
 
 
 # ── EXPLICIT COMPANY / ROLE LOOKUP ───────────────────────────────────────────
@@ -375,6 +403,9 @@ async def _llm_rerank(
             "salary_lpa": f"{j.get('salary_min_lpa') or '?'}-{j.get('salary_max_lpa') or '?'}",
             "stack": j.get("stack") or [],
             "summary": (j.get("summary") or "")[:200],
+            # Pre-computed compatibility score so LLM can calibrate its fit_pct
+            "compat_score": round(j.get("_compat_score", 0.5), 2),
+            "compat_decision": j.get("_compat_decision", "unknown"),
         }
         for j in jobs
     ]

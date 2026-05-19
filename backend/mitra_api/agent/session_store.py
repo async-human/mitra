@@ -27,6 +27,19 @@ class AgentSessionStore(ABC):
     async def get_transcript(self, sid: str) -> list[ChatMessage]:
         """Prior conversation messages (excludes the current user line)."""
 
+    async def get_transcript_windowed(
+        self, sid: str, window: int = 12
+    ) -> tuple[list[ChatMessage], bool]:
+        """
+        Return the most recent `window` turns + a flag indicating older turns exist.
+        A "turn" = one user message + one assistant message (2 messages).
+        Returns (windowed_turns, has_older_turns).
+        """
+        full = await self.get_transcript(sid)
+        if len(full) <= window * 2:
+            return full, False
+        return full[-(window * 2):], True
+
     @abstractmethod
     async def append_messages(self, sid: str, msgs: list[ChatMessage]) -> None:
         """Persist new messages after a completed turn."""

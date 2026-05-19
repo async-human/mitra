@@ -67,10 +67,10 @@ const CONTENT = {
     headlineText: "Your AI career companion.\nNot a job board.",
     sub: (
       <>
-        Mitra doesn&apos;t reset between sessions. It learns your career trajectory,
-        remembers what matters to you, and makes warm introductions that land —
-        based on who you actually are,{" "}
-        <strong>not just what&apos;s on your CV.</strong>
+        The average engineer applies to 47 jobs and hears back from three.
+        Mitra works differently — you don&apos;t apply at all. Mitra represents you
+        and introduces you directly to the right founder.{" "}
+        <strong>They&apos;re already expecting the call.</strong>
       </>
     ),
     cta: { label: "Get started — free", href: "/sign-in?role=candidate", external: false },

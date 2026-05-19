@@ -36,6 +36,7 @@ _CONVERSATION_SIGNALS = {
 # Ordered list of which missing signals to ask about first
 _FOLLOW_UP_PRIORITY = [
     ("motivation",          "why they're looking to move right now"),
+    ("ownership_mindset",   "how they'd describe their ownership style — do they prefer owning a problem end-to-end or being a strong contributor within a larger team?"),
     ("salary_floor_lpa",    "their salary expectation (in LPA)"),
     ("location_preference", "their preferred location or remote preference"),
     ("startup_stage_pref",  "which startup stages they're open to"),
@@ -60,13 +61,23 @@ Extract these keys (omit any key where the information is not clearly stated):
   "has_leadership_experience": <true | false>,
   "location":                "City/country if mentioned",
   "linkedin":                "LinkedIn URL if present",
-  "github":                  "GitHub URL if present"
+  "github":                  "GitHub URL if present",
+
+  "ownership_mindset":       "high | medium | low  — infer from: founding/first-engineer/solo-built roles → high; pure IC at large companies with no independent initiative → low. Omit if unclear.",
+  "stability_seeking":       "high | medium | low  — infer from tenure: 3+ years at each of last 3 employers → high; multiple roles under 18 months → low. Omit if insufficient history.",
+  "first_startup_move":      <true | false — true only if ALL prior employers appear to be large enterprises or FAANG-tier (Infosys, TCS, Wipro, Accenture, Google, Amazon, Microsoft, Meta, etc.) with no startup experience. Omit if uncertain.>,
+  "builder_vs_maintainer":   "builder | maintainer | both — builder if: side projects, open-source contributions, 'built X from scratch', founding engineer; maintainer if: support/ops roles, legacy system work. Omit if insufficient signal.",
+  "career_push":             "Short phrase: what they appear to be moving AWAY from (e.g. 'large-company bureaucracy', 'pure maintenance work'). Omit if not inferable.",
+  "career_pull":             "Short phrase: what they appear to be moving TOWARD (e.g. 'early-stage product ownership', 'fintech infrastructure'). Omit if not inferable.",
+  "secondary_stack":         ["non-primary technologies, tools, or frameworks mentioned"],
+  "industries":              ["sectors of previous employers, e.g. fintech, healthtech, e-commerce, enterprise SaaS"]
 }
 
 Rules:
-- Be conservative. Only include facts clearly stated in the resume.
+- Be conservative. Only include facts clearly stated or strongly implied by the resume.
 - Do NOT infer years_experience from graduation year — only count stated work experience.
 - primary_stack should list actual technologies used, not job titles.
+- For behavioral signals (ownership_mindset, stability_seeking, etc.): only include if you have clear evidence. A wrong low-confidence guess is worse than omitting the field.
 - If a field is absent or unclear, omit it entirely — do not guess."""
 
 

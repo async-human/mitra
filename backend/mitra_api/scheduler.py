@@ -352,6 +352,87 @@ async def run_interview_outcome_check() -> None:
         log.exception("scheduler: interview_outcome_check failed")
 
 
+async def run_proactive_matching() -> None:
+    """
+    Nightly proactive matching pass.
+    For each active job, score all active candidates using the compatibility engine.
+    - Score >= 0.85 + founder_trust >= 0.70 → notify candidate via WA (autonomous mode)
+    - Score 0.70–0.85 → surface in future digest (passive mode)
+    """
+    log.info("scheduler: proactive_matching starting")
+    try:
+        from mitra_api.db.engine import get_session_factory
+        from mitra_api.db.models import Job as JobModel
+        from mitra_api.tools.proactive import (
+            score_candidates_for_job,
+            build_proactive_match_message,
+            send_proactive_message,
+        )
+        from sqlalchemy import select as sa_select
+
+        factory = get_session_factory()
+        async with factory() as db:
+            active_jobs = (await db.execute(
+                sa_select(JobModel).where(JobModel.status == "active")
+                .order_by(JobModel.updated_at.desc())
+                .limit(50)
+            )).scalars().all()
+
+            log.info("scheduler: proactive_matching — %d active jobs to score", len(active_jobs))
+            total_notified = 0
+
+            for job in active_jobs:
+                try:
+                    matches = await score_candidates_for_job(job, db, min_score=0.70, limit=10)
+                    if not matches:
+                        continue
+
+                    # Autonomous mode: score >= 0.85 + founder trust >= 0.70
+                    fp = job.founder_profile or (
+                        job.signals.get("_founder_profile", {}) if isinstance(job.signals, dict) else {}
+                    )
+                    founder_trust = fp.get("trust_score", 0.5)
+
+                    for candidate in matches[:5]:
+                        score = candidate["compat_score"]
+                        phone = candidate.get("candidate_phone", "")
+                        if not phone or phone.startswith("web:"):
+                            continue
+
+                        if score >= 0.85 and founder_trust >= 0.70:
+                            msg = build_proactive_match_message(
+                                candidate, job,
+                                {"compat_score": score, "compat_why": candidate.get("compat_why", "")}
+                            )
+                            ok = await send_proactive_message(
+                                phone, msg, label="proactive-match"
+                            )
+                            if ok:
+                                total_notified += 1
+                                # Store pending match so WA "yes" reply can auto-trigger intro
+                                try:
+                                    from mitra_api.main import session_store
+                                    await session_store.merge_signals(
+                                        phone,
+                                        {
+                                            "_pending_proactive_job_id": (
+                                                job.external_id or str(job.id)
+                                            ),
+                                            "_pending_proactive_score": score,
+                                        },
+                                    )
+                                except Exception:
+                                    log.debug("could not store pending match signal for %s", phone)
+                except Exception:
+                    log.exception("scheduler: proactive_matching failed for job=%d", job.id)
+
+            log.info(
+                "scheduler: proactive_matching done — notified %d candidates", total_notified
+            )
+    except Exception:
+        log.exception("scheduler: proactive_matching failed")
+
+
 async def run_offer_pending_check() -> None:
     """Check in with candidates who have a pending offer after 48h."""
     log.info("scheduler: offer_pending_check starting")
@@ -362,6 +443,7 @@ async def run_offer_pending_check() -> None:
             build_offer_pending_message,
             send_proactive_message,
         )
+        from mitra_api.tools.email import send_email
 
         hours = 0 if _TEST_MODE else 48
         factory = get_session_factory()
@@ -469,6 +551,10 @@ async def start_scheduler() -> list[asyncio.Task]:
             _daily_at(9, 30, run_placement_checkins, 90),
             name="checkin-90d",
         ),
+        asyncio.create_task(
+            _daily_at(2, 0, run_proactive_matching),
+            name="proactive-matching",
+        ),
     ]
 
     global _TASKS
@@ -511,6 +597,8 @@ if __name__ == "__main__":
             await run_placement_checkins(30)
         elif cmd == "checkin90":
             await run_placement_checkins(90)
+        elif cmd == "proactive":
+            await run_proactive_matching()
         else:
             log.info("Running all jobs once...")
             await run_candidate_reengagement()
@@ -520,5 +608,6 @@ if __name__ == "__main__":
             await run_offer_pending_check()
             await run_placement_checkins(30)
             await run_placement_checkins(90)
+            await run_proactive_matching()
 
     asyncio.run(main())

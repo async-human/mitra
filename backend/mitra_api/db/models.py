@@ -161,6 +161,9 @@ class Job(Base):
     summary:        Mapped[str|None] = mapped_column(Text)    # shown in card "why"
     full_jd:        Mapped[str|None] = mapped_column(Text)    # full job description
 
+    # Founder behavioural profile (Phase 2) — persisted separately from generic signals
+    founder_profile: Mapped[Any|None] = mapped_column(JSONB)  # see intelligence.py schema
+
     # Founder contact — kept on Job for backward compat; Company is source of truth for new jobs
     founder_name:   Mapped[str|None] = mapped_column(String(200))
     founder_email:  Mapped[str|None] = mapped_column(String(200))
@@ -260,6 +263,11 @@ class Match(Base):
     location_fit: Mapped[float|None] = mapped_column(Float)
     skill_fit:    Mapped[float|None] = mapped_column(Float)
     overall_fit:  Mapped[float|None] = mapped_column(Float)
+
+    # Full compatibility assessment (Phase 1 engine)
+    compatibility_score:      Mapped[float|None] = mapped_column(Float)
+    compatibility_dimensions: Mapped[Any|None]   = mapped_column(JSONB)   # all 8 dim scores
+    decision_policy_version:  Mapped[str|None]   = mapped_column(String(20))  # "v1", "v2", ...
 
     # LLM reranker context (populated when search produces this match)
     reranker_rank:    Mapped[int|None] = mapped_column(Integer)  # position in shortlist

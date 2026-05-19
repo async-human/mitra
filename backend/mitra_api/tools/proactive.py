@@ -613,6 +613,126 @@ def build_founder_digest_message(
 
 # ── DELIVERY HELPER ───────────────────────────────────────────────────────────
 
+# ── 8. PROACTIVE AGENTIC MATCHING (Phase 4) ──────────────────────────────────
+
+async def score_candidates_for_job(
+    job: Any,
+    db: AsyncSession,
+    *,
+    min_score: float = 0.70,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    """
+    Score all active candidates against a job using the compatibility engine.
+    Returns candidates with overall_score >= min_score, sorted by score desc.
+    Skips candidates who already have an intro for this job.
+    """
+    from mitra_api.tools.compatibility import compute_compatibility
+
+    # Fetch all active candidates with at least a few signals
+    candidates = (await db.execute(
+        select(Candidate).where(Candidate.is_active == True)
+        .order_by(Candidate.updated_at.desc())
+        .limit(200)
+    )).scalars().all()
+
+    job_dict = {
+        "title":          job.title,
+        "company":        job.company,
+        "stage":          job.stage,
+        "sector":         job.sector,
+        "stack":          job.stack,
+        "salary_min_lpa": job.salary_min_lpa,
+        "salary_max_lpa": job.salary_max_lpa,
+        "location":       job.location,
+        "remote_policy":  job.remote_policy,
+    }
+    founder_profile = (
+        job.founder_profile
+        if job.founder_profile
+        else (job.signals.get("_founder_profile", {}) if isinstance(job.signals, dict) else {})
+    )
+
+    # Candidate IDs already intro-ed for this job
+    already_intro_ids: set[int] = {
+        row[0] for row in (await db.execute(
+            select(Intro.candidate_id).where(Intro.job_id == job.id)
+        )).all()
+    }
+
+    results: list[dict[str, Any]] = []
+    for c in candidates:
+        if c.id in already_intro_ids:
+            continue
+
+        sig_rows = (await db.execute(
+            select(CandidateSignal).where(CandidateSignal.candidate_id == c.id)
+        )).scalars().all()
+        signals = {r.key: r.value for r in sig_rows}
+
+        # Skip candidates with no useful signals
+        if len(signals) < 3:
+            continue
+
+        try:
+            compat = compute_compatibility(signals, job_dict, founder_profile)
+        except Exception:
+            continue
+
+        if compat["overall_score"] < min_score:
+            continue
+
+        results.append({
+            "candidate_id":    c.id,
+            "candidate_phone": c.phone,
+            "candidate_name":  c.name or signals.get("candidate_name", "Candidate"),
+            "signals":         signals,
+            "compat_score":    compat["overall_score"],
+            "compat_decision": compat["decision"],
+            "compat_dims":     compat["dimensions"],
+            "compat_why":      compat["why"],
+            "risk_flags":      compat["risk_flags"],
+        })
+
+    results.sort(key=lambda x: x["compat_score"], reverse=True)
+    return results[:limit]
+
+
+def build_proactive_match_message(
+    candidate: dict[str, Any],
+    job: Any,
+    compat: dict[str, Any],
+) -> str:
+    """
+    Build a proactive WhatsApp message notifying a candidate of a strong match.
+    One-tap reply: "Yes, send it" → triggers request_intro automatically.
+    """
+    name = candidate.get("candidate_name") or "there"
+    first_name = str(name).split()[0] if name else "there"
+    score_pct = int(compat.get("compat_score", 0) * 100)
+    why = compat.get("compat_why", "")
+
+    salary_range = ""
+    if job.salary_min_lpa and job.salary_max_lpa:
+        salary_range = f" · ₹{job.salary_min_lpa}–{job.salary_max_lpa} LPA"
+    elif job.salary_max_lpa:
+        salary_range = f" · up to ₹{job.salary_max_lpa} LPA"
+
+    stack_bits = ""
+    if isinstance(job.stack, list) and job.stack:
+        stack_bits = " · " + ", ".join(str(s) for s in job.stack[:3])
+
+    return (
+        f"Hey {first_name} — I just spotted a role that looks like a strong match for you 👇\n\n"
+        f"*{job.title}* at {job.company}"
+        f"{salary_range}{stack_bits}\n"
+        f"Match score: {score_pct}%\n\n"
+        f"{why}\n\n"
+        f"Want me to send your intro to the founder? "
+        f"Reply *Yes, send it* and I'll get it out right away."
+    )
+
+
 async def send_proactive_message(
     phone: str,
     message: str,
