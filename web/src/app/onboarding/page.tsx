@@ -378,117 +378,118 @@ export default function OnboardingPage() {
   // Pre-chat company form
   if (phase === 'form') {
     return (
-      <div className={styles.formGate}>
+      <main className={styles.formPage}>
+        <form className={styles.formCard} onSubmit={handleFormSubmit} noValidate>
 
-        {/* Topbar */}
-        <div className={styles.topbar}>
-          <div className={styles.logo}>
-            <div className={styles.logoBox}>
-              <svg viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="9" r="4" fill="white" />
-                <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          {/* Logo — identical visual to the sign-in page */}
+          <div className={styles.formLogoRow}>
+            <div className={styles.formLogoBox}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 19V9l7-3 7 3v10l-7 3-7-3Z" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
+                <path d="M12 6v14M5 9l7 3 7-3" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
               </svg>
             </div>
-            <span className={styles.logoName}>Mitra<span>.</span></span>
+            <span className={styles.formLogoName}>Mitra<span>.</span></span>
           </div>
-          <div className={styles.topbarSep} />
-          <span className={styles.topbarLabel}>Founder Onboarding</span>
-        </div>
 
-        {/* Centered form */}
-        <div className={styles.formCenter}>
-          <form className={styles.formCard} onSubmit={handleFormSubmit} noValidate>
+          {/* Role badge — continuity from sign-in */}
+          <div className={styles.formRoleBadge}>
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <rect x="1.5" y="4.5" width="13" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+              <path d="M5 4.5V4a3 3 0 0 1 6 0v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              <circle cx="8" cy="9" r="1.5" fill="currentColor"/>
+            </svg>
+            Signing in as founder
+          </div>
 
-            <div className={styles.formHeader}>
-              <h1 className={styles.formTitle}>Before we start</h1>
-              <p className={styles.formSub}>
-                Mitra will research your company before the conversation begins — so we skip the basics and get straight to the role.
-              </p>
-            </div>
-
-            <div className={styles.formFields}>
-
-              <div className={styles.formField}>
-                <label className={styles.formLabel} htmlFor="ob-founder-name">Your name</label>
-                <input
-                  id="ob-founder-name"
-                  className={styles.formInput}
-                  type="text"
-                  placeholder="e.g. Harshal Patil"
-                  value={founderName}
-                  onChange={e => setFounderName(e.target.value)}
-                  autoComplete="name"
-                />
-              </div>
-
-              <div className={styles.formField}>
-                <label className={styles.formLabel} htmlFor="ob-company-name">
-                  Company name
-                  <span className={styles.formRequired}>*</span>
-                </label>
-                <input
-                  id="ob-company-name"
-                  className={styles.formInput}
-                  type="text"
-                  placeholder="e.g. Mitra Labs"
-                  value={companyName}
-                  onChange={e => setCompanyName(e.target.value)}
-                  required
-                  autoComplete="organization"
-                />
-              </div>
-
-              <div className={styles.formField}>
-                <label className={styles.formLabel} htmlFor="ob-company-url">
-                  Company website
-                  <span className={styles.formRequired}>*</span>
-                </label>
-                <input
-                  id="ob-company-url"
-                  className={styles.formInput}
-                  type="url"
-                  placeholder="e.g. https://mitra.work"
-                  value={companyUrl}
-                  onChange={e => setCompanyUrl(e.target.value)}
-                  required
-                  autoComplete="url"
-                />
-              </div>
-
-              <div className={styles.formField}>
-                <label className={styles.formLabel} htmlFor="ob-linkedin-url">
-                  LinkedIn company page
-                  <span className={styles.formOptional}>optional</span>
-                </label>
-                <input
-                  id="ob-linkedin-url"
-                  className={styles.formInput}
-                  type="url"
-                  placeholder="e.g. https://linkedin.com/company/mitra-labs"
-                  value={linkedinUrl}
-                  onChange={e => setLinkedinUrl(e.target.value)}
-                  autoComplete="off"
-                />
-              </div>
-
-            </div>
-
-            <button
-              type="submit"
-              className={styles.formSubmit}
-              disabled={!companyName.trim() || !companyUrl.trim()}
-            >
-              Continue →
-            </button>
-
-            <p className={styles.formHint}>
-              Takes 2 minutes. No credit card needed.
+          <div className={styles.formHeader}>
+            <h1 className={styles.formTitle}>Tell us about your company</h1>
+            <p className={styles.formSub}>
+              Mitra researches your company before the chat begins — so we skip the basics and get straight to what you&apos;re hiring for.
             </p>
+          </div>
 
-          </form>
-        </div>
+          <div className={styles.formFields}>
 
-      </div>
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="ob-founder-name">Your name</label>
+              <input
+                id="ob-founder-name"
+                className={styles.formInput}
+                type="text"
+                placeholder="e.g. Harshal Patil"
+                value={founderName}
+                onChange={e => setFounderName(e.target.value)}
+                autoComplete="name"
+              />
+            </div>
+
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="ob-company-name">
+                Company name
+                <span className={styles.formRequired}>*</span>
+              </label>
+              <input
+                id="ob-company-name"
+                className={styles.formInput}
+                type="text"
+                placeholder="e.g. Mitra Labs"
+                value={companyName}
+                onChange={e => setCompanyName(e.target.value)}
+                required
+                autoComplete="organization"
+              />
+            </div>
+
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="ob-company-url">
+                Company website
+                <span className={styles.formRequired}>*</span>
+              </label>
+              <input
+                id="ob-company-url"
+                className={styles.formInput}
+                type="url"
+                placeholder="e.g. https://mitra.work"
+                value={companyUrl}
+                onChange={e => setCompanyUrl(e.target.value)}
+                required
+                autoComplete="url"
+              />
+            </div>
+
+            <div className={styles.formField}>
+              <label className={styles.formLabel} htmlFor="ob-linkedin-url">
+                LinkedIn company page
+                <span className={styles.formOptional}>optional</span>
+              </label>
+              <input
+                id="ob-linkedin-url"
+                className={styles.formInput}
+                type="url"
+                placeholder="e.g. https://linkedin.com/company/mitra-labs"
+                value={linkedinUrl}
+                onChange={e => setLinkedinUrl(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+
+          </div>
+
+          <button
+            type="submit"
+            className={styles.formSubmit}
+            disabled={!companyName.trim() || !companyUrl.trim()}
+          >
+            Start your brief →
+          </button>
+
+          <p className={styles.formHint}>
+            Takes 2 minutes. No credit card needed.
+          </p>
+
+        </form>
+      </main>
     )
   }
 

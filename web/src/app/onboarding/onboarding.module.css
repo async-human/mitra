@@ -1051,59 +1051,98 @@
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── PRE-CHAT COMPANY FORM ───────────────────────────────────────────────────── */
+/* Matches the sign-in page aesthetic: warm off-white bg, white card, Lora serif  */
 
-.formGate {
-  display: grid;
-  grid-template-rows: 60px 1fr;
-  height: 100vh;
-  overflow: hidden;
-  background: var(--ink);
-  color: rgba(255,255,255,0.85);
+.formPage {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FAF8F5;
+  padding: 32px 20px;
   font-family: inherit;
   -webkit-font-smoothing: antialiased;
 }
 
-.formCenter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1.5rem;
-  overflow-y: auto;
-}
-
 .formCard {
   width: 100%;
-  max-width: 460px;
-  background: #100F0C;
-  border: 1px solid rgba(255,255,255,0.07);
+  max-width: 440px;
+  background: #ffffff;
+  border: 1.5px solid rgba(28,25,23,0.09);
   border-radius: 20px;
-  padding: 2.5rem;
+  padding: 48px 44px 40px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04);
   display: flex;
   flex-direction: column;
-  animation: formCardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: formCardIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
 }
 
 @keyframes formCardIn {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Logo row — same structure as sign-in's .signin-logo-row */
+.formLogoRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 32px;
+}
+
+.formLogoBox {
+  width: 32px;
+  height: 32px;
+  background: #1A1A1C;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.formLogoName {
+  font-family: var(--font-lora, Georgia, serif);
+  font-size: 18px;
+  font-weight: 700;
+  color: #1C1917;
+  letter-spacing: -0.015em;
+}
+
+.formLogoName span { color: #f59e0b; }
+
+/* Role badge — mirrors sign-in founder badge for continuity */
+.formRoleBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 10px;
+  background: rgba(16,185,129,0.09);
+  color: #059669;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  margin-bottom: 24px;
+  align-self: flex-start;
+}
+
 .formHeader {
-  margin-bottom: 2rem;
+  margin-bottom: 28px;
 }
 
 .formTitle {
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-family: var(--font-lora, Georgia, serif);
+  font-size: 26px;
+  font-weight: 600;
   letter-spacing: -0.025em;
-  color: rgba(255,255,255,0.92);
-  margin: 0 0 0.55rem;
-  line-height: 1.25;
+  color: #1C1917;
+  margin: 0 0 10px;
+  line-height: 1.2;
 }
 
 .formSub {
-  font-size: 0.86rem;
-  color: rgba(255,255,255,0.35);
+  font-size: 14px;
+  color: rgba(28,25,23,0.48);
   line-height: 1.65;
   margin: 0;
 }
@@ -1111,89 +1150,93 @@
 .formFields {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-  margin-bottom: 1.75rem;
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .formField {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 6px;
 }
 
 .formLabel {
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.5);
-  letter-spacing: 0.025em;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(28,25,23,0.65);
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 5px;
 }
 
 .formRequired {
-  color: var(--amber-2);
-  font-size: 0.75rem;
+  color: #f59e0b;
+  font-size: 13px;
+  line-height: 1;
 }
 
 .formOptional {
-  font-size: 0.67rem;
+  font-size: 11px;
   font-weight: 500;
-  color: rgba(255,255,255,0.22);
-  background: rgba(255,255,255,0.05);
+  color: rgba(28,25,23,0.32);
+  background: rgba(28,25,23,0.05);
   border-radius: 4px;
-  padding: 0.1rem 0.42rem;
-  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  letter-spacing: 0.02em;
 }
 
 .formInput {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: #FAF8F5;
+  border: 1.5px solid rgba(28,25,23,0.12);
   border-radius: 10px;
-  padding: 0.72rem 1rem;
-  font-size: 0.88rem;
+  padding: 12px 14px;
+  font-size: 14px;
   font-family: inherit;
-  color: rgba(255,255,255,0.85);
+  color: #1C1917;
   outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.15s;
   width: 100%;
   box-sizing: border-box;
 }
 
 .formInput::placeholder {
-  color: rgba(255,255,255,0.18);
+  color: rgba(28,25,23,0.28);
 }
 
 .formInput:focus {
-  border-color: rgba(192,120,40,0.55);
-  box-shadow: 0 0 0 3px rgba(192,120,40,0.09);
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245,158,11,0.12);
+  background: #fff;
 }
 
 .formSubmit {
   width: 100%;
-  padding: 0.82rem 1.5rem;
-  background: linear-gradient(135deg, var(--amber-2) 0%, #8B5010 100%);
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   border: none;
-  border-radius: 10px;
-  font-size: 0.88rem;
-  font-weight: 700;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
   font-family: inherit;
   color: #fff;
   cursor: pointer;
-  transition: opacity 0.15s, transform 0.12s;
-  margin-bottom: 1rem;
-  letter-spacing: 0.01em;
-  box-shadow: 0 2px 12px rgba(192,120,40,0.28);
+  transition: transform 0.15s, box-shadow 0.18s, opacity 0.15s;
+  margin-bottom: 14px;
+  letter-spacing: -0.01em;
+  box-shadow: 0 2px 12px rgba(245,158,11,0.30);
 }
 
 .formSubmit:hover:not(:disabled) {
-  opacity: 0.88;
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(192,120,40,0.4);
+  box-shadow: 0 6px 20px rgba(245,158,11,0.42);
+}
+
+.formSubmit:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .formSubmit:disabled {
-  opacity: 0.3;
+  opacity: 0.38;
   cursor: not-allowed;
   transform: none;
   box-shadow: none;
@@ -1201,8 +1244,8 @@
 
 .formHint {
   text-align: center;
-  font-size: 0.73rem;
-  color: rgba(255,255,255,0.18);
+  font-size: 12px;
+  color: rgba(28,25,23,0.32);
   margin: 0;
   line-height: 1.5;
 }
