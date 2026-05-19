@@ -535,8 +535,9 @@ export default function OnboardingPage() {
 
         </div>
 
-        {/* Input bar */}
+        {/* Input bar — floating pill */}
         <div className={styles.inputBar}>
+          {/* Hidden file input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -547,39 +548,41 @@ export default function OnboardingPage() {
               if (f) handleJdUpload(f)
             }}
           />
-          <button
-            className={styles.attachBtn}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isWaiting || !initDone}
-            title="Upload JD (PDF or Word)"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.48" />
-            </svg>
-          </button>
-          <input
-            className={styles.chatInput}
-            value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSend()
-              }
-            }}
-            placeholder="Type a message…"
-            autoComplete="off"
-            disabled={isWaiting && !initDone}
-          />
-          <button
-            className={styles.sendBtn}
-            onClick={() => handleSend()}
-            disabled={isWaiting || !inputValue.trim()}
-          >
-            <svg viewBox="0 0 24 24" fill="white">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-            </svg>
-          </button>
+          <div className={styles.inputPill}>
+            <input
+              className={styles.chatInput}
+              value={inputValue}
+              onChange={e => setInputValue(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
+              placeholder="Type a message…"
+              autoComplete="off"
+              disabled={isWaiting && !initDone}
+            />
+            <button
+              className={styles.attachBtn}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isWaiting || !initDone}
+              title="Upload JD (PDF or Word)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.41 17.41a2 2 0 01-2.83-2.83l8.49-8.48" />
+              </svg>
+            </button>
+            <button
+              className={styles.sendBtn}
+              onClick={() => handleSend()}
+              disabled={isWaiting || !inputValue.trim()}
+            >
+              <svg viewBox="0 0 24 24" fill="white">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            </button>
+          </div>
         </div>
 
       </div>

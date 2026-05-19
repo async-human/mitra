@@ -4,7 +4,7 @@
  */
 
 .app {
-  --bg:        #F0EAE0;
+  --bg:        #F7F3EE;
   --surface:   #FFFFFF;
   --ink:       #1C1917;
   --ink-soft:  rgba(28,25,23,0.58);
@@ -384,16 +384,26 @@
 
 .portalCardBtn:hover { opacity: 0.86; transform: translateY(-1px); }
 
-/* ── INPUT BAR ───────────────────────────────────────────────────────────────── */
+/* ── INPUT BAR — floating pill ───────────────────────────────────────────────── */
 
 .inputBar {
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  padding: 13px max(24px, calc((100% - 720px) / 2)) 15px;
+  background: transparent;
+  padding: 0 max(24px, calc((100% - 720px) / 2)) 28px;
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* The pill container that floats above the background */
+.inputPill {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid rgba(28,25,23,0.11);
+  border-radius: 100px;
+  padding: 8px 8px 8px 20px;
+  box-shadow: 0 4px 20px rgba(28,25,23,0.09), 0 1px 4px rgba(28,25,23,0.05);
 }
 
 .chatInput {
@@ -404,15 +414,16 @@
   color: var(--ink);
   font-family: inherit;
   outline: none;
-  padding: 0 4px;
+  padding: 4px 0;
   line-height: 1.5;
+  min-width: 0;
 }
 
 .chatInput::placeholder { color: var(--ink-faint); }
 
 .attachBtn {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: transparent;
   border: none;
@@ -433,7 +444,7 @@
 
 .attachBtn:disabled { opacity: 0.28; cursor: default; }
 
-.attachBtn svg { width: 18px; height: 18px; }
+.attachBtn svg { width: 17px; height: 17px; }
 
 .sendBtn {
   width: 36px;
