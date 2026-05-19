@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   title: "Dashboard · Mitra",
 };
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+
 interface FounderJob {
   job_id: number;
   title: string;
@@ -18,6 +20,21 @@ interface FounderJob {
   total_intros: number;
   to_review: number;
 }
+
+interface PortalStats {
+  total: number;
+  interested: number;
+  interview: number;
+  offer: number;
+  hired: number;
+  declined: number;
+}
+
+interface JobWithStats extends FounderJob {
+  stats: PortalStats | null;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function companyInitials(s: string): string {
   const words = s.trim().split(/\s+/);
@@ -33,6 +50,25 @@ function formatDate(): string {
   });
 }
 
+async function fetchPortalStats(apiBase: string, portalUrl: string): Promise<PortalStats | null> {
+  try {
+    // portal_url is "{web_base}/founder/portal?token=..." — extract the token
+    const token = new URL(portalUrl).searchParams.get("token");
+    if (!token) return null;
+    const res = await fetch(
+      `${apiBase}/founder/portal?token=${encodeURIComponent(token)}`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.stats as PortalStats) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default async function FounderDashboardPage() {
   const session = await auth();
 
@@ -40,16 +76,16 @@ export default async function FounderDashboardPage() {
     redirect("/sign-in?role=founder");
   }
 
-  const email = session.user.email;
-  const name  = session.user.name?.split(" ")[0] ?? "there";
+  const email   = session.user.email;
+  const name    = session.user.name?.split(" ")[0] ?? "there";
   const apiBase = (
     process.env.MITRA_API_BASE_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
     "http://localhost:8080"
   ).replace(/\/$/, "");
 
-  let jobs: FounderJob[] = [];
-  let lookupError = false;
+  let jobs: FounderJob[]         = [];
+  let lookupError                = false;
 
   try {
     const res = await fetch(
@@ -59,7 +95,7 @@ export default async function FounderDashboardPage() {
     if (res.ok) {
       jobs = (await res.json()).jobs ?? [];
     } else {
-      // Fallback to single-job endpoint for older backends
+      // Fallback for older backends
       const fb = await fetch(
         `${apiBase}/founder/portal-link-by-email?email=${encodeURIComponent(email)}`,
         { cache: "no-store" },
@@ -83,8 +119,20 @@ export default async function FounderDashboardPage() {
     lookupError = true;
   }
 
-  const totalIntros = jobs.reduce((s, j) => s + j.total_intros, 0);
-  const totalReview = jobs.reduce((s, j) => s + j.to_review, 0);
+  // Fetch per-job pipeline stats in parallel using the portal token
+  let jobsWithStats: JobWithStats[] = jobs.map(j => ({ ...j, stats: null }));
+  if (jobs.length > 0 && !lookupError) {
+    const statsArr = await Promise.all(
+      jobs.map(j => fetchPortalStats(apiBase, j.portal_url)),
+    );
+    jobsWithStats = jobs.map((j, i) => ({ ...j, stats: statsArr[i] }));
+  }
+
+  // Aggregate header stats
+  const totalIntros    = jobs.reduce((s, j) => s + j.total_intros, 0);
+  const totalReview    = jobs.reduce((s, j) => s + j.to_review, 0);
+  const totalInterview = jobsWithStats.reduce((s, j) => s + (j.stats?.interview ?? 0), 0);
+  const totalHired     = jobsWithStats.reduce((s, j) => s + (j.stats?.hired ?? 0), 0);
 
   return (
     <main className={styles.page}>
@@ -112,7 +160,7 @@ export default async function FounderDashboardPage() {
       {/* ── CONTENT ─────────────────────────────────────────────────────────── */}
       <div className={styles.content}>
 
-        {/* Greeting + primary CTA */}
+        {/* Greeting */}
         <div className={styles.greeting}>
           <div>
             <h1 className={styles.greetTitle}>Welcome back, {name}</h1>
@@ -123,33 +171,40 @@ export default async function FounderDashboardPage() {
           </Link>
         </div>
 
-        {/* Stats row */}
+        {/* Stats row — 4 funnel metrics */}
         {!lookupError && (
           <div className={styles.statsRow}>
             <div className={styles.statCard}>
               <div className={styles.statValue}>{jobs.length}</div>
               <div className={styles.statLabel}>Active roles</div>
             </div>
-            <div className={styles.statCard}>
+            <div className={`${styles.statCard} ${totalReview > 0 ? styles.statAmber : ''}`}>
               <div className={styles.statValue}>{totalIntros}</div>
               <div className={styles.statLabel}>Intros sent</div>
+              {totalReview > 0 && (
+                <div className={styles.statSub}>{totalReview} awaiting review</div>
+              )}
             </div>
-            <div className={`${styles.statCard} ${totalReview > 0 ? styles.statAccent : ''}`}>
-              <div className={styles.statValue}>{totalReview}</div>
-              <div className={styles.statLabel}>Pending review</div>
+            <div className={styles.statCard}>
+              <div className={styles.statValue}>{totalInterview}</div>
+              <div className={styles.statLabel}>Interviewing</div>
+            </div>
+            <div className={`${styles.statCard} ${totalHired > 0 ? styles.statGreen : ''}`}>
+              <div className={styles.statValue}>{totalHired}</div>
+              <div className={styles.statLabel}>Hired</div>
             </div>
           </div>
         )}
 
-        {/* Error state */}
+        {/* Error notice */}
         {lookupError && (
           <div className={styles.notice}>
-            We couldn&apos;t reach the server right now.{" "}
+            Couldn&apos;t reach the server.{" "}
             <Link href="/founder/dashboard" className={styles.noticeLink}>Try again</Link>
           </div>
         )}
 
-        {/* Open roles */}
+        {/* Roles */}
         {!lookupError && (
           <section className={styles.section}>
             <div className={styles.sectionHead}>
@@ -177,51 +232,100 @@ export default async function FounderDashboardPage() {
               </div>
             ) : (
               <div className={styles.roleList}>
-                {jobs.map(job => (
-                  <a key={job.job_id} href={job.portal_url} className={styles.roleCard}>
-                    <div className={styles.roleAv}>
-                      {companyInitials(job.company || job.title)}
-                    </div>
+                {jobsWithStats.map(job => {
+                  const s = job.stats;
+                  // "Sent" = intros not yet acted on
+                  const sentCount = s
+                    ? Math.max(0, s.total - s.interested - s.interview - s.offer - s.hired - s.declined)
+                    : job.to_review;
 
-                    <div className={styles.roleInfo}>
-                      <div className={styles.roleTitle}>{job.title}</div>
-                      {job.company && (
-                        <div className={styles.roleCompany}>{job.company}</div>
-                      )}
-                    </div>
+                  return (
+                    <a key={job.job_id} href={job.portal_url} className={styles.roleCard}>
 
-                    <div className={styles.roleMeta}>
-                      {job.stage && (
-                        <span className={styles.stageBadge}>{job.stage}</span>
-                      )}
-                      <span className={styles.introCount}>
-                        {job.total_intros} intro{job.total_intros !== 1 ? "s" : ""}
-                      </span>
-                      {job.to_review > 0 && (
-                        <span className={styles.reviewBadge}>
-                          {job.to_review} to review
-                        </span>
-                      )}
-                    </div>
+                      {/* Avatar */}
+                      <div className={styles.roleAv}>
+                        {companyInitials(job.company || job.title)}
+                      </div>
 
-                    <svg className={styles.arrow} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                      <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </a>
-                ))}
+                      {/* Info */}
+                      <div className={styles.roleInfo}>
+                        <div className={styles.roleTitle}>{job.title}</div>
+                        {job.company && (
+                          <div className={styles.roleCompany}>{job.company}</div>
+                        )}
+
+                        {/* Pipeline mini-row */}
+                        <div className={styles.pipeline}>
+                          {job.total_intros > 0 ? (
+                            <>
+                              <span className={styles.pipeItem} data-stage="sent">
+                                <span className={styles.pipeDot} />
+                                {job.total_intros} introduced
+                              </span>
+                              {sentCount > 0 && (
+                                <span className={styles.pipeItem} data-stage="review">
+                                  <span className={styles.pipeDot} />
+                                  {sentCount} to review
+                                </span>
+                              )}
+                              {s && s.interested > 0 && (
+                                <span className={styles.pipeItem} data-stage="interested">
+                                  <span className={styles.pipeDot} />
+                                  {s.interested} interested
+                                </span>
+                              )}
+                              {s && s.interview > 0 && (
+                                <span className={styles.pipeItem} data-stage="interview">
+                                  <span className={styles.pipeDot} />
+                                  {s.interview} interviewing
+                                </span>
+                              )}
+                              {s && s.offer > 0 && (
+                                <span className={styles.pipeItem} data-stage="offer">
+                                  <span className={styles.pipeDot} />
+                                  {s.offer} offer
+                                </span>
+                              )}
+                              {s && s.hired > 0 && (
+                                <span className={styles.pipeItem} data-stage="hired">
+                                  <span className={styles.pipeDot} />
+                                  {s.hired} hired
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className={styles.pipeEmpty}>No intros yet</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right: stage + arrow */}
+                      <div className={styles.roleRight}>
+                        {job.stage && (
+                          <span className={styles.stageBadge}>{job.stage}</span>
+                        )}
+                        {job.to_review > 0 && (
+                          <span className={styles.reviewBadge}>{job.to_review} to review</span>
+                        )}
+                      </div>
+
+                      <svg className={styles.arrow} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </a>
+                  );
+                })}
               </div>
             )}
           </section>
         )}
 
-        {/* Post new role */}
+        {/* Add a role */}
         <section className={styles.section}>
           <div className={styles.sectionHead}>
             <span className={styles.sectionTitle}>Add a role</span>
           </div>
-
           <div className={styles.addRow}>
-            {/* AI brief card */}
             <Link href="/onboarding" className={styles.addCard}>
               <div className={styles.addCardIcon}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -240,7 +344,6 @@ export default async function FounderDashboardPage() {
               </svg>
             </Link>
 
-            {/* Upload JD card */}
             <Link href="/onboarding?upload=1" className={styles.addCard}>
               <div className={styles.addCardIcon}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -253,7 +356,7 @@ export default async function FounderDashboardPage() {
               <div className={styles.addCardBody}>
                 <div className={styles.addCardTitle}>Upload a JD</div>
                 <div className={styles.addCardSub}>
-                  Drop a PDF or Word file and Mitra extracts the brief for you
+                  Drop a PDF or Word file — Mitra extracts the brief for you
                 </div>
               </div>
               <svg className={styles.addCardArrow} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
