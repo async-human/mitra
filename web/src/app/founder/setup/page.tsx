@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { UserMenu } from "@/app/dashboard/UserMenu";
-import { TokenInput } from "./TokenInput";
 
 export const metadata: Metadata = {
   title: "Founder portal · Mitra",
@@ -82,6 +81,11 @@ export default async function FounderSetupPage({
     lookupError = true;
   }
 
+  // Zero jobs + no error — go straight to onboarding (company form lives there)
+  if (jobs.length === 0 && !lookupError) {
+    redirect('/onboarding');
+  }
+
   // Single job — redirect immediately unless the founder explicitly wants the list
   if (jobs.length === 1 && !forceList) {
     redirect(jobs[0].portal_url);
@@ -158,7 +162,7 @@ export default async function FounderSetupPage({
 
           {/* Add another role */}
           <div className="fp-setup-divider">or</div>
-          <Link href="/founder/new-role" className="fp-setup-btn fp-setup-btn--ghost">
+          <Link href="/onboarding" className="fp-setup-btn fp-setup-btn--ghost">
             + Post another role
           </Link>
 
@@ -199,13 +203,14 @@ export default async function FounderSetupPage({
           </p>
         ) : (
           <p className="fp-setup-sub">
-            We don&apos;t have an active role posted for <strong>{email}</strong> yet.
-            Complete the 2-minute brief and we&apos;ll start sending you matched engineers within 48 hours.
+            We don&apos;t have an active role posted for{" "}
+            <strong>{email}</strong> yet. Complete the 2-minute brief and
+            we&apos;ll start sending you matched engineers within 48 hours.
           </p>
         )}
 
         <div className="fp-setup-actions">
-          <Link href="/founder/new-role" className="fp-setup-btn fp-setup-btn--primary">
+          <Link href="/onboarding" className="fp-setup-btn fp-setup-btn--primary">
             Post your first role →
           </Link>
           {lookupError && (
@@ -213,14 +218,6 @@ export default async function FounderSetupPage({
               Try again
             </Link>
           )}
-        </div>
-
-        {/* Token paste fallback for founders whose email lookup doesn't match */}
-        <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
-          <p className="fp-setup-sub" style={{ marginBottom: 10 }}>
-            Already completed onboarding? Paste your portal token below:
-          </p>
-          <TokenInput />
         </div>
 
         <p className="fp-setup-note">
