@@ -118,13 +118,31 @@ export default function OnboardingPage() {
   const [portalUrl, setPortalUrl]             = useState<string>('')
   const [portalLoading, setPortalLoading]     = useState(false)
 
+  // Pre-chat form state
+  const [phase, setPhase]           = useState<'form' | 'chat'>('form')
+  const [founderName, setFounderName] = useState('')
+  const [companyName, setCompanyName] = useState('')
+  const [companyUrl, setCompanyUrl]   = useState('')
+  const [linkedinUrl, setLinkedinUrl] = useState('')
+
   const sessionIdRef  = useRef<string>('')
   const chatBodyRef   = useRef<HTMLDivElement>(null)
   const fileInputRef  = useRef<HTMLInputElement>(null)
+  // Captures form values at the moment the chat phase starts (avoids stale closure)
+  const formDataRef   = useRef<{ founderName: string; companyName: string; companyUrl: string; linkedinUrl: string } | null>(null)
 
-  // ── Init: session ID + body overflow + greeting ──────────────────────────
+  // ── Pre-fill founder name from auth session ──────────────────────────────
 
   useEffect(() => {
+    if (authSession?.user?.name) {
+      setFounderName(prev => prev || authSession.user!.name!)
+    }
+  }, [authSession?.user?.name])
+
+  // ── Init: session ID + body overflow + greeting (fires when chat phase starts) ──
+
+  useEffect(() => {
+    if (phase !== 'chat') return
     if (typeof window === 'undefined') return
 
     // Generate or restore session ID
@@ -140,19 +158,32 @@ export default function OnboardingPage() {
     // Lock body scroll for the full-viewport layout
     document.body.style.overflow = 'hidden'
 
-    // Fetch opening greeting
+    const fd = formDataRef.current
+
+    // Fetch opening greeting — pass company context so backend can auto-research
     setIsWaiting(true)
     fetch(`${API_URL}/founder/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: sid, message: '', auth_email: authEmail || undefined }),
+      body: JSON.stringify({
+        session_id: sid,
+        message: '',
+        auth_email: authEmail || undefined,
+        founder_name: fd?.founderName || undefined,
+        company_name: fd?.companyName || undefined,
+        company_url:  fd?.companyUrl  || undefined,
+        linkedin_url: fd?.linkedinUrl || undefined,
+      }),
     })
       .then(r => r.json())
       .then((data: ChatResponse) => {
         applyResponse(data)
       })
       .catch(() => {
-        addMessage('in', "Hi — I'm Mitra, a talent agent for funded startups in Bengaluru. *What role are you most urgently hiring for right now?*")
+        const greeting = fd?.companyName
+          ? `Hi ${fd.founderName || 'there'} — I'm Mitra. I can see you're from *${fd.companyName}*. What role are you most urgently hiring for right now?`
+          : "Hi — I'm Mitra, a talent agent for funded startups. *What role are you most urgently hiring for right now?*"
+        addMessage('in', greeting)
       })
       .finally(() => {
         setIsWaiting(false)
@@ -161,7 +192,7 @@ export default function OnboardingPage() {
 
     return () => { document.body.style.overflow = '' }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [phase])
 
   // ── Scroll to bottom on new content ──────────────────────────────────────
 
@@ -307,6 +338,20 @@ export default function OnboardingPage() {
     }
   }, [inputValue, isWaiting, initDone, addMessage, applyResponse])
 
+  // ── Form submit (pre-chat gate) ───────────────────────────────────────────
+
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!companyName.trim() || !companyUrl.trim()) return
+    formDataRef.current = {
+      founderName: founderName.trim(),
+      companyName: companyName.trim(),
+      companyUrl:  companyUrl.trim(),
+      linkedinUrl: linkedinUrl.trim(),
+    }
+    setPhase('chat')
+  }
+
   // ── Derived state ─────────────────────────────────────────────────────────
 
   const currentStepIdx = STEPS.indexOf(step as typeof STEPS[number])
@@ -329,6 +374,123 @@ export default function OnboardingPage() {
   const extraKeys = Object.keys(signals).filter(k => !DEFINED_KEYS.has(k) && signals[k])
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  // Pre-chat company form
+  if (phase === 'form') {
+    return (
+      <div className={styles.formGate}>
+
+        {/* Topbar */}
+        <div className={styles.topbar}>
+          <div className={styles.logo}>
+            <div className={styles.logoBox}>
+              <svg viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="9" r="4" fill="white" />
+                <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="white" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </div>
+            <span className={styles.logoName}>Mitra<span>.</span></span>
+          </div>
+          <div className={styles.topbarSep} />
+          <span className={styles.topbarLabel}>Founder Onboarding</span>
+        </div>
+
+        {/* Centered form */}
+        <div className={styles.formCenter}>
+          <form className={styles.formCard} onSubmit={handleFormSubmit} noValidate>
+
+            <div className={styles.formHeader}>
+              <h1 className={styles.formTitle}>Before we start</h1>
+              <p className={styles.formSub}>
+                Mitra will research your company before the conversation begins — so we skip the basics and get straight to the role.
+              </p>
+            </div>
+
+            <div className={styles.formFields}>
+
+              <div className={styles.formField}>
+                <label className={styles.formLabel} htmlFor="ob-founder-name">Your name</label>
+                <input
+                  id="ob-founder-name"
+                  className={styles.formInput}
+                  type="text"
+                  placeholder="e.g. Harshal Patil"
+                  value={founderName}
+                  onChange={e => setFounderName(e.target.value)}
+                  autoComplete="name"
+                />
+              </div>
+
+              <div className={styles.formField}>
+                <label className={styles.formLabel} htmlFor="ob-company-name">
+                  Company name
+                  <span className={styles.formRequired}>*</span>
+                </label>
+                <input
+                  id="ob-company-name"
+                  className={styles.formInput}
+                  type="text"
+                  placeholder="e.g. Mitra Labs"
+                  value={companyName}
+                  onChange={e => setCompanyName(e.target.value)}
+                  required
+                  autoComplete="organization"
+                />
+              </div>
+
+              <div className={styles.formField}>
+                <label className={styles.formLabel} htmlFor="ob-company-url">
+                  Company website
+                  <span className={styles.formRequired}>*</span>
+                </label>
+                <input
+                  id="ob-company-url"
+                  className={styles.formInput}
+                  type="url"
+                  placeholder="e.g. https://mitra.work"
+                  value={companyUrl}
+                  onChange={e => setCompanyUrl(e.target.value)}
+                  required
+                  autoComplete="url"
+                />
+              </div>
+
+              <div className={styles.formField}>
+                <label className={styles.formLabel} htmlFor="ob-linkedin-url">
+                  LinkedIn company page
+                  <span className={styles.formOptional}>optional</span>
+                </label>
+                <input
+                  id="ob-linkedin-url"
+                  className={styles.formInput}
+                  type="url"
+                  placeholder="e.g. https://linkedin.com/company/mitra-labs"
+                  value={linkedinUrl}
+                  onChange={e => setLinkedinUrl(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+
+            </div>
+
+            <button
+              type="submit"
+              className={styles.formSubmit}
+              disabled={!companyName.trim() || !companyUrl.trim()}
+            >
+              Continue →
+            </button>
+
+            <p className={styles.formHint}>
+              Takes 2 minutes. No credit card needed.
+            </p>
+
+          </form>
+        </div>
+
+      </div>
+    )
+  }
 
   return (
     <div className={styles.app}>

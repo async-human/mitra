@@ -1049,3 +1049,160 @@
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── PRE-CHAT COMPANY FORM ───────────────────────────────────────────────────── */
+
+.formGate {
+  display: grid;
+  grid-template-rows: 60px 1fr;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--ink);
+  color: rgba(255,255,255,0.85);
+  font-family: inherit;
+  -webkit-font-smoothing: antialiased;
+}
+
+.formCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.5rem;
+  overflow-y: auto;
+}
+
+.formCard {
+  width: 100%;
+  max-width: 460px;
+  background: #100F0C;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 20px;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  animation: formCardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes formCardIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.formHeader {
+  margin-bottom: 2rem;
+}
+
+.formTitle {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: rgba(255,255,255,0.92);
+  margin: 0 0 0.55rem;
+  line-height: 1.25;
+}
+
+.formSub {
+  font-size: 0.86rem;
+  color: rgba(255,255,255,0.35);
+  line-height: 1.65;
+  margin: 0;
+}
+
+.formFields {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  margin-bottom: 1.75rem;
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.formLabel {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.025em;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.formRequired {
+  color: var(--amber-2);
+  font-size: 0.75rem;
+}
+
+.formOptional {
+  font-size: 0.67rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
+  padding: 0.1rem 0.42rem;
+  letter-spacing: 0.03em;
+}
+
+.formInput {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 0.72rem 1rem;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: rgba(255,255,255,0.85);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.formInput::placeholder {
+  color: rgba(255,255,255,0.18);
+}
+
+.formInput:focus {
+  border-color: rgba(192,120,40,0.55);
+  box-shadow: 0 0 0 3px rgba(192,120,40,0.09);
+}
+
+.formSubmit {
+  width: 100%;
+  padding: 0.82rem 1.5rem;
+  background: linear-gradient(135deg, var(--amber-2) 0%, #8B5010 100%);
+  border: none;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.12s;
+  margin-bottom: 1rem;
+  letter-spacing: 0.01em;
+  box-shadow: 0 2px 12px rgba(192,120,40,0.28);
+}
+
+.formSubmit:hover:not(:disabled) {
+  opacity: 0.88;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(192,120,40,0.4);
+}
+
+.formSubmit:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.formHint {
+  text-align: center;
+  font-size: 0.73rem;
+  color: rgba(255,255,255,0.18);
+  margin: 0;
+  line-height: 1.5;
+}
