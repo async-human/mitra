@@ -28,8 +28,8 @@
   --r-lg:         16px;
 
   display: grid;
-  grid-template-columns: 1fr 400px;
-  grid-template-rows: 60px 1fr;
+  grid-template-columns: 1fr 320px;
+  grid-template-rows: 56px 1fr;
   height: 100vh;
   overflow: hidden;
   background: var(--ink);
@@ -45,10 +45,9 @@
   background: #080706;
   display: flex;
   align-items: center;
-  padding: 0 28px;
-  gap: 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  box-shadow: 0 1px 0 rgba(192,120,40,0.06);
+  padding: 0 24px;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .logo {
@@ -85,17 +84,46 @@
 
 .topbarSep {
   width: 1px;
-  height: 18px;
-  background: rgba(255,255,255,0.07);
-  margin: 0 6px;
+  height: 16px;
+  background: rgba(255,255,255,0.08);
+  margin: 0 4px;
 }
 
-.topbarLabel {
-  font-size: 10.5px;
+/* Step breadcrumb in topbar */
+.topbarSteps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.topbarStep {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.18);
+  padding: 0 8px;
+  letter-spacing: 0.01em;
+  transition: color 0.25s;
+  position: relative;
+}
+
+.topbarStep + .topbarStep::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 10px;
+  background: rgba(255,255,255,0.08);
+}
+
+.topbarStep.active {
+  color: var(--amber-2);
   font-weight: 600;
-  color: rgba(255,255,255,0.22);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+}
+
+.topbarStep.done {
+  color: rgba(255,255,255,0.38);
 }
 
 .topbarRight {
@@ -169,30 +197,16 @@
   position: relative;
 }
 
-/* Warm ambient glow — top-left atmospheric light */
-.waPanel::before {
-  content: '';
-  position: absolute;
-  top: -60px;
-  left: -60px;
-  width: 360px;
-  height: 360px;
-  background: radial-gradient(circle, rgba(192,120,40,0.05) 0%, transparent 65%);
-  pointer-events: none;
-  z-index: 0;
-}
-
 .waHeader {
   background: var(--chat-panel);
-  padding: 11px 18px;
+  padding: 10px max(20px, calc((100% - 660px) / 2));
   display: flex;
   align-items: center;
   gap: 13px;
-  border-bottom: 1px solid rgba(255,255,255,0.035);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  box-shadow: 0 1px 20px rgba(0,0,0,0.3);
 }
 
 .waAv {
@@ -258,7 +272,7 @@
 .waBody {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 18px 12px;
+  padding: 28px max(20px, calc((100% - 660px) / 2)) 16px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -509,15 +523,14 @@
 
 .waInputBar {
   background: var(--chat-panel);
-  padding: 10px 14px;
+  padding: 12px max(20px, calc((100% - 660px) / 2)) 14px;
   display: flex;
   align-items: center;
   gap: 9px;
-  border-top: 1px solid rgba(255,255,255,0.035);
+  border-top: 1px solid rgba(255,255,255,0.05);
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  box-shadow: 0 -1px 20px rgba(0,0,0,0.2);
 }
 
 .waInput {
@@ -594,103 +607,79 @@
 /* ── RIGHT: PROFILE PANEL ────────────────────────────────────────────────────── */
 
 .profilePanel {
-  background: #13120F;
-  border-left: 1px solid rgba(255,255,255,0.04);
+  background: #111009;
+  border-left: 1px solid rgba(255,255,255,0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
 .profileHeader {
-  padding: 22px 22px 18px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  background: linear-gradient(160deg, #1C1810 0%, #14120E 60%, #13120F 100%);
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  background: #161410;
   position: relative;
   overflow: hidden;
 }
 
-/* Animated ambient orb — warm amber light in top-right */
 .profileHeader::before {
   content: '';
   position: absolute;
-  top: -50px;
-  right: -30px;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(212,144,64,0.22) 0%, rgba(192,120,40,0.08) 45%, transparent 70%);
-  animation: orbFloat 8s ease-in-out infinite;
+  top: 0; right: 0;
+  width: 120px; height: 120px;
+  background: radial-gradient(circle at 100% 0%, rgba(212,144,64,0.12) 0%, transparent 65%);
   pointer-events: none;
-  z-index: 0;
-}
-
-/* Subtle concentric arc accent */
-.profileHeader::after {
-  content: '';
-  position: absolute;
-  top: -20px;
-  right: -20px;
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  border: 14px solid rgba(192,120,40,0.06);
-  pointer-events: none;
-  z-index: 0;
-}
-
-@keyframes orbFloat {
-  0%, 100% { transform: translate(0, 0) scale(1);     opacity: 1; }
-  33%       { transform: translate(-12px, 14px) scale(1.12); opacity: 0.8; }
-  66%       { transform: translate(10px, -8px) scale(0.92);  opacity: 0.9; }
 }
 
 .phEyebrow {
   font-size: 9px;
   font-weight: 700;
   color: var(--amber-2);
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  margin-bottom: 9px;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   position: relative;
   z-index: 1;
+  opacity: 0.7;
 }
 
 .phEyebrow::before {
   content: '';
-  width: 14px;
-  height: 1.5px;
-  background: linear-gradient(90deg, var(--amber-2), transparent);
+  width: 12px;
+  height: 1px;
+  background: var(--amber-2);
   border-radius: 1px;
+  opacity: 0.6;
 }
 
 .phTitle {
   font-family: var(--font-lora, Georgia, serif);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
-  color: rgba(255,255,255,0.92);
+  color: rgba(255,255,255,0.90);
   letter-spacing: -0.02em;
   margin-bottom: 4px;
-  line-height: 1.2;
+  line-height: 1.25;
   position: relative;
   z-index: 1;
 }
 
 .phSub {
-  font-size: 11.5px;
-  color: rgba(255,255,255,0.3);
-  font-style: italic;
+  font-size: 11px;
+  color: rgba(255,255,255,0.28);
   position: relative;
   z-index: 1;
+  line-height: 1.5;
 }
 
 /* ── PROGRESS ────────────────────────────────────────────────────────────────── */
 
 .progressWrap {
-  padding: 14px 22px 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  background: rgba(0,0,0,0.1);
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .progressLabel {
@@ -738,52 +727,76 @@
 /* ── STEP PILLS ──────────────────────────────────────────────────────────────── */
 
 .stepsRow {
-  padding: 10px 22px 12px;
+  padding: 14px 20px 12px;
   display: flex;
-  gap: 4px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-  background: rgba(0,0,0,0.08);
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Connector line between steps */
+.stepsRow > * + * {
+  flex: 1;
 }
 
 .stepPill {
-  flex: 1;
-  padding: 6px 2px 7px;
-  border-radius: 5px;
-  font-size: 9px;
-  font-weight: 600;
-  text-align: center;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
   position: relative;
-  border-bottom: 2px solid transparent;
+  z-index: 1;
 }
 
-.stepPill.done {
-  color: rgba(74,222,128,0.7);
-  background: rgba(74,222,128,0.06);
-  border-bottom-color: rgba(74,222,128,0.2);
+/* Connector track */
+.stepPill + .stepPill::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 7px;
+  width: calc(100% - 14px);
+  height: 1px;
+  background: rgba(255,255,255,0.07);
+  transform: translateX(-7px);
+  pointer-events: none;
 }
 
-.stepPill.done::after {
-  content: ' ✓';
-  font-size: 8px;
-  opacity: 0.8;
+.stepDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
-.stepPill.active {
-  color: var(--amber-2);
-  background: rgba(192,120,40,0.08);
-  border-bottom-color: var(--amber);
-  font-weight: 800;
-  text-shadow: 0 0 10px rgba(192,120,40,0.3);
-  box-shadow: 0 0 0 1px rgba(192,120,40,0.1);
-}
-
-.stepPill.todo {
+.stepLabel {
+  font-size: 9px;
+  font-weight: 500;
   color: rgba(255,255,255,0.2);
-  background: transparent;
-  border-bottom-color: transparent;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: color 0.3s;
+  white-space: nowrap;
+}
+
+.stepPill.done .stepDot {
+  background: rgba(74,222,128,0.5);
+  border-color: rgba(74,222,128,0.3);
+  box-shadow: 0 0 6px rgba(74,222,128,0.2);
+}
+.stepPill.done .stepLabel { color: rgba(74,222,128,0.55); }
+
+.stepPill.active .stepDot {
+  background: var(--amber-2);
+  border-color: var(--amber);
+  box-shadow: 0 0 8px rgba(192,120,40,0.5);
+  transform: scale(1.25);
+}
+.stepPill.active .stepLabel {
+  color: var(--amber-2);
+  font-weight: 700;
 }
 
 /* ── SIGNALS SCROLL AREA ─────────────────────────────────────────────────────── */
@@ -799,7 +812,7 @@
 .signalsScroll::-webkit-scrollbar-track { background: transparent; }
 
 .signalGroup {
-  padding: 0 22px;
+  padding: 0 18px;
   margin-bottom: 2px;
 }
 
@@ -890,73 +903,36 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 40px 24px 32px;
+  padding: 32px 20px 28px;
   text-align: center;
 }
 
 .esIcon {
-  width: 56px;
-  height: 56px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(192,120,40,0.14) 0%, rgba(192,120,40,0.06) 100%);
-  border: 1px solid rgba(192,120,40,0.2);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(192,120,40,0.08);
+  border: 1px solid rgba(192,120,40,0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
-  font-size: 22px;
-  animation: iconGlow 3s ease-in-out infinite;
-}
-
-@keyframes iconGlow {
-  0%, 100% {
-    box-shadow: 0 0 12px rgba(192,120,40,0.18), 0 0 0 0 rgba(192,120,40,0.1);
-    border-color: rgba(192,120,40,0.2);
-  }
-  50% {
-    box-shadow: 0 0 28px rgba(192,120,40,0.38), 0 0 0 8px rgba(192,120,40,0.04);
-    border-color: rgba(192,120,40,0.4);
-  }
+  margin-bottom: 14px;
 }
 
 .esTitle {
-  font-family: var(--font-lora, Georgia, serif);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  color: rgba(255,255,255,0.78);
-  margin-bottom: 8px;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 6px;
   letter-spacing: -0.01em;
 }
 
 .esSub {
-  font-size: 12px;
-  color: rgba(255,255,255,0.28);
-  line-height: 1.75;
+  font-size: 11.5px;
+  color: rgba(255,255,255,0.22);
+  line-height: 1.65;
   font-weight: 400;
-  max-width: 220px;
-}
-
-.esActivity {
-  display: flex;
-  gap: 5px;
-  margin-top: 18px;
-}
-
-.esActivity span {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--amber);
-  opacity: 0.25;
-  animation: esWave 1.7s ease-in-out infinite;
-}
-
-.esActivity span:nth-child(2) { animation-delay: 0.22s; }
-.esActivity span:nth-child(3) { animation-delay: 0.44s; }
-
-@keyframes esWave {
-  0%, 100% { opacity: 0.18; transform: scaleY(1); }
-  50%       { opacity: 0.9;  transform: scaleY(1.7); }
+  max-width: 200px;
 }
 
 /* ── PROFILE FOOTER ──────────────────────────────────────────────────────────── */

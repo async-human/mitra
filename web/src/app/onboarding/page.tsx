@@ -500,15 +500,22 @@ export default function OnboardingPage() {
       <div className={styles.topbar}>
         <div className={styles.logo}>
           <div className={styles.logoBox}>
-            <svg viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="9" r="4" fill="white" />
-              <path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 19V9l7-3 7 3v10l-7 3-7-3Z" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
+              <path d="M12 6v14M5 9l7 3 7-3" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
             </svg>
           </div>
           <span className={styles.logoName}>Mitra<span>.</span></span>
         </div>
         <div className={styles.topbarSep} />
-        <span className={styles.topbarLabel}>Founder Onboarding</span>
+        {/* Step breadcrumb */}
+        <div className={styles.topbarSteps}>
+          {STEPS.map(s => (
+            <span key={s} className={`${styles.topbarStep} ${styles[getStepStatus(s)]}`}>
+              {STEP_LABELS[s]}
+            </span>
+          ))}
+        </div>
         <div className={styles.topbarRight}>
           <a href="/founder/setup?list=1" className={styles.portalLink}>
             <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -535,14 +542,6 @@ export default function OnboardingPage() {
           <div>
             <div className={styles.waHeaderName}>Mitra</div>
             <div className={styles.waHeaderStatus}>AI Talent Agent · Online</div>
-          </div>
-          <div className={styles.waHeaderIcons}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-            </svg>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-              <circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" />
-            </svg>
           </div>
         </div>
 
@@ -692,11 +691,9 @@ export default function OnboardingPage() {
         {/* Steps */}
         <div className={styles.stepsRow}>
           {STEPS.map(s => (
-            <div
-              key={s}
-              className={`${styles.stepPill} ${styles[getStepStatus(s)]}`}
-            >
-              {STEP_LABELS[s]}
+            <div key={s} className={`${styles.stepPill} ${styles[getStepStatus(s)]}`}>
+              <div className={styles.stepDot} />
+              <span className={styles.stepLabel}>{STEP_LABELS[s]}</span>
             </div>
           ))}
         </div>
@@ -713,10 +710,7 @@ export default function OnboardingPage() {
               </div>
               <div className={styles.esTitle}>Brief building…</div>
               <div className={styles.esSub}>
-                Your company profile fills in automatically as you chat with Mitra.
-              </div>
-              <div className={styles.esActivity}>
-                <span /><span /><span />
+                Signals fill in automatically as you chat.
               </div>
             </div>
           ) : (
