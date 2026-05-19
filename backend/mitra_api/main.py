@@ -45,7 +45,10 @@ async def lifespan(app: FastAPI):
         from mitra_api.db.engine import run_schema_migrations
         await run_schema_migrations()
     except Exception:
-        pass  # DB may not be configured in all envs
+        logging.exception(
+            "Schema migrations failed on startup — run `python -m mitra_api.db.migrations` "
+            "or redeploy after fixing MITRA_DATABASE_URL"
+        )
 
     # Start background scheduler (re-engagement, intro follow-up, check-ins)
     scheduler_tasks: list = []

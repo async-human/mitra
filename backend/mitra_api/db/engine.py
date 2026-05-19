@@ -75,6 +75,14 @@ async def run_schema_migrations() -> None:
         # Job.founder_access_token — persistent no-login founder portal token
         "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS founder_access_token VARCHAR(64)",
         "CREATE UNIQUE INDEX IF NOT EXISTS ix_jobs_founder_access_token ON jobs(founder_access_token) WHERE founder_access_token IS NOT NULL",
+        # Job.founder_profile — Phase 2 founder intelligence (trust score, response patterns)
+        "ALTER TABLE jobs ADD COLUMN IF NOT EXISTS founder_profile JSONB",
+        # Intro funnel timestamps + structured stage details
+        "ALTER TABLE intros ADD COLUMN IF NOT EXISTS interview_at TIMESTAMPTZ",
+        "ALTER TABLE intros ADD COLUMN IF NOT EXISTS offer_at TIMESTAMPTZ",
+        "ALTER TABLE intros ADD COLUMN IF NOT EXISTS hired_at TIMESTAMPTZ",
+        "ALTER TABLE intros ADD COLUMN IF NOT EXISTS interview_details JSONB",
+        "ALTER TABLE intros ADD COLUMN IF NOT EXISTS offer_details JSONB",
         # Intro.decline_reason — founder's reason when passing on a candidate
         "ALTER TABLE intros ADD COLUMN IF NOT EXISTS decline_reason TEXT",
         # Intro.decline_reason_code — structured enumerated pass category
@@ -105,6 +113,10 @@ async def run_schema_migrations() -> None:
         "CREATE INDEX IF NOT EXISTS matches_candidate_idx ON matches(candidate_id)",
         "CREATE INDEX IF NOT EXISTS matches_job_idx ON matches(job_id)",
         "CREATE INDEX IF NOT EXISTS matches_intro_idx ON matches(intro_id)",
+        # matches — compatibility engine columns (Phase 1)
+        "ALTER TABLE matches ADD COLUMN IF NOT EXISTS compatibility_score FLOAT",
+        "ALTER TABLE matches ADD COLUMN IF NOT EXISTS compatibility_dimensions JSONB",
+        "ALTER TABLE matches ADD COLUMN IF NOT EXISTS decision_policy_version VARCHAR(20)",
         # companies table — one row per hiring company; holds ATS identifier + founder contact
         """CREATE TABLE IF NOT EXISTS companies (
             id SERIAL PRIMARY KEY,
