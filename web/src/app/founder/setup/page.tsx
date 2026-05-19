@@ -86,9 +86,9 @@ export default async function FounderSetupPage({
     redirect('/onboarding');
   }
 
-  // Single job — redirect immediately unless the founder explicitly wants the list
+  // Single job — redirect to dashboard (which shows the role)
   if (jobs.length === 1 && !forceList) {
-    redirect(jobs[0].portal_url);
+    redirect('/founder/dashboard');
   }
 
   const setupUserMenu = (

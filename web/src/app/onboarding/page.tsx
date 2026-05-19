@@ -411,7 +411,7 @@ export default function OnboardingPage() {
           <span className={styles.logoName}>Mitra<span>.</span></span>
         </div>
         <div className={styles.topbarRight}>
-          <a href="/founder/setup?list=1" className={styles.dashBtn}>
+          <a href="/founder/dashboard" className={styles.dashBtn}>
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.3" stroke="currentColor" strokeWidth="1.3"/>
               <rect x="9"   y="1.5" width="5.5" height="5.5" rx="1.3" stroke="currentColor" strokeWidth="1.3"/>
