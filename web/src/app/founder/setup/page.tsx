@@ -81,9 +81,10 @@ export default async function FounderSetupPage({
     lookupError = true;
   }
 
-  // Zero jobs + no error — go straight to onboarding (company form lives there)
+  // Zero jobs + no error — go straight to onboarding (company form lives there).
+  // On API errors, stay on this page so the founder can retry instead of being sent to onboarding.
   if (jobs.length === 0 && !lookupError) {
-    redirect('/onboarding');
+    redirect("/onboarding");
   }
 
   // Single job — redirect to dashboard (which shows the role)

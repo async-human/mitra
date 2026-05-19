@@ -118,9 +118,15 @@
 
 .statsRow {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin-bottom: 48px;
+}
+
+@media (max-width: 720px) {
+  .statsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .statCard {
@@ -153,6 +159,20 @@
 }
 
 .statAccent .statValue { color: #D97706; }
+
+.statHired {
+  border-color: rgba(22,163,74,0.22);
+  background: #F6FDF8;
+}
+
+.statHired .statValue { color: #15803D; }
+
+.statSub {
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: #B45309;
+  font-weight: 500;
+}
 
 .statLabel {
   font-size: 12.5px;
@@ -277,6 +297,55 @@
 .roleCompany {
   font-size: 13px;
   color: rgba(28,25,23,0.42);
+  margin-bottom: 8px;
+}
+
+.pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.pipeItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(28,25,23,0.48);
+}
+
+.pipeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(28,25,23,0.22);
+  flex-shrink: 0;
+}
+
+.pipeItem[data-stage="review"] { color: #B45309; }
+.pipeItem[data-stage="review"] .pipeDot { background: #F59E0B; }
+.pipeItem[data-stage="interested"] { color: #0369A1; }
+.pipeItem[data-stage="interested"] .pipeDot { background: #0EA5E9; }
+.pipeItem[data-stage="interview"] { color: #6D28D9; }
+.pipeItem[data-stage="interview"] .pipeDot { background: #8B5CF6; }
+.pipeItem[data-stage="offer"] { color: #047857; }
+.pipeItem[data-stage="offer"] .pipeDot { background: #10B981; }
+.pipeItem[data-stage="hired"] { color: #15803D; }
+.pipeItem[data-stage="hired"] .pipeDot { background: #22C55E; }
+
+.pipeEmpty {
+  font-size: 11.5px;
+  color: rgba(28,25,23,0.35);
+}
+
+.roleRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .roleMeta {

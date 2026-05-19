@@ -19,6 +19,7 @@ interface FounderJob {
   portal_url: string;
   total_intros: number;
   to_review: number;
+  stats?: PortalStats | null;
 }
 
 interface PortalStats {
@@ -50,21 +51,20 @@ function formatDate(): string {
   });
 }
 
-async function fetchPortalStats(apiBase: string, portalUrl: string): Promise<PortalStats | null> {
-  try {
-    // portal_url is "{web_base}/founder/portal?token=..." — extract the token
-    const token = new URL(portalUrl).searchParams.get("token");
-    if (!token) return null;
-    const res = await fetch(
-      `${apiBase}/founder/portal?token=${encodeURIComponent(token)}`,
-      { cache: "no-store" },
+/** Intros still in `sent` — founder has not acted yet. */
+function awaitingReviewCount(job: JobWithStats): number {
+  if (job.stats) {
+    return Math.max(
+      0,
+      job.stats.total -
+        job.stats.interested -
+        job.stats.interview -
+        job.stats.offer -
+        job.stats.hired -
+        job.stats.declined,
     );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return (data.stats as PortalStats) ?? null;
-  } catch {
-    return null;
   }
+  return job.to_review;
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -119,14 +119,10 @@ export default async function FounderDashboardPage() {
     lookupError = true;
   }
 
-  // Fetch per-job pipeline stats in parallel using the portal token
-  let jobsWithStats: JobWithStats[] = jobs.map(j => ({ ...j, stats: null }));
-  if (jobs.length > 0 && !lookupError) {
-    const statsArr = await Promise.all(
-      jobs.map(j => fetchPortalStats(apiBase, j.portal_url)),
-    );
-    jobsWithStats = jobs.map((j, i) => ({ ...j, stats: statsArr[i] }));
-  }
+  const jobsWithStats: JobWithStats[] = jobs.map((j) => ({
+    ...j,
+    stats: j.stats ?? null,
+  }));
 
   // Aggregate header stats
   const totalIntros    = jobs.reduce((s, j) => s + j.total_intros, 0);
@@ -178,7 +174,7 @@ export default async function FounderDashboardPage() {
               <div className={styles.statValue}>{jobs.length}</div>
               <div className={styles.statLabel}>Active roles</div>
             </div>
-            <div className={`${styles.statCard} ${totalReview > 0 ? styles.statAmber : ''}`}>
+            <div className={`${styles.statCard} ${totalReview > 0 ? styles.statAccent : ''}`}>
               <div className={styles.statValue}>{totalIntros}</div>
               <div className={styles.statLabel}>Intros sent</div>
               {totalReview > 0 && (
@@ -189,7 +185,7 @@ export default async function FounderDashboardPage() {
               <div className={styles.statValue}>{totalInterview}</div>
               <div className={styles.statLabel}>Interviewing</div>
             </div>
-            <div className={`${styles.statCard} ${totalHired > 0 ? styles.statGreen : ''}`}>
+            <div className={`${styles.statCard} ${totalHired > 0 ? styles.statHired : ''}`}>
               <div className={styles.statValue}>{totalHired}</div>
               <div className={styles.statLabel}>Hired</div>
             </div>
@@ -234,10 +230,7 @@ export default async function FounderDashboardPage() {
               <div className={styles.roleList}>
                 {jobsWithStats.map(job => {
                   const s = job.stats;
-                  // "Sent" = intros not yet acted on
-                  const sentCount = s
-                    ? Math.max(0, s.total - s.interested - s.interview - s.offer - s.hired - s.declined)
-                    : job.to_review;
+                  const pendingReview = awaitingReviewCount(job);
 
                   return (
                     <a key={job.job_id} href={job.portal_url} className={styles.roleCard}>
@@ -262,10 +255,10 @@ export default async function FounderDashboardPage() {
                                 <span className={styles.pipeDot} />
                                 {job.total_intros} introduced
                               </span>
-                              {sentCount > 0 && (
+                              {pendingReview > 0 && (
                                 <span className={styles.pipeItem} data-stage="review">
                                   <span className={styles.pipeDot} />
-                                  {sentCount} to review
+                                  {pendingReview} to review
                                 </span>
                               )}
                               {s && s.interested > 0 && (

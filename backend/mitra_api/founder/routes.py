@@ -1312,6 +1312,111 @@ class PortalLinkResponse(BaseModel):
     job_id: int | None = None
 
 
+def _intro_status_value(status: Any) -> str:
+    return status.value if hasattr(status, "value") else str(status)
+
+
+def _aggregate_intro_stats(
+    intro_rows: list[Any],
+) -> tuple[dict[int, int], dict[int, int], dict[int, PortalStats]]:
+    """Per job_id: total intros, awaiting founder review (sent only), full funnel stats."""
+    total_map: dict[int, int] = {}
+    review_map: dict[int, int] = {}
+    stats_map: dict[int, PortalStats] = {}
+
+    def _stats(job_id: int) -> PortalStats:
+        if job_id not in stats_map:
+            stats_map[job_id] = PortalStats(
+                total=0, interested=0, interview=0, offer=0, hired=0, declined=0,
+            )
+        return stats_map[job_id]
+
+    for row in intro_rows:
+        job_id = row.job_id
+        status_val = _intro_status_value(row.status)
+        total_map[job_id] = total_map.get(job_id, 0) + 1
+        if status_val == "sent":
+            review_map[job_id] = review_map.get(job_id, 0) + 1
+        st = _stats(job_id)
+        st.total += 1
+        if status_val == "acknowledged":
+            st.interested += 1
+        elif status_val == "interview":
+            st.interview += 1
+        elif status_val == "offer":
+            st.offer += 1
+        elif status_val == "hired":
+            st.hired += 1
+        elif status_val == "declined":
+            st.declined += 1
+
+    return total_map, review_map, stats_map
+
+
+async def _ensure_founder_access_token(job: Any, db: Any) -> str:
+    if job.founder_access_token:
+        return job.founder_access_token
+    token = _secrets.token_urlsafe(32)
+    job.founder_access_token = token
+    await db.flush()
+    log.info("issued founder_access_token for job id=%d", job.id)
+    return token
+
+
+async def _load_jobs_for_founder_email(db: Any, normalized_email: str) -> list[Any]:
+    """
+    Find all jobs for a founder email — including legacy rows missing portal tokens
+    or with email only in signals.contact_info / company.founder_email.
+    """
+    from mitra_api.db.models import Company, Job as JobModel
+    from sqlalchemy import String, func
+
+    seen: dict[int, Any] = {}
+
+    async def _merge(query) -> None:
+        for job in (await db.execute(query)).scalars().all():
+            seen[job.id] = job
+
+    await _merge(
+        select(JobModel)
+        .where(func.lower(JobModel.founder_email) == normalized_email)
+        .order_by(JobModel.created_at.desc())
+    )
+    await _merge(
+        select(JobModel)
+        .join(Company, JobModel.company_id == Company.id)
+        .where(func.lower(Company.founder_email) == normalized_email)
+        .order_by(JobModel.created_at.desc())
+    )
+    await _merge(
+        select(JobModel)
+        .where(func.lower(JobModel.founder_wa) == normalized_email)
+        .order_by(JobModel.created_at.desc())
+    )
+    await _merge(
+        select(JobModel)
+        .where(JobModel.signals.cast(String).ilike(f"%{normalized_email}%"))
+        .order_by(JobModel.created_at.desc())
+    )
+
+    jobs = list(seen.values())
+    jobs.sort(key=lambda j: j.created_at or j.updated_at, reverse=True)
+
+    dirty = False
+    for job in jobs:
+        if not job.founder_access_token:
+            await _ensure_founder_access_token(job, db)
+            dirty = True
+        if not job.founder_email:
+            job.founder_email = normalized_email
+            dirty = True
+
+    if dirty:
+        await db.commit()
+
+    return jobs
+
+
 class FounderJobSummary(BaseModel):
     job_id: int
     title: str
@@ -1319,7 +1424,8 @@ class FounderJobSummary(BaseModel):
     stage: str | None = None
     portal_url: str
     total_intros: int = 0
-    to_review: int = 0   # sent + acknowledged — awaiting founder action
+    to_review: int = 0   # intros in `sent` — awaiting founder action
+    stats: PortalStats | None = None
 
 
 class AllPortalsResponse(BaseModel):
@@ -1332,64 +1438,26 @@ async def founder_all_portals_by_email(
 ) -> AllPortalsResponse:
     """
     Return all jobs (and their portal URLs) for a given founder email.
-    Includes intro counts so the role picker can show "N to review" badges.
-    Used by /founder/setup to display a role picker when the founder has multiple roles.
+    Includes intro counts and per-role pipeline stats for the founder dashboard.
     """
     from mitra_api.db.engine import get_session_factory
-    from mitra_api.db.models import Job as JobModel
-    from sqlalchemy import String, func
+    from mitra_api.db.models import Intro
 
     normalized_email = email.strip().lower()
     factory = get_session_factory()
 
     async with factory() as db:
-        # Primary match: founder_email column
-        jobs = (await db.execute(
-            select(JobModel)
-            .where(
-                func.lower(JobModel.founder_email) == normalized_email,
-                JobModel.founder_access_token.isnot(None),
-            )
-            .order_by(JobModel.created_at.desc())
-        )).scalars().all()
+        jobs = await _load_jobs_for_founder_email(db, normalized_email)
 
-        if not jobs:
-            # Fallback: founder_wa field (sometimes email is stored there)
-            jobs = (await db.execute(
-                select(JobModel)
-                .where(
-                    func.lower(JobModel.founder_wa) == normalized_email,
-                    JobModel.founder_access_token.isnot(None),
-                )
-                .order_by(JobModel.created_at.desc())
-            )).scalars().all()
-
-        if not jobs:
-            # Final fallback: scan signals JSONB for the email string
-            jobs = (await db.execute(
-                select(JobModel)
-                .where(
-                    JobModel.founder_access_token.isnot(None),
-                    JobModel.signals.cast(String).ilike(f"%{normalized_email}%"),
-                )
-                .order_by(JobModel.created_at.desc())
-            )).scalars().all()
-
-        # Count intros per job in the same session
         total_map: dict[int, int] = {}
         review_map: dict[int, int] = {}
+        stats_map: dict[int, PortalStats] = {}
         if jobs:
-            from mitra_api.db.models import Intro
-            job_ids = [j.id for j in jobs if j.founder_access_token]
+            job_ids = [j.id for j in jobs]
             intro_rows = (await db.execute(
                 select(Intro.job_id, Intro.status).where(Intro.job_id.in_(job_ids))
             )).all()
-            review_statuses = {"sent", "acknowledged"}
-            for row in intro_rows:
-                total_map[row.job_id] = total_map.get(row.job_id, 0) + 1
-                status_val = row.status.value if hasattr(row.status, "value") else str(row.status)
-                if status_val in review_statuses:
-                    review_map[row.job_id] = review_map.get(row.job_id, 0) + 1
+            total_map, review_map, stats_map = _aggregate_intro_stats(intro_rows)
 
     settings = get_settings()
     web_base = settings.mitra_web_base_url.rstrip("/")
@@ -1403,6 +1471,7 @@ async def founder_all_portals_by_email(
             portal_url=f"{web_base}/founder/portal?token={j.founder_access_token}",
             total_intros=total_map.get(j.id, 0),
             to_review=review_map.get(j.id, 0),
+            stats=stats_map.get(j.id),
         )
         for j in jobs
         if j.founder_access_token
@@ -1421,44 +1490,13 @@ async def founder_portal_link_by_email(
     Matches against founder_email column OR the contact_info signal stored on job.signals.
     """
     from mitra_api.db.engine import get_session_factory
-    from mitra_api.db.models import Job as JobModel
-    from sqlalchemy import String, func
 
     normalized_email = email.strip().lower()
 
     factory = get_session_factory()
     async with factory() as db:
-        # Case-insensitive match on founder_email
-        job = (await db.execute(
-            select(JobModel)
-            .where(
-                func.lower(JobModel.founder_email) == normalized_email,
-                JobModel.founder_access_token.isnot(None),
-            )
-            .order_by(JobModel.created_at.desc())
-        )).scalars().first()
-
-        # Fallback: scan founder_wa (in case they used email as WA field by mistake)
-        if not job:
-            job = (await db.execute(
-                select(JobModel)
-                .where(
-                    func.lower(JobModel.founder_wa) == normalized_email,
-                    JobModel.founder_access_token.isnot(None),
-                )
-                .order_by(JobModel.created_at.desc())
-            )).scalars().first()
-
-        # Final fallback: scan signals JSONB text for the email
-        if not job:
-            job = (await db.execute(
-                select(JobModel)
-                .where(
-                    JobModel.founder_access_token.isnot(None),
-                    JobModel.signals.cast(String).ilike(f"%{normalized_email}%"),
-                )
-                .order_by(JobModel.created_at.desc())
-            )).scalars().first()
+        jobs = await _load_jobs_for_founder_email(db, normalized_email)
+        job = jobs[0] if jobs else None
 
     if not job or not job.founder_access_token:
         raise HTTPException(status_code=404, detail="no_job_found")
