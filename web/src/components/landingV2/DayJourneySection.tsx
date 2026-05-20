@@ -221,26 +221,14 @@ export function DayJourneySection({ audience }: { audience: V2Audience }) {
         </header>
 
         <div className={s.djTimeline} role="list">
-          <div className={s.djTimelineRail} aria-hidden="true">
-            <span className={s.djTimelineLine} />
-          </div>
-
           {cards.map(({ day, title, Mockup }, i) => (
             <RevealCard key={day} delay={i * 140}>
-              <article className={s.djCard} role="listitem" data-step={i + 1}>
-                <div className={s.djCardMarker} aria-hidden="true">
-                  <span className={s.djStepDot} />
-                </div>
+              <article className={s.djCard} role="listitem">
                 <div className={s.djCardHead}>
-                  <div className={s.djCardMeta}>
-                    <span className={s.djStepNum}>{String(i + 1).padStart(2, "0")}</span>
-                    <span className={s.djDay}>{day}</span>
-                  </div>
+                  <span className={s.djDay}>{day}</span>
                   <h3 className={s.djTitle}>{title}</h3>
                 </div>
-                <div className={s.djMockupShell}>
-                  <Mockup />
-                </div>
+                <Mockup />
               </article>
             </RevealCard>
           ))}
