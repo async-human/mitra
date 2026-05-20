@@ -10,6 +10,7 @@ import { PhilosophySectionV2 } from "./PhilosophySectionV2";
 import { MemorySectionV2 } from "./MemorySectionV2";
 import { RoadmapSectionV2 } from "./RoadmapSectionV2";
 import { CompanyHireCTASection } from "./CompanyHireCTASection";
+import { FounderQuotesV2 } from "./FounderQuotesV2";
 import { ProofV2 } from "./ProofV2";
 import { FAQV2 } from "./FAQV2";
 import { FooterV2 } from "./FooterV2";
@@ -26,10 +27,11 @@ export function LandingV2() {
       <main>
         <HeroV2 audience={audience} />
         <DayJourneySection audience={audience} />
-        <ProblemSectionV2 />
+        <ProblemSectionV2 audience={audience} />
         <HowItWorksV2 audience={audience} />
-        <PhilosophySectionV2 />
+        <PhilosophySectionV2 audience={audience} />
         <MemorySectionV2 audience={audience} />
+        {audience === "company" && <FounderQuotesV2 />}
         <RoadmapSectionV2 />
         {audience === "company" && <CompanyHireCTASection />}
         <ProofV2 audience={audience} />

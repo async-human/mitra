@@ -1319,9 +1319,29 @@ details[open] .faqIcon {
 .root[data-audience="company"] {
   --bg:     #0F0A07;
   --ink:    #F2EDE7;
-  --ink2:   rgba(242,237,231,0.48);
-  --bgCard: rgba(255,255,255,0.04);
-  --border: rgba(255,255,255,0.09);
+  --ink2:   rgba(242,237,231,0.62);
+  --bgCard: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.11);
+}
+
+/* Company mode — readable body copy everywhere */
+.root[data-audience="company"] .hiwStepBody,
+.root[data-audience="company"] .heroSub,
+.root[data-audience="company"] .djTitle,
+.root[data-audience="company"] .problemRotorDetail,
+.root[data-audience="company"] .problemCardStatLabel {
+  font-size: 0.9rem;
+  line-height: 1.72;
+  color: var(--ink2);
+}
+
+.root[data-audience="company"] .hiwStepTitle,
+.root[data-audience="company"] .problemRotorHook {
+  color: var(--ink);
+}
+
+.root[data-audience="company"] .sectionTitle {
+  max-width: 620px;
 }
 
 /* Nav toggle in company mode */
@@ -1471,6 +1491,190 @@ details[open] .faqIcon {
 .problemPivotText strong {
   color: var(--ink);
   font-weight: 700;
+}
+
+/* ── Problem: rotating founder scenarios (company) ─────────── */
+
+.problemRotorSlot {
+  margin-bottom: 2.25rem;
+}
+
+.problemRotorWrap {
+  max-width: 720px;
+}
+
+.problemRotor {
+  background: var(--bgCard);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: clamp(1.5rem, 3vw, 2rem) clamp(1.35rem, 3vw, 2.25rem);
+  border-left: 3px solid var(--accent);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.root[data-audience="company"] .problemRotor {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.problemRotorPane {
+  animation: v2FadeIn 0.45s ease both;
+}
+
+.problemRotorHook {
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.45;
+  color: var(--ink);
+  margin: 0 0 0.85rem;
+}
+
+.problemRotorDetail {
+  font-size: 0.9rem;
+  color: var(--ink2);
+  line-height: 1.72;
+  margin: 0 0 1rem;
+}
+
+.problemRotorTag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 0.28rem 0.65rem;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.problemRotorDots {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 1rem;
+}
+
+.problemRotorDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.problemRotorDotActive {
+  background: var(--accent);
+  transform: scale(1.25);
+}
+
+/* ── Founder quotes (company) ──────────────────────────────── */
+
+.fqSection {
+  padding: clamp(3rem, 6vw, 5rem) clamp(1.25rem, 4vw, 3rem);
+  border-top: 1px solid var(--border);
+}
+
+.fqSection .sectionTitle {
+  margin-bottom: 2rem;
+}
+
+.fqSectionInView .sectionLabel,
+.fqSectionInView .sectionTitle {
+  animation: v2FadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.fqCard {
+  position: relative;
+  background: var(--bgCard);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: clamp(2rem, 4vw, 2.75rem) clamp(1.5rem, 3vw, 2.5rem);
+  min-height: 200px;
+}
+
+.fqMark {
+  position: absolute;
+  top: 1rem;
+  left: 1.25rem;
+  font-size: 3.5rem;
+  line-height: 1;
+  color: color-mix(in srgb, var(--accent) 35%, transparent);
+  font-family: Georgia, serif;
+  pointer-events: none;
+}
+
+.fqPane {
+  animation: v2FadeIn 0.4s ease both;
+  padding-left: 0.5rem;
+}
+
+.fqText {
+  font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0 0 1.25rem;
+  max-width: 640px;
+}
+
+.fqAttr {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink2);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.fqDots {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 1.25rem;
+}
+
+.fqDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: color-mix(in srgb, var(--ink) 20%, transparent);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.fqDotActive {
+  background: var(--accent);
+  transform: scale(1.25);
+}
+
+/* Philosophy scroll-in */
+.philosophyInView .philosophyLabel,
+.philosophyInView .philosophyQuote,
+.philosophyInView .philosophySub {
+  animation: v2FadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.philosophyInView .philosophySub {
+  animation-delay: 120ms;
+}
+
+.philosophyInView .philosophyCard {
+  opacity: 0;
+  transform: translateY(16px);
+  animation: v2FadeUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.root[data-audience="company"] .philosophySub {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.root[data-audience="company"] .philosophyCardBody {
+  color: rgba(255, 255, 255, 0.52);
 }
 
 /* ── Animations ────────────────────────────────────────────── */
@@ -2011,8 +2215,8 @@ details[open] .faqIcon {
 .proofCompaniesRow {
   display: flex;
   align-items: center;
-  gap: 0.6rem 0.75rem;
-  flex-wrap: wrap;
+  gap: 0.75rem;
+  flex-wrap: nowrap;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
   padding-top: 1.75rem;
   margin-top: 2rem;
@@ -2039,6 +2243,25 @@ details[open] .faqIcon {
 
 .root[data-audience="company"] .proofCompaniesRow {
   border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.proofCompaniesMarquee {
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+.proofCompaniesTrack {
+  display: flex;
+  gap: 0.5rem;
+  width: max-content;
+  animation: proofCoScroll 28s linear infinite;
+}
+
+@keyframes proofCoScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2079,7 +2302,7 @@ details[open] .faqIcon {
   font-weight: 700;
   letter-spacing: 0.11em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.32);
+  color: rgba(255, 255, 255, 0.45);
   margin: 0;
 }
 
@@ -2094,10 +2317,43 @@ details[open] .faqIcon {
 }
 
 .chLeftSub {
-  font-size: 0.875rem;
-  color: rgba(255, 255, 255, 0.46);
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.58);
   line-height: 1.72;
   margin: 0;
+}
+
+.chLeftBullets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.chLeftBullets li {
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.52);
+  padding-left: 1.1rem;
+  position: relative;
+  line-height: 1.5;
+}
+
+.chLeftBullets li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.chSectionInView .chCard {
+  animation: v2FadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ── Right panel (light) ────────────────────────────────────── */
@@ -2135,10 +2391,22 @@ details[open] .faqIcon {
   margin-bottom: 1.5rem;
 }
 
-.chRoles {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+.chRolesMarquee {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+.chRolesTrack {
+  display: flex;
+  flex-wrap: nowrap;
   gap: 0.45rem;
+  width: max-content;
+  animation: chRolesScroll 32s linear infinite;
+}
+
+@keyframes chRolesScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
 
 .chRolesFade {
@@ -2171,11 +2439,9 @@ details[open] .faqIcon {
 }
 
 .chPillText {
-  font-size: 0.76rem;
-  font-weight: 500;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: #1C1917;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -2209,7 +2475,6 @@ details[open] .faqIcon {
 
 @media (max-width: 720px) {
   .chCard { grid-template-columns: 1fr; }
-  .chRoles { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ── Reduced motion ─────────────────────────────────────────── */
@@ -2217,4 +2482,8 @@ details[open] .faqIcon {
 @media (prefers-reduced-motion: reduce) {
   .navScrolled { transition: none; }
   .djMockupConfirmedDot { animation: none; }
+  .chRolesTrack,
+  .proofCompaniesTrack { animation: none; }
+  .problemRotorPane,
+  .fqPane { animation: none; }
 }

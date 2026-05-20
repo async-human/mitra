@@ -95,6 +95,33 @@ export type ConvoQuote = {
   attr: string;
 };
 
+export const FOUNDER_TESTIMONIALS: ConvoQuote[] = [
+  {
+    id: "f1",
+    quote:
+      "We stopped reading CVs. Mitra sends three people who already want to work on our problem — with context we'd have taken twenty minutes to write.",
+    attr: "Founder · Series A fintech · Bangalore",
+  },
+  {
+    id: "f2",
+    quote:
+      "First intro in five days. Every candidate knew our stack and our stage — none of the 'spray apply' noise we get from job boards.",
+    attr: "CTO · B2B SaaS · 12-person eng team",
+  },
+  {
+    id: "f3",
+    quote:
+      "The shortlist got sharper after our second hire. Mitra learned we care about ownership evidence more than pedigree.",
+    attr: "Founding engineer turned CEO · healthtech",
+  },
+  {
+    id: "f4",
+    quote:
+      "Eight percent fee with a written replacement guarantee — and the first two placements were free. Easiest hiring decision we made.",
+    attr: "Head of Engineering · payments infra",
+  },
+];
+
 export const CONVO_QUOTES: ConvoQuote[] = [
   {
     id: "q1",
