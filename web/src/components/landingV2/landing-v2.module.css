@@ -217,208 +217,133 @@
   );
 }
 
-/* ── Section accent system (full-bleed bands + dips) ─────────── */
+/* ── Hero accent bands (warm terracotta stack) ─────────────── */
 
-.accent {
-  width: 100%;
-  pointer-events: none;
-  line-height: 0;
-  flex-shrink: 0;
-}
-
-.accent_foot {
+.heroAccent {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 2;
+  pointer-events: none;
 }
 
-.accent_bridge,
-.accent_rim {
-  display: block;
-}
-
-.accent_crown {
-  display: block;
-}
-
-.accentBands {
+.heroAccentBars {
   display: flex;
   flex-direction: column;
   width: 100%;
 }
 
-.accentBar {
+.heroAccentBar {
   display: block;
   width: 100%;
   transform-origin: center bottom;
+  animation: heroBarReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.accent_foot .accentBar {
-  animation: accentBarReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+.heroAccentBar:nth-child(1) { animation-delay: 0ms;   height: 5px; }
+.heroAccentBar:nth-child(2) { animation-delay: 40ms;  height: 7px; }
+.heroAccentBar:nth-child(3) { animation-delay: 80ms;  height: 9px; }
+.heroAccentBar:nth-child(4) { animation-delay: 120ms; height: 11px; }
+.heroAccentBar:nth-child(5) { animation-delay: 160ms; height: 13px; }
+.heroAccentBar:nth-child(6) { animation-delay: 200ms; height: 15px; }
+
+@keyframes heroBarReveal {
+  from {
+    opacity: 0;
+    transform: scaleY(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
 }
 
-.accent_foot .accentBar:nth-child(1) { animation-delay: 0ms; }
-.accent_foot .accentBar:nth-child(2) { animation-delay: 40ms; }
-.accent_foot .accentBar:nth-child(3) { animation-delay: 80ms; }
-.accent_foot .accentBar:nth-child(4) { animation-delay: 120ms; }
-.accent_foot .accentBar:nth-child(5) { animation-delay: 160ms; }
-.accent_foot .accentBar:nth-child(6) { animation-delay: 200ms; }
-
-@keyframes accentBarReveal {
-  from { opacity: 0; transform: scaleY(0.65); }
-  to   { opacity: 1; transform: scaleY(1); }
-}
-
-.accentBands_full .accentBar:nth-child(1) { height: 5px; }
-.accentBands_full .accentBar:nth-child(2) { height: 7px; }
-.accentBands_full .accentBar:nth-child(3) { height: 9px; }
-.accentBands_full .accentBar:nth-child(4) { height: 11px; }
-.accentBands_full .accentBar:nth-child(5) { height: 13px; }
-.accentBands_full .accentBar:nth-child(6) { height: 15px; }
-
-.accent_bridge > .accentBands_full .accentBar:nth-child(n+5) { display: none; }
-.accent_bridge > .accentBands_full .accentBar:nth-child(4) { height: 10px; }
-
-.accentBands_soft .accentBar:nth-child(1) { height: 4px; }
-.accentBands_soft .accentBar:nth-child(2) { height: 5px; }
-.accentBands_soft .accentBar:nth-child(3) { height: 6px; }
-.accentBands_soft .accentBar:nth-child(4) { height: 7px; }
-
-.accentBands_whisper .accentBar:nth-child(1) { height: 3px; }
-.accentBands_whisper .accentBar:nth-child(2) { height: 4px; }
-.accentBands_whisper .accentBar:nth-child(3) { height: 4px; }
-.accent_rim .accentBands_whisper .accentBar { height: 3px; }
-
-.accentDip {
-  display: block;
-  width: 100%;
-  height: clamp(22px, 3.5vw, 40px);
-}
-
-.accentDip_toTint path {
-  fill: color-mix(in srgb, var(--accent) 2.5%, var(--bg));
-}
-
-.root[data-audience="company"] .accentDip_toTint path {
-  fill: color-mix(in srgb, var(--accent) 4%, #0f0a07);
-}
-
-.accentDip_toDark path {
-  fill: var(--dark);
-}
-
-.accentDip_crown {
-  margin-bottom: -1px;
-}
-
-.accent_flip .accentDip_toTint path {
-  fill: var(--bg);
-}
-
-.root[data-audience="company"] .accent_flip .accentDip_toTint path {
-  fill: #0f0a07;
-}
-
-/* Candidate palette */
-.accent[data-audience="candidate"] .accentBands_full .accentBar:nth-child(1) {
+/* Candidate — cream → amber wash → terracotta → deep umber */
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(1) {
   background: color-mix(in srgb, var(--accent) 6%, var(--bg));
 }
-.accent[data-audience="candidate"] .accentBands_full .accentBar:nth-child(2) {
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(2) {
   background: color-mix(in srgb, var(--accent) 14%, #f0e4da);
 }
-.accent[data-audience="candidate"] .accentBands_full .accentBar:nth-child(3) {
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(3) {
   background: color-mix(in srgb, var(--accent) 28%, #e8cfc0);
 }
-.accent[data-audience="candidate"] .accentBands_full .accentBar:nth-child(4) {
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(4) {
   background: color-mix(in srgb, var(--accent) 48%, #d4a088);
 }
-.accent[data-audience="candidate"] .accentBands_full .accentBar:nth-child(5) {
-  background: color-mix(in srgb, var(--accent) 72%, #c06038);
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(5) {
+  background: color-mix(in srgb, var(--accent) 78%, #b85a32);
 }
-.accent[data-audience="candidate"] .accentBands_full .accentBar:nth-child(6) {
-  background: linear-gradient(90deg, #9a3d1f 0%, var(--accent) 45%, #7a3018 100%);
-}
-
-.accent[data-audience="candidate"] .accentBands_soft .accentBar:nth-child(1) {
-  background: color-mix(in srgb, var(--accent) 35%, var(--dark));
-}
-.accent[data-audience="candidate"] .accentBands_soft .accentBar:nth-child(2) {
-  background: color-mix(in srgb, var(--accent) 55%, var(--dark));
-}
-.accent[data-audience="candidate"] .accentBands_soft .accentBar:nth-child(3) {
-  background: color-mix(in srgb, var(--accent) 75%, #1a100c);
-}
-.accent[data-audience="candidate"] .accentBands_soft .accentBar:nth-child(4) {
-  background: linear-gradient(90deg, #6b2e18 0%, var(--accent) 50%, #4a2010 100%);
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(6) {
+  background: linear-gradient(
+    90deg,
+    #9a3d1f 0%,
+    var(--accent) 42%,
+    #7a3018 100%
+  );
 }
 
-.accent[data-audience="candidate"] .accentBands_whisper .accentBar:nth-child(1) {
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
-}
-.accent[data-audience="candidate"] .accentBands_whisper .accentBar:nth-child(2) {
-  background: color-mix(in srgb, var(--accent) 12%, #f2ebe3);
-}
-.accent[data-audience="candidate"] .accentBands_whisper .accentBar:nth-child(3) {
-  background: color-mix(in srgb, var(--accent) 16%, #ede5dc);
-}
-
-/* Company palette */
-.accent[data-audience="company"] .accentBands_full .accentBar:nth-child(1) {
+/* Company — charcoal → ember glow → rich accent anchor */
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(1) {
   background: rgba(255, 255, 255, 0.04);
 }
-.accent[data-audience="company"] .accentBands_full .accentBar:nth-child(2) {
-  background: color-mix(in srgb, var(--accent) 12%, #1a1410);
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(2) {
+  background: color-mix(in srgb, var(--accent) 10%, #1a1410);
 }
-.accent[data-audience="company"] .accentBands_full .accentBar:nth-child(3) {
-  background: color-mix(in srgb, var(--accent) 24%, #221810);
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(3) {
+  background: color-mix(in srgb, var(--accent) 22%, #221810);
 }
-.accent[data-audience="company"] .accentBands_full .accentBar:nth-child(4) {
-  background: color-mix(in srgb, var(--accent) 40%, #2e1c12);
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(4) {
+  background: color-mix(in srgb, var(--accent) 38%, #2e1c12);
 }
-.accent[data-audience="company"] .accentBands_full .accentBar:nth-child(5) {
-  background: color-mix(in srgb, var(--accent) 58%, #4a2818);
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(5) {
+  background: color-mix(in srgb, var(--accent) 62%, #4a2818);
 }
-.accent[data-audience="company"] .accentBands_full .accentBar:nth-child(6) {
-  background: linear-gradient(90deg, #5c2a14 0%, var(--accent) 50%, #3d1a0c 100%);
-}
-
-.accent[data-audience="company"] .accentBands_soft .accentBar:nth-child(1) {
-  background: rgba(255, 255, 255, 0.06);
-}
-.accent[data-audience="company"] .accentBands_soft .accentBar:nth-child(2) {
-  background: color-mix(in srgb, var(--accent) 45%, #1a1410);
-}
-.accent[data-audience="company"] .accentBands_soft .accentBar:nth-child(3) {
-  background: color-mix(in srgb, var(--accent) 65%, #2a1810);
-}
-.accent[data-audience="company"] .accentBands_soft .accentBar:nth-child(4) {
-  background: linear-gradient(90deg, #4a2412 0%, var(--accent) 55%, #321408 100%);
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(6) {
+  background: linear-gradient(
+    90deg,
+    #5c2a14 0%,
+    var(--accent) 50%,
+    #3d1a0c 100%
+  );
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.06) inset;
 }
 
-.accent[data-audience="company"] .accentBands_whisper .accentBar:nth-child(1) {
-  background: rgba(255, 255, 255, 0.05);
-}
-.accent[data-audience="company"] .accentBands_whisper .accentBar:nth-child(2) {
-  background: color-mix(in srgb, var(--accent) 14%, #120d0a);
-}
-
-/* Tuck sections against accent transitions */
-.problemSection {
-  padding-top: 0;
-}
-
-.philosophy {
-  padding-top: 0;
+/* Soft cap where bands meet hero content */
+.heroAccentBars {
+  border-radius: 20px 20px 0 0;
+  overflow: hidden;
+  max-width: min(1120px, 100% - 2.5rem);
+  margin: 0 auto;
+  box-shadow:
+    0 -8px 32px color-mix(in srgb, var(--accent) 12%, transparent),
+    0 -1px 0 rgba(255, 255, 255, 0.08) inset;
 }
 
-.philosophyInner {
-  padding-top: clamp(2.5rem, 5vw, 4rem);
+.root[data-audience="company"] .heroAccentBars {
+  box-shadow:
+    0 -12px 40px rgba(0, 0, 0, 0.35),
+    0 -1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+@media (max-width: 640px) {
+  .heroAccentBars {
+    max-width: 100%;
+    border-radius: 14px 14px 0 0;
+  }
+  .heroAccentBar:nth-child(1) { height: 4px; }
+  .heroAccentBar:nth-child(2) { height: 5px; }
+  .heroAccentBar:nth-child(3) { height: 7px; }
+  .heroAccentBar:nth-child(4) { height: 8px; }
+  .heroAccentBar:nth-child(5) { height: 10px; }
+  .heroAccentBar:nth-child(6) { height: 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .accent_foot .accentBar { animation: none; }
+  .heroAccentBar {
+    animation: none;
+  }
 }
 
 .heroInner {
@@ -1993,9 +1918,9 @@ details[open] .faqIcon {
 /* ── Day Journey Section ───────────────────────────────────── */
 
 .djSection {
-  padding: clamp(3rem, 6vw, 5.5rem) clamp(1.25rem, 4vw, 3rem) clamp(2rem, 4vw, 3rem);
+  padding: clamp(3rem, 6vw, 5.5rem) clamp(1.25rem, 4vw, 3rem);
   border-top: 1px solid var(--border);
-  border-bottom: none;
+  border-bottom: 1px solid var(--border);
 }
 
 .djInner {

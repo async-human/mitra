@@ -5,7 +5,7 @@ import Link from "next/link";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
 import { DotGrid } from "./DotGrid";
-import { SectionAccent } from "./SectionAccent";
+import { HeroAccentBars } from "./HeroAccentBars";
 import s from "./landing-v2.module.css";
 
 /* ── Typing hook ──────────────────────────────────────────── */
@@ -191,7 +191,7 @@ export function HeroV2({ audience }: { audience: V2Audience }) {
 
         </div>
       </div>
-      <SectionAccent key={audience} audience={audience} variant="foot" />
+      <HeroAccentBars key={audience} audience={audience} />
     </section>
   );
 }
