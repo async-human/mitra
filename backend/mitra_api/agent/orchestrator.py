@@ -465,6 +465,19 @@ def build_tool_runner(
             if not media_url:
                 return json.dumps({"ok": False, "error": "no media_url provided"})
 
+            # LinkedIn URLs are not PDFs — reject them here so the LLM doesn't
+            # try to fetch a LinkedIn profile as if it were a resume attachment.
+            if "linkedin.com" in media_url.lower():
+                return json.dumps({
+                    "ok": False,
+                    "error": (
+                        "That URL is a LinkedIn profile, not a PDF. "
+                        "LinkedIn profiles cannot be fetched as a resume. "
+                        "Ask the candidate to upload their CV as a PDF file instead, "
+                        "or continue collecting information through conversation."
+                    ),
+                })
+
             auth = twilio_media_auth(settings)
             extracted = await parse_resume_from_url(media_url, auth_headers=auth)
 
@@ -1127,7 +1140,7 @@ async def run_agent_turn(
         except Exception:
             log.exception("Auto-parse resume failed for %s", whatsapp_sender_id)
 
-    # Auto-parse LinkedIn URL if the candidate shares one and Proxycurl is configured.
+    # Auto-parse LinkedIn URL if the candidate shares one.
     # Only triggers once per session (skip if linkedin signal already stored).
     if user_text and not known_signals.get("linkedin"):
         try:
@@ -1138,10 +1151,16 @@ async def run_agent_turn(
             from mitra_api.tools.resume_parser import missing_follow_up_questions
 
             li_url = extract_linkedin_url(user_text)
-            if li_url and s.proxycurl_api_key:
-                li_parsed = await parse_linkedin_profile(li_url, s.proxycurl_api_key)
+            if li_url:
+                # Always store the URL itself
+                await sessions.merge_signals(whatsapp_sender_id, {"linkedin": li_url})
+
+                li_parsed: dict = {}
+                if s.proxycurl_api_key:
+                    li_parsed = await parse_linkedin_profile(li_url, s.proxycurl_api_key)
+
                 if li_parsed:
-                    await sessions.merge_signals(whatsapp_sender_id, li_parsed)
+                    # ── Success: full profile fetched ─────────────────────────
                     try:
                         async with db_factory() as db:
                             await persist_signals(whatsapp_sender_id, li_parsed, session=db)
@@ -1156,17 +1175,29 @@ async def run_agent_turn(
                         f"Extracted signals: {json.dumps(li_parsed, ensure_ascii=False)}. "
                         f"React warmly — mention something specific you noticed (their background, tenure, stack). "
                     )
-                    if next_q:
-                        li_note += f"Then ask exactly ONE follow-up question about: {next_q}."
-                    else:
-                        li_note += "You have a strong picture — offer to search for matching roles."
+                    li_note += (
+                        f"Then ask exactly ONE follow-up question about: {next_q}."
+                        if next_q
+                        else "You have a strong picture — offer to search for matching roles."
+                    )
                     msgs.append(ChatMessage(role="system", content=li_note))
                     log.info("Auto-parsed LinkedIn for %s: %d signals", whatsapp_sender_id, len(li_parsed))
-                elif li_url:
-                    # URL detected but no API key or parse failed — store the URL at least
-                    url_signal = {"linkedin": li_url}
-                    await sessions.merge_signals(whatsapp_sender_id, url_signal)
-                    log.info("Stored LinkedIn URL (no parse): %s for %s", li_url, whatsapp_sender_id)
+
+                else:
+                    # ── Fallback: URL stored but no profile data fetched ───────
+                    # Inject context so the agent acknowledges it properly and
+                    # collects background through conversation instead.
+                    msgs.append(ChatMessage(
+                        role="system",
+                        content=(
+                            f"The candidate shared their LinkedIn profile: {li_url}. "
+                            f"I've saved the URL, but could not automatically fetch their profile data. "
+                            f"Acknowledge that you've noted their LinkedIn. "
+                            f"Then ask them directly: what is their current role and what kind of role are they looking for next? "
+                            f"Do NOT say you can't read LinkedIn — just move naturally into collecting their background."
+                        ),
+                    ))
+                    log.info("Stored LinkedIn URL (no profile data): %s for %s", li_url, whatsapp_sender_id)
         except Exception:
             log.exception("Auto-parse LinkedIn failed for %s", whatsapp_sender_id)
 

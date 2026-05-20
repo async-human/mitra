@@ -7,7 +7,7 @@ Flow
 ----
 1. Candidate shares their LinkedIn URL in WhatsApp chat
 2. Orchestrator detects the URL via regex and calls parse_linkedin_profile()
-3. If PROXYCURL_API_KEY is configured: Proxycurl API fetches the profile JSON
+3. If PROXYCURL_API_KEY is configured: Proxycurl (nubela.co) API fetches the profile JSON
 4. Signals are extracted and mapped to the same schema as resume_parser.py
 5. Signals are merged into the candidate session (no re-asking of extracted facts)
 
@@ -45,6 +45,9 @@ _LINKEDIN_BARE_RE = re.compile(
     re.I,
 )
 
+# Proxycurl API (nubela.co) — accepts a LinkedIn profile URL via the `url` query param.
+# Auth: Bearer token from https://nubela.co (same key as PROXYCURL_API_KEY).
+# Docs: https://nubela.co/proxycurl/api/v2/linkedin
 PROXYCURL_ENDPOINT = "https://nubela.co/proxycurl/api/v2/linkedin"
 
 
@@ -324,34 +327,22 @@ def _map_proxycurl_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
 
 async def parse_linkedin_profile(url: str, api_key: str) -> dict[str, Any]:
     """
-    Fetch a LinkedIn profile via Proxycurl and return structured candidate signals.
+    Fetch a LinkedIn profile via Proxycurl (nubela.co) and return structured
+    candidate signals.
 
-    Returns {} if:
-    - api_key is empty (silently, no warning)
-    - The profile is unreachable / private
-    - Proxycurl returns a non-200 response
+    The Proxycurl API accepts a LinkedIn profile URL as the `url` query parameter.
+    Returns {} on any failure.
     """
     url = _canonicalise(url)
 
     if not api_key:
         return {}
 
-    params = {
-        "url":                 url,
-        "use_cache":           "if-present",
-        "fallback_to_cache":   "on-error",
-        "skills":              "include",
-        "extra":               "include",
-        "github_profile_id":   "include",
-        "education_details":   "include",
-        "personal_info":       "include",
-    }
-
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.get(
                 PROXYCURL_ENDPOINT,
-                params=params,
+                params={"url": url},
                 headers={"Authorization": f"Bearer {api_key}"},
             )
     except Exception:
@@ -362,21 +353,36 @@ async def parse_linkedin_profile(url: str, api_key: str) -> dict[str, Any]:
         log.warning("LinkedIn profile not found (404): %s", url)
         return {}
 
+    if resp.status_code == 410:
+        log.error(
+            "Proxycurl returned 410 — API endpoint may have changed. "
+            "Check https://nubela.co/proxycurl/api/v2/linkedin for the current endpoint."
+        )
+        return {}
+
+    if resp.status_code == 401:
+        log.error(
+            "Proxycurl returned 401 Unauthorized — check that PROXYCURL_API_KEY is set "
+            "to a valid key from https://nubela.co"
+        )
+        return {}
+
     if resp.status_code == 429:
-        log.warning("Proxycurl rate limit hit — skipping LinkedIn parse for %s", url)
+        log.warning("Proxycurl rate limit — skipping LinkedIn parse for %s", url)
         return {}
 
     if not resp.is_success:
-        log.warning(
-            "Proxycurl returned %d for %s: %s",
-            resp.status_code, url, resp.text[:200],
-        )
+        log.warning("Proxycurl returned %d for %s: %s", resp.status_code, url, resp.text[:300])
         return {}
 
     try:
         data = resp.json()
     except Exception:
         log.exception("Proxycurl response JSON parse failed")
+        return {}
+
+    if not isinstance(data, dict) or not data.get("first_name"):
+        log.warning("Proxycurl returned unexpected shape for %s: %s", url, str(data)[:200])
         return {}
 
     return _map_proxycurl_to_signals(data, url)
