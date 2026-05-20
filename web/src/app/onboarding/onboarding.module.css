@@ -922,160 +922,248 @@
 
 .previewPage {
   min-height: 100vh;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  background: #FAF8F5;
-  padding: 48px 20px 64px;
+  background: #F2EFE9;
+  padding: 40px 20px 80px;
   font-family: inherit;
   -webkit-font-smoothing: antialiased;
 }
 
-.previewCard {
+.previewWrap {
   width: 100%;
-  max-width: 560px;
-  background: #ffffff;
-  border: 1.5px solid rgba(28,25,23,0.09);
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04);
-  animation: formCardIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
-}
-
-/* Role header strip */
-.previewHeader {
+  max-width: 600px;
+  margin: 0 auto;
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 28px 32px 24px;
-  border-bottom: 1px solid rgba(28,25,23,0.07);
+  flex-direction: column;
+  gap: 10px;
+  animation: formCardIn 0.4s cubic-bezier(0.22,1,0.36,1) both;
 }
 
-.previewCheck {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
+/* YOUR OPENING label */
+.previewWrap::before {
+  content: 'YOUR OPENING';
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  color: rgba(28,25,23,0.40);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+/* ── Role header card ── */
+.pvRoleCard {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 4px rgba(28,25,23,0.06);
+}
+
+.pvAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
   background: #1C1917;
-  color: #fff;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.previewHeaderLabel {
-  font-size: 11.5px;
-  font-weight: 500;
-  color: rgba(28,25,23,0.38);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-
-.previewRoleTitle {
+  letter-spacing: 0.03em;
   font-family: var(--font-lora, Georgia, serif);
-  font-size: 20px;
-  font-weight: 600;
+}
+
+.pvRoleInfo { flex: 1; min-width: 0; }
+
+.pvRoleTitle {
+  font-size: 17px;
+  font-weight: 700;
   color: #1C1917;
-  letter-spacing: -0.02em;
-  margin: 0 0 6px;
+  letter-spacing: -0.018em;
+  margin: 0 0 3px;
   line-height: 1.25;
 }
 
-.previewMeta {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
+.pvCompany {
   font-size: 13px;
   color: rgba(28,25,23,0.52);
 }
 
-.previewMetaSep {
-  color: rgba(28,25,23,0.22);
+/* ── Tag row ── */
+.pvTagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-/* Extracted fields */
-.previewFields {
-  padding: 0 32px;
-  border-bottom: 1px solid rgba(28,25,23,0.07);
+.pvMetaTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 11px;
+  background: #ffffff;
+  border: 1px solid rgba(28,25,23,0.10);
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgba(28,25,23,0.70);
+  white-space: nowrap;
 }
 
-.previewField {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 10px;
-  padding: 13px 0;
-  border-bottom: 1px solid rgba(28,25,23,0.05);
-  align-items: baseline;
+.pvSkillTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  background: rgba(59,130,246,0.08);
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #1D4ED8;
+  white-space: nowrap;
 }
 
-.previewField:last-child {
-  border-bottom: none;
+/* ── Section cards ── */
+.pvSection {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 4px rgba(28,25,23,0.06);
 }
 
-.previewFieldLabel {
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(28,25,23,0.40);
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
-  flex-shrink: 0;
-  padding-top: 1px;
-}
-
-.previewFieldValue {
-  font-size: 13.5px;
+.pvSectionTitle {
+  font-size: 14.5px;
+  font-weight: 700;
   color: #1C1917;
+  margin: 0 0 12px;
+  letter-spacing: -0.01em;
+}
+
+.pvSectionText {
+  font-size: 13.5px;
+  color: rgba(28,25,23,0.72);
+  line-height: 1.65;
+  margin: 0;
+}
+
+/* ── Bullet lists ── */
+.pvBulletList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pvBulletList li {
+  display: flex;
+  gap: 10px;
+  font-size: 13.5px;
+  color: rgba(28,25,23,0.72);
   line-height: 1.55;
 }
 
-/* Missing fields notice */
-.previewMissing {
+.pvBulletList li::before {
+  content: '';
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #3B82F6;
+  flex-shrink: 0;
+  margin-top: 7px;
+}
+
+.pvBulletMuted li {
+  color: rgba(28,25,23,0.46);
+}
+
+.pvBulletMuted li::before {
+  background: rgba(28,25,23,0.22);
+}
+
+/* ── Company size ── */
+.pvCompanySize {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: rgba(28,25,23,0.52);
+}
+
+/* ── Company links ── */
+.pvLinkRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pvLinkBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: #ffffff;
+  border: 1.5px solid rgba(28,25,23,0.12);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1C1917;
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.pvLinkBtn:hover {
+  border-color: rgba(28,25,23,0.28);
+  background: rgba(28,25,23,0.03);
+}
+
+/* ── Missing fields ── */
+.pvMissing {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  margin: 20px 32px;
   padding: 14px 16px;
   background: rgba(245,158,11,0.07);
   border: 1px solid rgba(217,119,6,0.16);
-  border-radius: 10px;
+  border-radius: 12px;
   color: #92400E;
   font-size: 13px;
 }
 
-.previewMissing svg {
-  flex-shrink: 0;
-  margin-top: 1px;
-}
+.pvMissing svg { flex-shrink: 0; margin-top: 1px; }
 
-.previewMissingTitle {
+.pvMissingTitle {
   font-weight: 600;
   margin-bottom: 4px;
 }
 
-.previewMissingList {
+.pvMissingList {
   margin: 0;
   padding-left: 16px;
   color: #B45309;
   line-height: 1.7;
 }
 
-/* CTA buttons */
-.previewActions {
+/* ── CTAs ── */
+.pvActions {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 20px 32px 28px;
+  padding: 4px 0 8px;
 }
 
-.previewPostBtn {
+.pvPostBtn {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding: 13px 20px;
+  padding: 14px 20px;
   background: #1C1917;
   color: #ffffff;
   border: none;
@@ -1087,19 +1175,19 @@
   transition: opacity 0.15s, transform 0.15s;
 }
 
-.previewPostBtn:hover {
+.pvPostBtn:hover {
   opacity: 0.84;
   transform: translateY(-1px);
 }
 
-.previewEditBtn {
+.pvEditBtn {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
   padding: 10px 20px;
   background: transparent;
-  color: rgba(28,25,23,0.50);
+  color: rgba(28,25,23,0.48);
   border: none;
   font-size: 13.5px;
   font-weight: 500;
@@ -1107,6 +1195,4 @@
   transition: color 0.15s;
 }
 
-.previewEditBtn:hover {
-  color: #1C1917;
-}
+.pvEditBtn:hover { color: #1C1917; }

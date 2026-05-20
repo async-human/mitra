@@ -8,7 +8,8 @@ Flow
 1. Read raw bytes from the uploaded file
 2. Extract plain text (pypdf for PDF, python-docx for DOCX/DOC)
 3. Call the configured LLM with a structured extraction prompt
-4. Return a signals dict with the same keys the founder chat uses
+4. Return a signals dict — string fields for the session store,
+   list fields for rendering (stored as JSON strings in session store)
 """
 
 from __future__ import annotations
@@ -24,54 +25,61 @@ from mitra_api.llm.types import ChatMessage
 
 log = logging.getLogger(__name__)
 
-# Keys must match the signal keys used throughout the founder onboarding flow
 _EXTRACT_SYSTEM = """You are extracting structured hiring information from a job description.
 
 Return ONLY a valid JSON object — no markdown fences, no explanation, nothing else.
 Omit any key where the information is not clearly present. Do not infer or embellish.
 
-## CRITICAL EXTRACTION RULES — read before extracting:
+## CRITICAL EXTRACTION RULES:
 
 1. **role_title**: Copy the job title EXACTLY as written, including any parenthetical specialization.
    CORRECT:   "Senior AI Engineer (Agentic AI)" → "Senior AI Engineer (Agentic AI)"
    INCORRECT: splitting it into title="Senior AI Engineer" and company="Agentic AI"
-   A word in parentheses inside a job title is a domain/specialization — NOT a company name.
 
-2. **company_name**: Find it in the "About Us" section, document header, letterhead, or company introduction.
+2. **company_name**: Find it in "About Us", document header, letterhead, or company intro.
    NEVER extract company_name from words inside the job title.
-   If the JD says "About Acme Corp" or "We are building at Acme Corp" — that is the company.
-   If company name is genuinely absent, omit this key entirely.
 
 3. When in doubt about any field, omit it — never guess or infer.
 
-## CORE KEYS — use exactly these names when the information is present:
+## REQUIRED KEYS (strings):
 
-"role_title"      — full job title verbatim (including any parenthetical domain/specialization)
-"company_name"    — company name from About section or header (NOT from the job title)
-"stage"           — funding stage: Seed / Series A / Series B / bootstrapped / etc.
-"location"        — city and remote policy, e.g. "Bengaluru (hybrid)" or "Remote"
-"salary_range"    — compensation in LPA, e.g. "25–40 LPA"
-"first_90_days"   — what this person will own and deliver (from responsibilities)
-"dealbreaker"     — hard requirements / must-haves
-"culture_signal"  — team culture, values, working style
-"why_join"        — what makes this company or role exciting
+"role_title"         — Full job title verbatim (including parenthetical domain/specialization)
+"company_name"       — Company name from About section or header (NOT from job title)
+"location"           — City and remote policy, e.g. "Hybrid - Pune, Gurugram, Bengaluru" or "Remote"
+"work_type"          — Exactly one of: "Remote" | "Hybrid" | "In-office"
+"salary_range"       — Compensation, e.g. "₹30–35L/yr" or "25–40 LPA"
+"experience_range"   — e.g. "6–11 yrs" or "5+ years"
+"industry"           — Industry sector, e.g. "IT Services & Consulting", "Fintech", "B2B SaaS"
+"stage"              — Funding stage if mentioned: Seed / Series A / Series B / bootstrapped / public
+"about_role"         — 2–5 sentence paragraph describing the role (combine overview + context sections)
+"first_90_days"      — What this person will own and deliver (from responsibilities, brief 1–2 sentences)
+"dealbreaker"        — Hard requirements / must-haves (1–2 sentences)
+"culture_signal"     — Team culture, values, working style (1–2 sentences)
+"why_join"           — What makes this company or role exciting (1–2 sentences)
+"company_description" — 2–4 sentence description of the company from the "About" section
+"company_size"       — Employee count range, e.g. "201–500" or "1,000+"
+"company_website"    — Website URL if present (exact URL, no inference)
+"company_linkedin"   — LinkedIn company page URL if present (exact URL)
+"equity"             — ESOP / equity offer if mentioned
+"hiring_urgency"     — Timeline or urgency signal if mentioned
 
-## ADDITIONAL KEYS — also extract any other relevant information using concise snake_case keys.
+## LIST KEYS (return as JSON arrays of strings, NOT comma-separated strings):
 
-Common examples (use these exact names when applicable):
-"stack"                  — technologies, languages, frameworks required, as a comma-separated string
-"equity"                 — ESOP / equity offer, e.g. "0.1–0.5% over 4 years"
-"sector"                 — industry vertical, e.g. "Fintech", "B2B SaaS", "Developer Tools"
-"team_size"              — engineering team headcount or overall company size
-"years_exp_required"     — minimum years of experience required
-"reporting_to"           — who this role reports to, e.g. "CTO" or "Founding Engineer"
-"interview_process"      — number of rounds, format, take-home, etc.
-"benefits"               — perks, leave policy, health insurance, WFH allowance, etc.
-"hiring_urgency"         — timeline or urgency signal, e.g. "immediate joiner preferred"
-"headcount_plan"         — how many people they're hiring for this role
+"skills_tags"             — All skills, technologies, and tools as short individual tags
+                             e.g. ["Python", "SQL", "Machine Learning", "Demand Forecasting"]
+                             Include both required and preferred skills; deduplicate; max 20 items
+"responsibilities"        — Bullet-point list of key responsibilities (each item is one sentence)
+                             Extract from "Key Responsibilities", "What you'll do", etc.
+"required_skills"         — Bullet-point list of required skills/experience (each item is one sentence)
+                             Extract from "Required Skills", "Must have", "Qualifications" sections
+"preferred_qualifications" — Bullet-point list of nice-to-have qualifications (each item one sentence)
+                             Extract from "Preferred", "Nice to have", "Bonus" sections
 
-For any other relevant information not covered above, invent a descriptive snake_case key.
-Every value must be a plain string (not a list or object)."""
+## IMPORTANT:
+- "skills_tags" must be an array of short tag strings (2–4 words max each)
+- "responsibilities", "required_skills", "preferred_qualifications" must be arrays of full sentences
+- All other keys must be plain strings
+- Omit a key entirely if the section does not exist in the JD"""
 
 
 async def extract_text_from_pdf(data: bytes) -> str:
@@ -101,24 +109,30 @@ async def extract_jd_text(data: bytes, filename: str) -> str:
         return await extract_text_from_pdf(data)
     if name.endswith(".docx") or name.endswith(".doc"):
         return await extract_text_from_docx(data)
-    # Unknown type — try PDF first, then DOCX
     text = await extract_text_from_pdf(data)
     if not text:
         text = await extract_text_from_docx(data)
     return text
 
 
+# Keys that should remain as lists (not flattened to strings)
+_LIST_KEYS = {"skills_tags", "responsibilities", "required_skills", "preferred_qualifications"}
+
+
 async def extract_jd_signals(text: str, settings: Settings) -> dict[str, Any]:
     """
     Call the LLM to extract structured hiring signals from raw JD text.
-    Returns a dict with founder-signal keys, or {} on failure.
+
+    Returns a mixed dict:
+    - String fields for standard session store keys
+    - List fields (for _LIST_KEYS) stored as JSON strings so the session store
+      can persist them; the upload endpoint parses them back to lists for the preview.
     """
     if not text or len(text) < 30:
         log.warning("JD text too short to parse (%d chars)", len(text))
         return {}
 
-    # Trim to keep tokens manageable while preserving full JD content
-    truncated = text[:8000]
+    truncated = text[:12000]  # increased for richer JDs
 
     adapter = get_llm_adapter(settings)
     try:
@@ -129,7 +143,7 @@ async def extract_jd_signals(text: str, settings: Settings) -> dict[str, Any]:
                 ChatMessage(role="user",   content=f"JOB DESCRIPTION:\n\n{truncated}"),
             ],
             tools=None,
-            max_tokens=1024,
+            max_tokens=2048,
             temperature=0.0,
         )
     except Exception:
@@ -141,7 +155,6 @@ async def extract_jd_signals(text: str, settings: Settings) -> dict[str, Any]:
         log.warning("LLM returned empty response for JD extraction")
         return {}
 
-    # Strip markdown fences if the model wrapped the JSON anyway
     if raw.startswith("```"):
         raw = raw.split("```")[1].lstrip("json").strip()
         if "```" in raw:
@@ -156,12 +169,48 @@ async def extract_jd_signals(text: str, settings: Settings) -> dict[str, Any]:
     if not isinstance(signals, dict):
         return {}
 
-    # Flatten any nested values to strings (the session store expects str values)
     clean: dict[str, Any] = {}
     for k, v in signals.items():
         if v is None:
             continue
-        clean[str(k)] = str(v) if not isinstance(v, str) else v
+        key = str(k)
+        if key in _LIST_KEYS:
+            # Normalize: ensure it's a list of strings
+            if isinstance(v, list):
+                items = [str(i).strip() for i in v if str(i).strip()]
+            else:
+                # Model returned a string despite instructions — split on newlines/bullets
+                items = [
+                    line.lstrip("•-* ").strip()
+                    for line in str(v).split("\n")
+                    if line.strip().lstrip("•-* ")
+                ]
+            if items:
+                # Store as JSON string so the session store (which expects str values) is happy
+                clean[key] = json.dumps(items, ensure_ascii=False)
+        else:
+            clean[key] = str(v) if not isinstance(v, str) else v
 
-    log.info("JD extraction: found %d signals — %s", len(clean), list(clean.keys()))
+    log.info("JD extraction: found %d signals — %s", len(clean), sorted(clean.keys()))
     return clean
+
+
+def parse_list_signal(value: Any) -> list[str]:
+    """
+    Safely parse a signal value that should be a list.
+    Handles JSON strings, plain lists, and falls back gracefully.
+    """
+    if isinstance(value, list):
+        return [str(i) for i in value]
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                return [str(i) for i in parsed]
+        except (json.JSONDecodeError, ValueError):
+            pass
+        # Plain comma or newline separated
+        if "\n" in value:
+            return [line.lstrip("•-* ").strip() for line in value.split("\n") if line.strip()]
+        return [s.strip() for s in value.split(",") if s.strip()]
+    return []

@@ -17,17 +17,28 @@ type Message = {
 type Signals = Record<string, string>
 
 type JdPreview = {
-  role_title:    string | null
-  company:       string | null
-  stage:         string | null
-  location:      string | null
-  salary:        string | null
-  first_90_days: string | null
-  dealbreakers:  string | null
-  culture:       string | null
-  why_join:      string | null
-  stack:         string[]
-  equity:        string | null
+  // Header
+  role_title:  string | null
+  company:     string | null
+  // Tag row
+  location:    string | null
+  work_type:   string | null
+  salary:      string | null
+  experience:  string | null
+  industry:    string | null
+  stage:       string | null
+  skills_tags: string[]
+  // Body sections
+  about_role:               string | null
+  responsibilities:         string[]
+  required_skills:          string[]
+  preferred_qualifications: string[]
+  // Company
+  company_description: string | null
+  company_size:        string | null
+  company_website:     string | null
+  company_linkedin:    string | null
+  // Gate
   missing_brief:   string[]
   missing_contact: string[]
 }
@@ -587,89 +598,162 @@ export default function OnboardingPage() {
     const p = previewData
     const missingAll = [...(p?.missing_brief ?? []), ...(p?.missing_contact ?? [])]
 
-    const previewFields: Array<{ label: string; value: string | null | undefined }> = [
-      { label: 'Salary',        value: p?.salary },
-      { label: 'Location',      value: p?.location },
-      { label: 'Stage',         value: p?.stage },
-      { label: 'First 90 days', value: p?.first_90_days },
-      { label: 'Must-haves',    value: p?.dealbreakers },
-      { label: 'Team culture',  value: p?.culture },
-      { label: 'Why join',      value: p?.why_join },
-      { label: 'Stack',         value: p?.stack?.length ? p.stack.join(', ') : null },
-      { label: 'Equity',        value: p?.equity },
-    ].filter(f => f.value)
+    // Company initials for avatar
+    const initials = (() => {
+      const s = p?.company || p?.role_title || '?'
+      const words = s.trim().split(/\s+/)
+      return words.length >= 2
+        ? (words[0][0] + words[1][0]).toUpperCase()
+        : s.slice(0, 2).toUpperCase()
+    })()
+
+    const tagItems = [
+      p?.location  && { icon: 'pin',      text: p.location },
+      p?.work_type && { icon: null,        text: p.work_type },
+      p?.salary    && { icon: null,        text: p.salary },
+      p?.experience && { icon: null,       text: p.experience + ' exp' },
+      p?.industry  && { icon: null,        text: p.industry },
+    ].filter(Boolean) as { icon: string | null; text: string }[]
 
     return (
       <main className={styles.previewPage}>
-        <div className={styles.previewCard}>
+        <div className={styles.previewWrap}>
 
-          {/* Header */}
-          <div className={styles.previewHeader}>
-            <div className={styles.previewCheck} aria-hidden="true">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <polyline points="2 8 6 12 14 4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <div>
-              <div className={styles.previewHeaderLabel}>Extracted from {uploadFileName}</div>
-              <h1 className={styles.previewRoleTitle}>
-                {p?.role_title ?? 'Your role'}
-              </h1>
-              <div className={styles.previewMeta}>
-                {p?.company && <span>{p.company}</span>}
-                {p?.stage    && <><span className={styles.previewMetaSep}>·</span><span>{p.stage}</span></>}
-                {p?.location && <><span className={styles.previewMetaSep}>·</span><span>{p.location}</span></>}
-              </div>
+          {/* ── Role header card ──────────────────────────────────────── */}
+          <div className={styles.pvRoleCard}>
+            <div className={styles.pvAvatar}>{initials}</div>
+            <div className={styles.pvRoleInfo}>
+              <h1 className={styles.pvRoleTitle}>{p?.role_title ?? 'Your role'}</h1>
+              <div className={styles.pvCompany}>{p?.company}</div>
             </div>
           </div>
 
-          {/* Fields */}
-          {previewFields.length > 0 && (
-            <div className={styles.previewFields}>
-              {previewFields.map(f => (
-                <div key={f.label} className={styles.previewField}>
-                  <div className={styles.previewFieldLabel}>{f.label}</div>
-                  <div className={styles.previewFieldValue}>{f.value}</div>
-                </div>
+          {/* ── Tag row ───────────────────────────────────────────────── */}
+          {(tagItems.length > 0 || (p?.skills_tags?.length ?? 0) > 0) && (
+            <div className={styles.pvTagRow}>
+              {tagItems.map((t, i) => (
+                <span key={i} className={styles.pvMetaTag}>
+                  {t.icon === 'pin' && (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                    </svg>
+                  )}
+                  {t.text}
+                </span>
+              ))}
+              {p?.skills_tags?.map(tag => (
+                <span key={tag} className={styles.pvSkillTag}>{tag}</span>
               ))}
             </div>
           )}
 
-          {/* Missing fields warning */}
+          {/* ── About the Role ────────────────────────────────────────── */}
+          {p?.about_role && (
+            <div className={styles.pvSection}>
+              <h2 className={styles.pvSectionTitle}>About the Role</h2>
+              <p className={styles.pvSectionText}>{p.about_role}</p>
+            </div>
+          )}
+
+          {/* ── Key Responsibilities ──────────────────────────────────── */}
+          {(p?.responsibilities?.length ?? 0) > 0 && (
+            <div className={styles.pvSection}>
+              <h2 className={styles.pvSectionTitle}>Key Responsibilities</h2>
+              <ul className={styles.pvBulletList}>
+                {p!.responsibilities.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {/* ── Required Skills ───────────────────────────────────────── */}
+          {(p?.required_skills?.length ?? 0) > 0 && (
+            <div className={styles.pvSection}>
+              <h2 className={styles.pvSectionTitle}>Required Skills &amp; Experience</h2>
+              <ul className={styles.pvBulletList}>
+                {p!.required_skills.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {/* ── Preferred Qualifications ──────────────────────────────── */}
+          {(p?.preferred_qualifications?.length ?? 0) > 0 && (
+            <div className={styles.pvSection}>
+              <h2 className={styles.pvSectionTitle}>Preferred Qualifications</h2>
+              <ul className={`${styles.pvBulletList} ${styles.pvBulletMuted}`}>
+                {p!.preferred_qualifications.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {/* ── About Company ─────────────────────────────────────────── */}
+          {(p?.company_description || p?.company_size) && (
+            <div className={styles.pvSection}>
+              <h2 className={styles.pvSectionTitle}>About {p?.company}</h2>
+              {p?.company_description && (
+                <p className={styles.pvSectionText}>{p.company_description}</p>
+              )}
+              {p?.company_size && (
+                <div className={styles.pvCompanySize}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                  {p.company_size}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Company Links ─────────────────────────────────────────── */}
+          {(p?.company_website || p?.company_linkedin) && (
+            <div className={styles.pvSection}>
+              <h2 className={styles.pvSectionTitle}>Company Links</h2>
+              <div className={styles.pvLinkRow}>
+                {p?.company_website && (
+                  <a href={p.company_website} target="_blank" rel="noopener noreferrer" className={styles.pvLinkBtn}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                    </svg>
+                    Website
+                  </a>
+                )}
+                {p?.company_linkedin && (
+                  <a href={p.company_linkedin} target="_blank" rel="noopener noreferrer" className={styles.pvLinkBtn}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/>
+                      <rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/>
+                    </svg>
+                    LinkedIn
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Missing fields ────────────────────────────────────────── */}
           {missingAll.length > 0 && (
-            <div className={styles.previewMissing}>
+            <div className={styles.pvMissing}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
               </svg>
               <div>
-                <div className={styles.previewMissingTitle}>
-                  {missingAll.length === 1
-                    ? '1 detail still needed'
-                    : `${missingAll.length} details still needed`}
+                <div className={styles.pvMissingTitle}>
+                  {missingAll.length === 1 ? '1 detail still needed' : `${missingAll.length} details still needed`}
                 </div>
-                <ul className={styles.previewMissingList}>
+                <ul className={styles.pvMissingList}>
                   {missingAll.map(m => <li key={m}>{m}</li>)}
                 </ul>
               </div>
             </div>
           )}
 
-          {/* CTAs */}
-          <div className={styles.previewActions}>
-            <button
-              className={styles.previewPostBtn}
-              onClick={handleConfirmPreview}
-            >
-              {missingAll.length > 0
-                ? 'Looks right — fill in the rest →'
-                : 'Post this role →'}
+          {/* ── CTAs ─────────────────────────────────────────────────── */}
+          <div className={styles.pvActions}>
+            <button className={styles.pvPostBtn} onClick={handleConfirmPreview}>
+              {missingAll.length > 0 ? 'Looks right — fill in the rest →' : 'Post this role →'}
             </button>
-            <button
-              className={styles.previewEditBtn}
-              onClick={handleConfirmPreview}
-            >
+            <button className={styles.pvEditBtn} onClick={handleConfirmPreview}>
               Edit details via chat
             </button>
           </div>

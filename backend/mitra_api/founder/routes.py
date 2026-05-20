@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from mitra_api.agent.session_store import AgentSessionStore, build_session_store
 from mitra_api.config import Settings, get_settings
-from mitra_api.founder.jd_parser import extract_jd_signals, extract_jd_text
+from mitra_api.founder.jd_parser import extract_jd_signals, extract_jd_text, parse_list_signal
 from mitra_api.founder.prompts import FOUNDER_SYSTEM_PROMPT
 from mitra_api.llm.factory import get_llm_adapter
 from mitra_api.llm.types import ChatMessage, ToolDefinition
@@ -319,18 +319,29 @@ class FounderChatRequest(BaseModel):
 
 
 class JdPreview(BaseModel):
-    """Structured preview of a JD upload — rendered as a role card, not a chat message."""
+    """Structured preview of a JD upload — rendered as a full role card."""
+    # Header
     role_title:   str | None = None
     company:      str | None = None
-    stage:        str | None = None
+    # Tag row
     location:     str | None = None
+    work_type:    str | None = None
     salary:       str | None = None
-    first_90_days: str | None = None
-    dealbreakers: str | None = None
-    culture:      str | None = None
-    why_join:     str | None = None
-    stack:        list[str]  = Field(default_factory=list)
-    equity:       str | None = None
+    experience:   str | None = None
+    industry:     str | None = None
+    stage:        str | None = None
+    skills_tags:  list[str]  = Field(default_factory=list)
+    # Body sections
+    about_role:           str | None = None
+    responsibilities:     list[str]  = Field(default_factory=list)
+    required_skills:      list[str]  = Field(default_factory=list)
+    preferred_qualifications: list[str] = Field(default_factory=list)
+    # Company
+    company_description: str | None = None
+    company_size:        str | None = None
+    company_website:     str | None = None
+    company_linkedin:    str | None = None
+    # Missing fields for the onboarding gate
     missing_brief:   list[str] = Field(default_factory=list)
     missing_contact: list[str] = Field(default_factory=list)
 
@@ -618,26 +629,30 @@ async def founder_upload_jd(
     if complete and settings.mitra_database_url:
         background_tasks.add_task(_auto_submit_job, session_id, all_signals, auth_email or None)
 
-    # ── Build structured preview object for the frontend card ─────────────────
-    stack_raw = all_signals.get("tech_stack", "")
-    stack_list: list[str] = (
-        [t.strip() for t in stack_raw.split(",") if t.strip()]
-        if isinstance(stack_raw, str)
-        else (stack_raw if isinstance(stack_raw, list) else [])
-    )
-
+    # ── Build structured preview object for the frontend role card ───────────
     preview = JdPreview(
-        role_title    = all_signals.get("role_title") or None,
-        company       = all_signals.get("company_name") or None,
-        stage         = all_signals.get("stage") or None,
-        location      = all_signals.get("location") or None,
-        salary        = all_signals.get("salary_range") or None,
-        first_90_days = all_signals.get("first_90_days") or None,
-        dealbreakers  = all_signals.get("dealbreaker") or None,
-        culture       = all_signals.get("culture_signal") or None,
-        why_join      = all_signals.get("why_join") or None,
-        stack         = stack_list,
-        equity        = all_signals.get("equity") or None,
+        # Header
+        role_title  = all_signals.get("role_title") or None,
+        company     = all_signals.get("company_name") or None,
+        # Tag row
+        location    = all_signals.get("location") or None,
+        work_type   = all_signals.get("work_type") or None,
+        salary      = all_signals.get("salary_range") or None,
+        experience  = all_signals.get("experience_range") or None,
+        industry    = all_signals.get("industry") or None,
+        stage       = all_signals.get("stage") or None,
+        skills_tags = parse_list_signal(all_signals.get("skills_tags", "")),
+        # Body sections
+        about_role           = all_signals.get("about_role") or None,
+        responsibilities     = parse_list_signal(all_signals.get("responsibilities", "")),
+        required_skills      = parse_list_signal(all_signals.get("required_skills", "")),
+        preferred_qualifications = parse_list_signal(all_signals.get("preferred_qualifications", "")),
+        # Company
+        company_description = all_signals.get("company_description") or None,
+        company_size        = all_signals.get("company_size") or None,
+        company_website     = all_signals.get("company_website") or None,
+        company_linkedin    = all_signals.get("company_linkedin") or None,
+        # Missing fields gate
         missing_brief   = missing_brief,
         missing_contact = missing_contact,
     )
