@@ -4,7 +4,14 @@
       "PowerShell(Get-ChildItem -Path \"c:\\\\harshal\\\\dream_big\\\\dream_big\\\\mitra_agent\\\\web\" -Name | Where-Object { $_ -notmatch '^\\\\.' -and $_ -ne 'node_modules' -and $_ -ne '.next' })",
       "PowerShell($files = @\\(\\); Get-ChildItem -Path \"c:\\\\harshal\\\\dream_big\\\\dream_big\\\\mitra_agent\\\\backend\\\\mitra_api\" -Recurse -File | Where-Object { $_.Extension -in '.py', '.json' } | ForEach-Object { $files += $_ }; Write-Output \"Source files in backend: $\\($files.Count\\)\"; $files | Group-Object Extension | Format-Table Name, Count)",
       "Bash(git branch *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "mcp__claude_ai_my_mcp__web_company_web_scraper",
+      "Bash(curl -s \"https://standout.work/_next/static/chunks/03_85mo16i5uq.css?dpl=dpl_FBMfcHxfuCg6k3irtUpag8RyRj7R\" --max-time 20 -H \"User-Agent: Mozilla/5.0\" -o /tmp/standout/app.css)",
+      "Bash(curl -s \"https://standout.work/_next/static/chunks/0_zi84-pd90~8.css?dpl=dpl_FBMfcHxfuCg6k3irtUpag8RyRj7R\" --max-time 20 -H \"User-Agent: Mozilla/5.0\" -o /tmp/standout/global.css)",
+      "Read(//tmp/**)",
+      "Bash(grep -oE '\\(--[a-z-]+:\\\\s*[^;]{1,100}|#[0-9a-fA-F]{3,8}|hsl\\\\\\([^\\)]+\\\\\\)|oklch\\\\\\([^\\)]+\\\\\\)|rgb\\\\\\([^\\)]+\\\\\\)\\)' /tmp/standout/global.css)",
+      "Bash(grep -oE '\\\\.[a-z][a-z0-9_-]{5,50}' /tmp/standout/app.css)",
+      "Bash(grep -oE '\"[A-Za-z][^\"\\\\\\\\]{10,400}\"' /tmp/standout/mainapp.js)"
     ]
   }
 }

@@ -22,7 +22,6 @@ function useTyping(fullText: string, speed = 36) {
       if (i < fullText.length) {
         setDisplayed(fullText.slice(0, i + 1));
         i++;
-        // Slight jitter makes it feel hand-typed rather than mechanical
         timerRef.current = setTimeout(tick, speed + Math.random() * 18);
       }
     };
@@ -34,13 +33,12 @@ function useTyping(fullText: string, speed = 36) {
   return displayed;
 }
 
-/* Render a typed string — handles \n as <br /> */
+/* Render a typed string — line 0 is dark, line 1+ is muted gray */
 function TypedText({
   text,
   firstLineNoWrap,
 }: {
   text: string;
-  /** Keeps the first line on one row (e.g. “Your AI career companion.”) before the manual break */
   firstLineNoWrap?: boolean;
 }) {
   return (
@@ -48,11 +46,15 @@ function TypedText({
       {text.split("\n").map((line, i) => (
         <Fragment key={i}>
           {i > 0 && <br />}
-          {firstLineNoWrap && i === 0 ? (
-            <span className={s.heroHeadlineFirstLine}>{line}</span>
-          ) : (
-            line
-          )}
+          <span
+            className={
+              i === 0
+                ? (firstLineNoWrap ? s.heroHeadlineFirstLine : undefined)
+                : s.heroHeadlineSecondLine
+            }
+          >
+            {line}
+          </span>
         </Fragment>
       ))}
     </>
@@ -67,8 +69,11 @@ const CONTENT = {
     headlineText: "Your AI career companion.\nNot a job board.",
     sub: (
       <>
-        The average engineer applies to 47 jobs and hears back from three.
-        Mitra works differently — you don&apos;t apply at all. Mitra represents you
+        The average engineer applies to{" "}
+        <span className={s.heroHighlight}>47 jobs</span>
+        {" "}and hears back from{" "}
+        <span className={s.heroHighlight}>three</span>.
+        {" "}Mitra works differently — you don&apos;t apply at all. Mitra represents you
         and introduces you directly to the right founder.{" "}
         <strong>They&apos;re already expecting the call.</strong>
       </>
@@ -86,8 +91,9 @@ const CONTENT = {
     headlineText: "An AI hiring partner\nthat learns how you hire.",
     sub: (
       <>
-        Mitra speaks with engineers every day and understands them beyond their CV.
-        Over time it learns your hiring style — who you respond to, who you pass on,
+        Mitra speaks with engineers every day and understands them{" "}
+        <span className={s.heroHighlight}>beyond their CV</span>.
+        {" "}Over time it learns your hiring style — who you respond to, who you pass on,
         and why — so every shortlist gets{" "}
         <strong>sharper with each placement.</strong>
       </>
@@ -108,7 +114,6 @@ export function HeroV2({ audience }: { audience: V2Audience }) {
   const c = CONTENT[audience];
   const typed = useTyping(c.headlineText);
 
-  // Delay for sub/CTA/proof to appear — gives the typing a head start
   const afterDelay = Math.round(c.headlineText.length * 36 * 0.55);
 
   return (
@@ -116,13 +121,8 @@ export function HeroV2({ audience }: { audience: V2Audience }) {
       <DotGrid audience={audience} />
       <div className={s.heroDotFade} aria-hidden="true" />
       <div className={s.heroInner}>
-        {/*
-          key=audience remounts this div on audience switch,
-          which resets all CSS animations and restarts typing.
-        */}
         <div className={s.heroBody} key={audience}>
 
-          {/* Chip fades in first */}
           <div
             className={`${s.heroChip} ${s.fadeUp}`}
             style={{ "--anim-delay": "0ms" } as React.CSSProperties}
@@ -133,7 +133,6 @@ export function HeroV2({ audience }: { audience: V2Audience }) {
             </span>
           </div>
 
-          {/* Headline types out over a hidden full-text measure so layout doesn&apos;t shift */}
           <h1
             className={s.heroHeadline}
             aria-label={c.headlineText.replace(/\n/g, " ")}
@@ -149,7 +148,6 @@ export function HeroV2({ audience }: { audience: V2Audience }) {
             </span>
           </h1>
 
-          {/* Sub, CTA, and proof fade in once typing has a head start */}
           <p
             className={`${s.heroSub} ${s.fadeUp}`}
             style={{ "--anim-delay": `${afterDelay}ms` } as React.CSSProperties}

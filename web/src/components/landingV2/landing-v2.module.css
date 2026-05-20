@@ -1529,3 +1529,157 @@ details[open] .faqIcon {
   .footerTop { flex-direction: column; align-items: flex-start; }
   .proofInner { flex-direction: column; align-items: flex-start; }
 }
+
+/* ── Nav scroll state (frosted glass) ──────────────────────── */
+
+.navScrolled {
+  background: rgba(246, 241, 235, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+  border-bottom-color: transparent;
+}
+
+.root[data-audience="company"] .navScrolled {
+  background: rgba(15, 10, 7, 0.88);
+}
+
+/* ── Hero two-tone headline ────────────────────────────────── */
+
+.heroHeadlineSecondLine {
+  color: var(--ink2);
+}
+
+/* ── Hero inline keyword highlight ────────────────────────── */
+
+.heroHighlight {
+  background: rgba(200, 66, 26, 0.09);
+  color: var(--ink);
+  padding: 0.06em 0.38em;
+  border-radius: 5px;
+  font-weight: 600;
+}
+
+.root[data-audience="company"] .heroHighlight {
+  background: rgba(200, 66, 26, 0.16);
+  color: var(--ink);
+}
+
+/* ── Day Journey Section ───────────────────────────────────── */
+
+.djSection {
+  padding: clamp(2.5rem, 5vw, 4.5rem) clamp(1.25rem, 4vw, 3rem);
+  border-top: 1px solid var(--border);
+}
+
+.djInner {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.djCards {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  gap: 0;
+  align-items: stretch;
+}
+
+.djCard {
+  background: var(--bgCard);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.djCard:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.07);
+  transform: translateY(-3px);
+}
+
+.root[data-audience="company"] .djCard:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.djDay {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.djTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.djDesc {
+  font-size: 0.855rem;
+  color: var(--ink2);
+  line-height: 1.68;
+  margin: 0;
+}
+
+.djConnector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1.25rem;
+  color: var(--border);
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .djCards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .djConnector {
+    display: none;
+  }
+}
+
+/* ── Proof section ticker ──────────────────────────────────── */
+
+.tickerStrip {
+  overflow: hidden;
+  padding: 13px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tickerTrack {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: tickerScroll 38s linear infinite;
+}
+
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+.tickerText {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.25);
+  padding-right: 0;
+}
+
+.root[data-audience="company"] .tickerText {
+  color: rgba(242, 237, 231, 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tickerTrack { animation: none; }
+  .navScrolled { transition: none; }
+}

@@ -2,6 +2,9 @@ import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
 import s from "./landing-v2.module.css";
 
+const TICKER_TEXT =
+  "Placed at Razorpay  ·  Placed at Setu  ·  Placed at CRED  ·  Placed at Groww  ·  Placed at Zepto  ·  Placed at BharatPe  ·  Placed at PhonePe  ·  Placed at Slice  ·  Placed at Fi Money  ·  ";
+
 const STATS = {
   candidate: [
     { num: "50+",    label: "Engineers placed" },
@@ -27,6 +30,15 @@ export function ProofV2({ audience }: { audience: V2Audience }) {
 
   return (
     <section className={s.proof}>
+      {/* Scrolling placed-at ticker */}
+      <div className={s.tickerStrip} aria-hidden="true">
+        <div className={s.tickerTrack}>
+          <span className={s.tickerText}>{TICKER_TEXT}</span>
+          <span className={s.tickerText}>{TICKER_TEXT}</span>
+        </div>
+      </div>
+
+      {/* Stats + CTA */}
       <div className={`${s.proofInner} ${s.audiencePane}`} key={audience}>
         <div className={s.proofStats}>
           {STATS[audience].map((stat) => (

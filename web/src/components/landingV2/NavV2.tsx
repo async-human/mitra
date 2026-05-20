@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
@@ -14,10 +17,17 @@ interface NavV2Props {
 }
 
 export function NavV2({ audience, onAudienceChange }: NavV2Props) {
+  const [scrolled, setScrolled] = useState(false);
   const isCompany = audience === "company";
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 80);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <nav className={s.nav}>
+    <nav className={`${s.nav} ${scrolled ? s.navScrolled : ""}`}>
       <div className={s.navInner}>
         <Link href="/" className={s.navLogo}>
           <div className={s.navLogoMark}>M</div>
