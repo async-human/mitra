@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { V2Audience } from "./LandingV2";
 import s from "./landing-v2.module.css";
 
@@ -63,7 +63,9 @@ function CandidateMatchMockup() {
         </div>
         <div className={s.djMockupMatchMeta}>₹42–58L · Remote-friendly</div>
         <div className={s.djMockupFitRow}>
-          <div className={s.djMockupFitBar}><div className={s.djMockupFitFill} /></div>
+          <div className={s.djMockupFitBar}>
+          <div className={s.djMockupFitFill} style={{ "--fit-pct": "94%" } as React.CSSProperties} />
+        </div>
           <span className={s.djMockupFitLabel}>94% fit</span>
         </div>
       </div>
@@ -203,35 +205,44 @@ export function DayJourneySection({ audience }: { audience: V2Audience }) {
   const cards = CARDS[audience];
 
   return (
-    <section className={s.djSection}>
+    <section className={s.djSection} aria-labelledby="dj-heading">
       <div className={s.djInner} key={audience}>
-        <p className={`${s.sectionLabel} ${s.fadeUp}`} style={{ "--anim-delay": "0ms" } as React.CSSProperties}>
-          What to expect
-        </p>
-        <h2 className={`${s.sectionTitle} ${s.fadeUp}`} style={{ "--anim-delay": "80ms" } as React.CSSProperties}>
-          {TITLE[audience]}
-        </h2>
+        <header className={s.djHeader}>
+          <p className={`${s.sectionLabel} ${s.fadeUp}`} style={{ "--anim-delay": "0ms" } as React.CSSProperties}>
+            What to expect
+          </p>
+          <h2
+            id="dj-heading"
+            className={`${s.sectionTitle} ${s.djSectionTitle} ${s.fadeUp}`}
+            style={{ "--anim-delay": "80ms" } as React.CSSProperties}
+          >
+            {TITLE[audience]}
+          </h2>
+        </header>
 
-        <div className={s.djCards}>
+        <div className={s.djTimeline} role="list">
+          <div className={s.djTimelineRail} aria-hidden="true">
+            <span className={s.djTimelineLine} />
+          </div>
+
           {cards.map(({ day, title, Mockup }, i) => (
-            <Fragment key={day}>
-              <RevealCard delay={i * 130}>
-                <div className={s.djCard}>
-                  <div className={s.djCardTop}>
+            <RevealCard key={day} delay={i * 140}>
+              <article className={s.djCard} role="listitem" data-step={i + 1}>
+                <div className={s.djCardMarker} aria-hidden="true">
+                  <span className={s.djStepDot} />
+                </div>
+                <div className={s.djCardHead}>
+                  <div className={s.djCardMeta}>
+                    <span className={s.djStepNum}>{String(i + 1).padStart(2, "0")}</span>
                     <span className={s.djDay}>{day}</span>
-                    <p className={s.djTitle}>{title}</p>
                   </div>
+                  <h3 className={s.djTitle}>{title}</h3>
+                </div>
+                <div className={s.djMockupShell}>
                   <Mockup />
                 </div>
-              </RevealCard>
-              {i < cards.length - 1 && (
-                <div className={s.djConnector} aria-hidden="true">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <path d="M5 12h14M14 7l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              )}
-            </Fragment>
+              </article>
+            </RevealCard>
           ))}
         </div>
       </div>
