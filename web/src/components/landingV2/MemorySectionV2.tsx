@@ -183,9 +183,18 @@ function MemoryCardContent({ c }: { c: ContentShape }) {
                   aria-hidden="true"
                 />
                 <span className={s.memoryItemText}>
-                  {isDone ? item : item.slice(0, typed)}
-                  {isTyping && (
-                    <span className={s.typingCursor} aria-hidden="true" />
+                  {isDone ? (
+                    item
+                  ) : (
+                    <>
+                      {item.slice(0, typed)}
+                      {isTyping && (
+                        <span className={s.typingCursor} aria-hidden="true" />
+                      )}
+                      <span className={s.memoryItemGhost} aria-hidden="true">
+                        {item.slice(typed)}
+                      </span>
+                    </>
                   )}
                 </span>
               </li>

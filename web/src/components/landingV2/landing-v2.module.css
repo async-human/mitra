@@ -1049,6 +1049,12 @@
 
 .memoryItemText { flex: 1; }
 
+.memoryItemGhost {
+  opacity: 0;
+  user-select: none;
+  pointer-events: none;
+}
+
 /* Accent diamond bullet */
 .memoryItemDot {
   flex-shrink: 0;
