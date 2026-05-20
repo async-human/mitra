@@ -186,21 +186,164 @@
 /* ── Hero ──────────────────────────────────────────────────── */
 
 .hero {
-  padding: clamp(4rem, 10vw, 8rem) clamp(1.25rem, 4vw, 3rem) clamp(3rem, 6vw, 5rem);
+  padding: clamp(4rem, 10vw, 8rem) clamp(1.25rem, 4vw, 3rem) clamp(4.5rem, 7vw, 6.5rem);
   position: relative;
   overflow: hidden;
 }
 
-/* Gradient that softens the bottom edge of the dot grid */
+/* Gradient that softens the bottom edge of the dot grid (above accent bars) */
 .heroDotFade {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 180px;
-  background: linear-gradient(to bottom, transparent, var(--bg));
+  height: 200px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--bg) 40%, transparent) 55%,
+    var(--bg) 88%
+  );
   pointer-events: none;
   z-index: 1;
+}
+
+.root[data-audience="company"] .heroDotFade {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--bg) 50%, transparent) 50%,
+    var(--bg) 85%
+  );
+}
+
+/* ── Hero accent bands (warm terracotta stack) ─────────────── */
+
+.heroAccent {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.heroAccentBars {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.heroAccentBar {
+  display: block;
+  width: 100%;
+  transform-origin: center bottom;
+  animation: heroBarReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.heroAccentBar:nth-child(1) { animation-delay: 0ms;   height: 5px; }
+.heroAccentBar:nth-child(2) { animation-delay: 40ms;  height: 7px; }
+.heroAccentBar:nth-child(3) { animation-delay: 80ms;  height: 9px; }
+.heroAccentBar:nth-child(4) { animation-delay: 120ms; height: 11px; }
+.heroAccentBar:nth-child(5) { animation-delay: 160ms; height: 13px; }
+.heroAccentBar:nth-child(6) { animation-delay: 200ms; height: 15px; }
+
+@keyframes heroBarReveal {
+  from {
+    opacity: 0;
+    transform: scaleY(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+/* Candidate — cream → amber wash → terracotta → deep umber */
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(1) {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg));
+}
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(2) {
+  background: color-mix(in srgb, var(--accent) 14%, #f0e4da);
+}
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(3) {
+  background: color-mix(in srgb, var(--accent) 28%, #e8cfc0);
+}
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(4) {
+  background: color-mix(in srgb, var(--accent) 48%, #d4a088);
+}
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(5) {
+  background: color-mix(in srgb, var(--accent) 78%, #b85a32);
+}
+.heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(6) {
+  background: linear-gradient(
+    90deg,
+    #9a3d1f 0%,
+    var(--accent) 42%,
+    #7a3018 100%
+  );
+}
+
+/* Company — charcoal → ember glow → rich accent anchor */
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(1) {
+  background: rgba(255, 255, 255, 0.04);
+}
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(2) {
+  background: color-mix(in srgb, var(--accent) 10%, #1a1410);
+}
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(3) {
+  background: color-mix(in srgb, var(--accent) 22%, #221810);
+}
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(4) {
+  background: color-mix(in srgb, var(--accent) 38%, #2e1c12);
+}
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(5) {
+  background: color-mix(in srgb, var(--accent) 62%, #4a2818);
+}
+.heroAccent[data-audience="company"] .heroAccentBar:nth-child(6) {
+  background: linear-gradient(
+    90deg,
+    #5c2a14 0%,
+    var(--accent) 50%,
+    #3d1a0c 100%
+  );
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.06) inset;
+}
+
+/* Soft cap where bands meet hero content */
+.heroAccentBars {
+  border-radius: 20px 20px 0 0;
+  overflow: hidden;
+  max-width: min(1120px, 100% - 2.5rem);
+  margin: 0 auto;
+  box-shadow:
+    0 -8px 32px color-mix(in srgb, var(--accent) 12%, transparent),
+    0 -1px 0 rgba(255, 255, 255, 0.08) inset;
+}
+
+.root[data-audience="company"] .heroAccentBars {
+  box-shadow:
+    0 -12px 40px rgba(0, 0, 0, 0.35),
+    0 -1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+@media (max-width: 640px) {
+  .heroAccentBars {
+    max-width: 100%;
+    border-radius: 14px 14px 0 0;
+  }
+  .heroAccentBar:nth-child(1) { height: 4px; }
+  .heroAccentBar:nth-child(2) { height: 5px; }
+  .heroAccentBar:nth-child(3) { height: 7px; }
+  .heroAccentBar:nth-child(4) { height: 8px; }
+  .heroAccentBar:nth-child(5) { height: 10px; }
+  .heroAccentBar:nth-child(6) { height: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroAccentBar {
+    animation: none;
+  }
 }
 
 .heroInner {
