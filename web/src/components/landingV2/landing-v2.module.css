@@ -1863,6 +1863,125 @@ details[open] .faqIcon {
   animation: chipPulse 2s ease-in-out infinite;
 }
 
+/* ── Company: candidate list mockup ────────────────────────── */
+
+.djMockupCandidateList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.djMockupCandidateRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: #fff;
+  border-radius: 9px;
+  padding: 9px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.djMockupCandidateAv {
+  width: 28px;
+  height: 28px;
+  background: #1C1917;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.djMockupCandidateInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.djMockupCandidateName {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: #1C1917;
+  line-height: 1.2;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.djMockupCandidateSalary {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: #6A6460;
+}
+
+.djMockupCandidateMeta {
+  font-size: 0.63rem;
+  color: #6A6460;
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.djMockupCandidateBarWrap {
+  height: 3px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.djMockupCandidateBar {
+  height: 100%;
+  background: #C8421A;
+  border-radius: 2px;
+}
+
+.djMockupCandidateFit {
+  font-size: 0.67rem;
+  font-weight: 700;
+  color: #C8421A;
+  flex-shrink: 0;
+}
+
+/* ── Company: intro action buttons ──────────────────────────── */
+
+.djMockupIntroActions {
+  display: flex;
+  gap: 7px;
+  margin-top: 4px;
+}
+
+.djMockupIntroBtn {
+  flex: 1;
+  padding: 7px 12px;
+  background: #1C1917;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: default;
+  font-family: inherit;
+}
+
+.djMockupIntroBtnGhost {
+  padding: 7px 12px;
+  background: transparent;
+  color: #6A6460;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: default;
+  font-family: inherit;
+}
+
 /* ── Mobile ─────────────────────────────────────────────────── */
 
 @media (max-width: 800px) {
