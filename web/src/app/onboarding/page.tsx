@@ -62,15 +62,23 @@ export default function OnboardingPage() {
   const [portalLoading, setPortalLoading] = useState(false)
 
   // Pre-chat form state
-  const [phase, setPhase]             = useState<'form' | 'chat'>('form')
+  const [phase, setPhase]             = useState<'form' | 'upload' | 'chat'>('form')
   const [founderName, setFounderName] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [companyUrl, setCompanyUrl]   = useState('')
   const [linkedinUrl, setLinkedinUrl] = useState('')
 
-  const sessionIdRef = useRef<string>('')
-  const chatBodyRef  = useRef<HTMLDivElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  // Upload phase state
+  const [uploadDragOver, setUploadDragOver] = useState(false)
+  const [uploading, setUploading]           = useState(false)
+  const [uploadError, setUploadError]       = useState('')
+  const [uploadFileName, setUploadFileName] = useState('')
+
+  const sessionIdRef      = useRef<string>('')
+  const chatBodyRef       = useRef<HTMLDivElement>(null)
+  const fileInputRef      = useRef<HTMLInputElement>(null)
+  const uploadFileInputRef = useRef<HTMLInputElement>(null)
+  const skipChatInitRef   = useRef(false)
   // Captures form values at the moment the chat phase starts (avoids stale closure)
   const formDataRef  = useRef<{ founderName: string; companyName: string; companyUrl: string; linkedinUrl: string } | null>(null)
 
@@ -82,25 +90,79 @@ export default function OnboardingPage() {
     }
   }, [authSession?.user?.name])
 
-  // ── Skip form when ?upload=1 ──────────────────────────────────────────────
+  // ── Show upload UI when ?upload=1 ────────────────────────────────────────
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get('upload') !== '1') return
-    formDataRef.current = {
-      founderName: authSession?.user?.name?.split(' ')[0] ?? '',
-      companyName: '',
-      companyUrl:  '',
-      linkedinUrl: '',
+    let sid = sessionStorage.getItem('mitra_founder_session') ?? ''
+    if (!sid) {
+      sid = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2) + Date.now()
+      sessionStorage.setItem('mitra_founder_session', sid)
     }
-    setPhase('chat')
+    sessionIdRef.current = sid
+    setPhase('upload')
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // ── Upload phase: send JD, prime chat, then enter chat ───────────────────
+
+  const handleUploadPhaseFile = useCallback(async (file: File) => {
+    setUploading(true)
+    setUploadError('')
+    setUploadFileName(file.name)
+    try {
+      const form = new FormData()
+      form.append('session_id', sessionIdRef.current)
+      form.append('file', file)
+      if (authEmail) form.append('auth_email', authEmail)
+
+      const res = await fetch(`${API_URL}/founder/upload-jd`, {
+        method: 'POST',
+        body: form,
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error((err as { detail?: string }).detail || `HTTP ${res.status}`)
+      }
+      const data: ChatResponse = await res.json()
+
+      // Prime the chat with the file bubble + Mitra's parsed response
+      const fileId = makeId()
+      const replyId = makeId()
+      setMessages([
+        { id: fileId,  role: 'out', text: '', time: getTime(), attachment: { name: file.name, size: file.size } },
+        { id: replyId, role: 'in',  text: data.reply, time: getTime() },
+      ])
+      setSignals(data.signals)
+      setStep(data.step)
+      setProgress(data.progress)
+      setComplete(data.complete)
+      setQuickReplies(data.quick_replies ?? [])
+      setInitDone(true)
+      formDataRef.current = { founderName: '', companyName: '', companyUrl: '', linkedinUrl: '' }
+      skipChatInitRef.current = true
+      setPhase('chat')
+    } catch (e) {
+      setUploadError((e as Error).message || 'Upload failed. Please try again.')
+      setUploading(false)
+      setUploadFileName('')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authEmail])
 
   // ── Init: session ID + body overflow + greeting (fires when chat phase starts) ──
 
   useEffect(() => {
     if (phase !== 'chat') return
     if (typeof window === 'undefined') return
+
+    // Came from upload flow — messages already set, skip API init
+    if (skipChatInitRef.current) {
+      document.body.style.overflow = 'hidden'
+      return () => { document.body.style.overflow = '' }
+    }
 
     let sid = sessionStorage.getItem('mitra_founder_session') ?? ''
     if (!sid) {
@@ -290,6 +352,105 @@ export default function OnboardingPage() {
   void signals; void step; void progress
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  // ── Upload phase ─────────────────────────────────────────────────────────
+
+  if (phase === 'upload') {
+    return (
+      <main className={styles.formPage}>
+        <div className={styles.formCard}>
+
+          <div className={styles.formLogoRow}>
+            <div className={styles.formLogoBox}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 19V9l7-3 7 3v10l-7 3-7-3Z" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
+                <path d="M12 6v14M5 9l7 3 7-3" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span className={styles.formLogoName}>Mitra<span>.</span></span>
+          </div>
+
+          <div className={styles.formHeader}>
+            <h1 className={styles.formTitle}>Upload your job description</h1>
+            <p className={styles.formSub}>
+              Drop a PDF or Word file and Mitra will extract the role brief automatically — no form to fill.
+            </p>
+          </div>
+
+          {/* Hidden file input */}
+          <input
+            ref={uploadFileInputRef}
+            type="file"
+            accept=".pdf,.docx,.doc"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const f = e.target.files?.[0]
+              if (f) handleUploadPhaseFile(f)
+            }}
+          />
+
+          {/* Drop zone */}
+          <div
+            className={[
+              styles.uploadZone,
+              uploadDragOver ? styles.uploadZoneDrag : '',
+              uploading ? styles.uploadZoneUploading : '',
+            ].join(' ')}
+            onClick={() => !uploading && uploadFileInputRef.current?.click()}
+            onDragOver={e => { e.preventDefault(); setUploadDragOver(true) }}
+            onDragLeave={() => setUploadDragOver(false)}
+            onDrop={e => {
+              e.preventDefault()
+              setUploadDragOver(false)
+              const f = e.dataTransfer.files?.[0]
+              if (f && !uploading) handleUploadPhaseFile(f)
+            }}
+          >
+            {uploading ? (
+              <>
+                <div className={styles.uploadSpinner} aria-hidden="true" />
+                <p className={styles.uploadZoneTitle}>Parsing {uploadFileName}…</p>
+                <p className={styles.uploadZoneSub}>Mitra is extracting the role brief</p>
+              </>
+            ) : (
+              <>
+                <div className={styles.uploadZoneIcon} aria-hidden="true">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="12" y1="11" x2="12" y2="17"/>
+                    <polyline points="9 14 12 11 15 14"/>
+                  </svg>
+                </div>
+                <p className={styles.uploadZoneTitle}>
+                  {uploadDragOver ? 'Drop to upload' : 'Drop your JD here'}
+                </p>
+                <p className={styles.uploadZoneSub}>or <span className={styles.uploadZoneBrowse}>click to browse</span></p>
+              </>
+            )}
+          </div>
+
+          {uploadError && (
+            <div className={styles.uploadError}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              {uploadError}
+            </div>
+          )}
+
+          <p className={styles.uploadFormats}>PDF · DOCX · DOC &nbsp;·&nbsp; Max 10 MB</p>
+
+          <div className={styles.uploadDivider}><span>or</span></div>
+
+          <a href="/onboarding" className={styles.uploadAltLink}>
+            Start with AI brief instead →
+          </a>
+
+        </div>
+      </main>
+    )
+  }
 
   // Pre-chat company form
   if (phase === 'form') {
