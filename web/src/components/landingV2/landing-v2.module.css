@@ -2041,6 +2041,177 @@ details[open] .faqIcon {
   border-top-color: rgba(255, 255, 255, 0.06);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Company Hire CTA Section (companies only)
+══════════════════════════════════════════════════════════════ */
+
+.chSection {
+  padding: clamp(3rem, 6vw, 5rem) clamp(1.25rem, 4vw, 3rem);
+  border-top: 1px solid var(--border);
+}
+
+.chCard {
+  max-width: 1120px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow:
+    0 8px 60px rgba(0, 0, 0, 0.50),
+    0 2px 16px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ── Left panel (dark) ──────────────────────────────────────── */
+
+.chLeft {
+  background: #1C1510;
+  padding: clamp(2rem, 4vw, 3rem) clamp(1.75rem, 3.5vw, 2.75rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.chLeftLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.32);
+  margin: 0;
+}
+
+.chHeadline {
+  font-size: clamp(1.9rem, 3.2vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.06;
+  color: #F2EDE7;
+  margin: 0;
+  flex: 1;
+}
+
+.chLeftSub {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.46);
+  line-height: 1.72;
+  margin: 0;
+}
+
+/* ── Right panel (light) ────────────────────────────────────── */
+
+.chRight {
+  background: #FDFAF6;
+  padding: clamp(1.75rem, 3.5vw, 2.5rem);
+  display: flex;
+  flex-direction: column;
+}
+
+.chRightLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.55rem;
+}
+
+.chRightTitle {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1C1917;
+  letter-spacing: -0.028em;
+  margin: 0 0 1.25rem;
+}
+
+/* ── Role grid with fade mask ───────────────────────────────── */
+
+.chRolesWrap {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.chRoles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.45rem;
+}
+
+.chRolesFade {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(to bottom, transparent, #FDFAF6);
+  pointer-events: none;
+}
+
+.chPill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #F2EDE6;
+  border: 1px solid rgba(28, 25, 23, 0.09);
+  border-radius: 99px;
+  padding: 5px 11px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.chPillDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chPillText {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: #1C1917;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── CTA ────────────────────────────────────────────────────── */
+
+.chCta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.88rem 1.5rem;
+  background: #1C1917;
+  color: #FDFAF6;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  transition: opacity 0.15s, transform 0.12s;
+}
+
+.chCta:hover { opacity: 0.85; transform: translateY(-1px); }
+
+.chCtaNote {
+  font-size: 0.72rem;
+  color: rgba(28, 25, 23, 0.38);
+  text-align: center;
+  margin: 0.7rem 0 0;
+}
+
+/* ── Mobile ─────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .chCard { grid-template-columns: 1fr; }
+  .chRoles { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* ── Reduced motion ─────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

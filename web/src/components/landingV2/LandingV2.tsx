@@ -9,6 +9,7 @@ import { HowItWorksV2 } from "./HowItWorksV2";
 import { PhilosophySectionV2 } from "./PhilosophySectionV2";
 import { MemorySectionV2 } from "./MemorySectionV2";
 import { RoadmapSectionV2 } from "./RoadmapSectionV2";
+import { CompanyHireCTASection } from "./CompanyHireCTASection";
 import { ProofV2 } from "./ProofV2";
 import { FAQV2 } from "./FAQV2";
 import { FooterV2 } from "./FooterV2";
@@ -30,6 +31,7 @@ export function LandingV2() {
         <PhilosophySectionV2 />
         <MemorySectionV2 audience={audience} />
         <RoadmapSectionV2 />
+        {audience === "company" && <CompanyHireCTASection />}
         <ProofV2 audience={audience} />
         <FAQV2 audience={audience} />
       </main>
