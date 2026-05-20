@@ -318,6 +318,23 @@ class FounderChatRequest(BaseModel):
     auth_email: str | None = Field(default=None, description="Signed-in founder's OAuth email (optional)")
 
 
+class JdPreview(BaseModel):
+    """Structured preview of a JD upload — rendered as a role card, not a chat message."""
+    role_title:   str | None = None
+    company:      str | None = None
+    stage:        str | None = None
+    location:     str | None = None
+    salary:       str | None = None
+    first_90_days: str | None = None
+    dealbreakers: str | None = None
+    culture:      str | None = None
+    why_join:     str | None = None
+    stack:        list[str]  = Field(default_factory=list)
+    equity:       str | None = None
+    missing_brief:   list[str] = Field(default_factory=list)
+    missing_contact: list[str] = Field(default_factory=list)
+
+
 class FounderChatResponse(BaseModel):
     reply: str
     signals: dict[str, Any]
@@ -325,6 +342,7 @@ class FounderChatResponse(BaseModel):
     progress: int
     complete: bool
     quick_replies: list[str]
+    preview: JdPreview | None = None  # only set by upload-jd endpoint
 
 
 # ── Chat endpoint ─────────────────────────────────────────────────────────────
@@ -600,6 +618,30 @@ async def founder_upload_jd(
     if complete and settings.mitra_database_url:
         background_tasks.add_task(_auto_submit_job, session_id, all_signals, auth_email or None)
 
+    # ── Build structured preview object for the frontend card ─────────────────
+    stack_raw = all_signals.get("tech_stack", "")
+    stack_list: list[str] = (
+        [t.strip() for t in stack_raw.split(",") if t.strip()]
+        if isinstance(stack_raw, str)
+        else (stack_raw if isinstance(stack_raw, list) else [])
+    )
+
+    preview = JdPreview(
+        role_title    = all_signals.get("role_title") or None,
+        company       = all_signals.get("company_name") or None,
+        stage         = all_signals.get("stage") or None,
+        location      = all_signals.get("location") or None,
+        salary        = all_signals.get("salary_range") or None,
+        first_90_days = all_signals.get("first_90_days") or None,
+        dealbreakers  = all_signals.get("dealbreaker") or None,
+        culture       = all_signals.get("culture_signal") or None,
+        why_join      = all_signals.get("why_join") or None,
+        stack         = stack_list,
+        equity        = all_signals.get("equity") or None,
+        missing_brief   = missing_brief,
+        missing_contact = missing_contact,
+    )
+
     return FounderChatResponse(
         reply=final_text,
         signals=all_signals,
@@ -607,6 +649,7 @@ async def founder_upload_jd(
         progress=progress,
         complete=complete,
         quick_replies=quick_replies,
+        preview=preview,
     )
 
 

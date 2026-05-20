@@ -16,6 +16,22 @@ type Message = {
 
 type Signals = Record<string, string>
 
+type JdPreview = {
+  role_title:    string | null
+  company:       string | null
+  stage:         string | null
+  location:      string | null
+  salary:        string | null
+  first_90_days: string | null
+  dealbreakers:  string | null
+  culture:       string | null
+  why_join:      string | null
+  stack:         string[]
+  equity:        string | null
+  missing_brief:   string[]
+  missing_contact: string[]
+}
+
 type ChatResponse = {
   reply: string
   signals: Signals
@@ -23,6 +39,7 @@ type ChatResponse = {
   progress: number
   complete: boolean
   quick_replies: string[]
+  preview?: JdPreview | null
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -62,7 +79,7 @@ export default function OnboardingPage() {
   const [portalLoading, setPortalLoading] = useState(false)
 
   // Pre-chat form state
-  const [phase, setPhase]             = useState<'form' | 'upload' | 'chat'>('form')
+  const [phase, setPhase]             = useState<'form' | 'upload' | 'processing' | 'preview' | 'chat'>('form')
   const [founderName, setFounderName] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [companyUrl, setCompanyUrl]   = useState('')
@@ -70,9 +87,16 @@ export default function OnboardingPage() {
 
   // Upload phase state
   const [uploadDragOver, setUploadDragOver] = useState(false)
-  const [uploading, setUploading]           = useState(false)
   const [uploadError, setUploadError]       = useState('')
   const [uploadFileName, setUploadFileName] = useState('')
+
+  // Processing phase state (animated steps + pending API response)
+  const [processingStep, setProcessingStep]     = useState(0)   // 0-3 active step index
+  const [processingDone, setProcessingDone]     = useState(false)
+  const pendingResponseRef = useRef<ChatResponse | null>(null)   // API result while animation plays
+
+  // Preview phase state
+  const [previewData, setPreviewData] = useState<JdPreview | null>(null)
 
   const sessionIdRef      = useRef<string>('')
   const chatBodyRef       = useRef<HTMLDivElement>(null)
@@ -90,6 +114,20 @@ export default function OnboardingPage() {
     }
   }, [authSession?.user?.name])
 
+  // ── Transition processing → preview once animation done + API returned ───
+
+  useEffect(() => {
+    if (!processingDone) return
+    const data = pendingResponseRef.current
+    if (!data) return   // API hasn't returned yet — it will call setPhase itself
+    setSignals(data.signals)
+    setStep(data.step)
+    setProgress(data.progress)
+    setComplete(data.complete)
+    setPreviewData(data.preview ?? null)
+    setPhase('preview')
+  }, [processingDone])
+
   // ── Show upload UI when ?upload=1 ────────────────────────────────────────
 
   useEffect(() => {
@@ -106,12 +144,29 @@ export default function OnboardingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Upload phase: send JD, prime chat, then enter chat ───────────────────
+  // ── Upload phase: kick off processing animation + API call in parallel ───
 
   const handleUploadPhaseFile = useCallback(async (file: File) => {
-    setUploading(true)
     setUploadError('')
     setUploadFileName(file.name)
+    setProcessingStep(0)
+    setProcessingDone(false)
+    pendingResponseRef.current = null
+    setPhase('processing')
+
+    // Step animation — advances every 900ms, completes after step 3 (≥3.6s total)
+    let stepVal = 0
+    const stepTimer = setInterval(() => {
+      stepVal++
+      if (stepVal >= 4) {
+        clearInterval(stepTimer)
+        setProcessingStep(4)          // all steps done
+        setProcessingDone(true)
+      } else {
+        setProcessingStep(stepVal)
+      }
+    }, 900)
+
     try {
       const form = new FormData()
       form.append('session_id', sessionIdRef.current)
@@ -123,34 +178,49 @@ export default function OnboardingPage() {
         body: form,
       })
       if (!res.ok) {
+        clearInterval(stepTimer)
         const err = await res.json().catch(() => ({}))
         throw new Error((err as { detail?: string }).detail || `HTTP ${res.status}`)
       }
       const data: ChatResponse = await res.json()
+      pendingResponseRef.current = data
 
-      // Prime the chat with the file bubble + Mitra's parsed response
-      const fileId = makeId()
-      const replyId = makeId()
-      setMessages([
-        { id: fileId,  role: 'out', text: '', time: getTime(), attachment: { name: file.name, size: file.size } },
-        { id: replyId, role: 'in',  text: data.reply, time: getTime() },
-      ])
-      setSignals(data.signals)
-      setStep(data.step)
-      setProgress(data.progress)
-      setComplete(data.complete)
-      setQuickReplies(data.quick_replies ?? [])
-      setInitDone(true)
-      formDataRef.current = { founderName: '', companyName: '', companyUrl: '', linkedinUrl: '' }
-      skipChatInitRef.current = true
-      setPhase('chat')
+      // If animation already finished, go straight to preview; else it will
+      // pick up pendingResponseRef when processingDone becomes true (see effect below)
+      if (stepVal >= 4) {
+        setSignals(data.signals)
+        setStep(data.step)
+        setProgress(data.progress)
+        setComplete(data.complete)
+        setPreviewData(data.preview ?? null)
+        setPhase('preview')
+      }
     } catch (e) {
+      clearInterval(stepTimer)
       setUploadError((e as Error).message || 'Upload failed. Please try again.')
-      setUploading(false)
       setUploadFileName('')
+      setPhase('upload')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authEmail])
+
+  // ── Preview confirmed → go to chat to collect missing fields ────────────
+
+  const handleConfirmPreview = useCallback(() => {
+    const data = pendingResponseRef.current
+    if (!data) return
+    const fileId  = makeId()
+    const replyId = makeId()
+    setMessages([
+      { id: fileId,  role: 'out', text: '', time: getTime(), attachment: { name: uploadFileName, size: 0 } },
+      { id: replyId, role: 'in',  text: data.reply, time: getTime() },
+    ])
+    setQuickReplies(data.quick_replies ?? [])
+    setInitDone(true)
+    formDataRef.current = { founderName: '', companyName: '', companyUrl: '', linkedinUrl: '' }
+    skipChatInitRef.current = true
+    setPhase('chat')
+  }, [uploadFileName])
 
   // ── Init: session ID + body overflow + greeting (fires when chat phase starts) ──
 
@@ -373,7 +443,7 @@ export default function OnboardingPage() {
           <div className={styles.formHeader}>
             <h1 className={styles.formTitle}>Upload your job description</h1>
             <p className={styles.formSub}>
-              Drop a PDF or Word file and Mitra will extract the role brief automatically — no form to fill.
+              Drop a PDF or Word file and Mitra extracts everything automatically — role, salary, must-haves, culture.
             </p>
           </div>
 
@@ -394,40 +464,29 @@ export default function OnboardingPage() {
             className={[
               styles.uploadZone,
               uploadDragOver ? styles.uploadZoneDrag : '',
-              uploading ? styles.uploadZoneUploading : '',
             ].join(' ')}
-            onClick={() => !uploading && uploadFileInputRef.current?.click()}
+            onClick={() => uploadFileInputRef.current?.click()}
             onDragOver={e => { e.preventDefault(); setUploadDragOver(true) }}
             onDragLeave={() => setUploadDragOver(false)}
             onDrop={e => {
               e.preventDefault()
               setUploadDragOver(false)
               const f = e.dataTransfer.files?.[0]
-              if (f && !uploading) handleUploadPhaseFile(f)
+              if (f) handleUploadPhaseFile(f)
             }}
           >
-            {uploading ? (
-              <>
-                <div className={styles.uploadSpinner} aria-hidden="true" />
-                <p className={styles.uploadZoneTitle}>Parsing {uploadFileName}…</p>
-                <p className={styles.uploadZoneSub}>Mitra is extracting the role brief</p>
-              </>
-            ) : (
-              <>
-                <div className={styles.uploadZoneIcon} aria-hidden="true">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="12" y1="11" x2="12" y2="17"/>
-                    <polyline points="9 14 12 11 15 14"/>
-                  </svg>
-                </div>
-                <p className={styles.uploadZoneTitle}>
-                  {uploadDragOver ? 'Drop to upload' : 'Drop your JD here'}
-                </p>
-                <p className={styles.uploadZoneSub}>or <span className={styles.uploadZoneBrowse}>click to browse</span></p>
-              </>
-            )}
+            <div className={styles.uploadZoneIcon} aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="11" x2="12" y2="17"/>
+                <polyline points="9 14 12 11 15 14"/>
+              </svg>
+            </div>
+            <p className={styles.uploadZoneTitle}>
+              {uploadDragOver ? 'Drop to upload' : 'Drop your JD here'}
+            </p>
+            <p className={styles.uploadZoneSub}>or <span className={styles.uploadZoneBrowse}>click to browse</span></p>
           </div>
 
           {uploadError && (
@@ -446,6 +505,174 @@ export default function OnboardingPage() {
           <a href="/onboarding" className={styles.uploadAltLink}>
             Start with AI brief instead →
           </a>
+
+        </div>
+      </main>
+    )
+  }
+
+  // ── Processing phase ──────────────────────────────────────────────────────
+
+  const processingSteps = [
+    'Reading your document',
+    'Extracting role details',
+    'Researching the company',
+    'Building your brief',
+  ]
+
+  if (phase === 'processing') {
+    return (
+      <main className={styles.formPage}>
+        <div className={styles.processingCard}>
+
+          <div className={styles.formLogoRow}>
+            <div className={styles.formLogoBox}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 19V9l7-3 7 3v10l-7 3-7-3Z" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
+                <path d="M12 6v14M5 9l7 3 7-3" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span className={styles.formLogoName}>Mitra<span>.</span></span>
+          </div>
+
+          <div className={styles.processingFile}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            {uploadFileName}
+          </div>
+
+          <h2 className={styles.processingTitle}>Processing your JD</h2>
+          <p className={styles.processingSub}>Takes just a few seconds…</p>
+
+          <div className={styles.processingSteps}>
+            {processingSteps.map((label, i) => {
+              const done   = processingStep > i
+              const active = processingStep === i
+              return (
+                <div
+                  key={i}
+                  className={[
+                    styles.processingStep,
+                    done   ? styles.processingStepDone   : '',
+                    active ? styles.processingStepActive : '',
+                  ].join(' ')}
+                >
+                  <div className={styles.processingStepIcon}>
+                    {done ? (
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <polyline points="2 8 6 12 14 4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    ) : active ? (
+                      <div className={styles.processingPulse} aria-hidden="true" />
+                    ) : (
+                      <div className={styles.processingDot} aria-hidden="true" />
+                    )}
+                  </div>
+                  <span className={styles.processingStepLabel}>{label}</span>
+                </div>
+              )
+            })}
+          </div>
+
+        </div>
+      </main>
+    )
+  }
+
+  // ── Preview phase ─────────────────────────────────────────────────────────
+
+  if (phase === 'preview') {
+    const p = previewData
+    const missingAll = [...(p?.missing_brief ?? []), ...(p?.missing_contact ?? [])]
+
+    const previewFields: Array<{ label: string; value: string | null | undefined }> = [
+      { label: 'Salary',        value: p?.salary },
+      { label: 'Location',      value: p?.location },
+      { label: 'Stage',         value: p?.stage },
+      { label: 'First 90 days', value: p?.first_90_days },
+      { label: 'Must-haves',    value: p?.dealbreakers },
+      { label: 'Team culture',  value: p?.culture },
+      { label: 'Why join',      value: p?.why_join },
+      { label: 'Stack',         value: p?.stack?.length ? p.stack.join(', ') : null },
+      { label: 'Equity',        value: p?.equity },
+    ].filter(f => f.value)
+
+    return (
+      <main className={styles.previewPage}>
+        <div className={styles.previewCard}>
+
+          {/* Header */}
+          <div className={styles.previewHeader}>
+            <div className={styles.previewCheck} aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <polyline points="2 8 6 12 14 4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <div className={styles.previewHeaderLabel}>Extracted from {uploadFileName}</div>
+              <h1 className={styles.previewRoleTitle}>
+                {p?.role_title ?? 'Your role'}
+              </h1>
+              <div className={styles.previewMeta}>
+                {p?.company && <span>{p.company}</span>}
+                {p?.stage    && <><span className={styles.previewMetaSep}>·</span><span>{p.stage}</span></>}
+                {p?.location && <><span className={styles.previewMetaSep}>·</span><span>{p.location}</span></>}
+              </div>
+            </div>
+          </div>
+
+          {/* Fields */}
+          {previewFields.length > 0 && (
+            <div className={styles.previewFields}>
+              {previewFields.map(f => (
+                <div key={f.label} className={styles.previewField}>
+                  <div className={styles.previewFieldLabel}>{f.label}</div>
+                  <div className={styles.previewFieldValue}>{f.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Missing fields warning */}
+          {missingAll.length > 0 && (
+            <div className={styles.previewMissing}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <div>
+                <div className={styles.previewMissingTitle}>
+                  {missingAll.length === 1
+                    ? '1 detail still needed'
+                    : `${missingAll.length} details still needed`}
+                </div>
+                <ul className={styles.previewMissingList}>
+                  {missingAll.map(m => <li key={m}>{m}</li>)}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* CTAs */}
+          <div className={styles.previewActions}>
+            <button
+              className={styles.previewPostBtn}
+              onClick={handleConfirmPreview}
+            >
+              {missingAll.length > 0
+                ? 'Looks right — fill in the rest →'
+                : 'Post this role →'}
+            </button>
+            <button
+              className={styles.previewEditBtn}
+              onClick={handleConfirmPreview}
+            >
+              Edit details via chat
+            </button>
+          </div>
 
         </div>
       </main>

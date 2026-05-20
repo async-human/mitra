@@ -1127,6 +1127,49 @@ async def run_agent_turn(
         except Exception:
             log.exception("Auto-parse resume failed for %s", whatsapp_sender_id)
 
+    # Auto-parse LinkedIn URL if the candidate shares one and Proxycurl is configured.
+    # Only triggers once per session (skip if linkedin signal already stored).
+    if user_text and not known_signals.get("linkedin"):
+        try:
+            from mitra_api.tools.linkedin_parser import (
+                extract_linkedin_url,
+                parse_linkedin_profile,
+            )
+            from mitra_api.tools.resume_parser import missing_follow_up_questions
+
+            li_url = extract_linkedin_url(user_text)
+            if li_url and s.proxycurl_api_key:
+                li_parsed = await parse_linkedin_profile(li_url, s.proxycurl_api_key)
+                if li_parsed:
+                    await sessions.merge_signals(whatsapp_sender_id, li_parsed)
+                    try:
+                        async with db_factory() as db:
+                            await persist_signals(whatsapp_sender_id, li_parsed, session=db)
+                    except Exception:
+                        log.exception("Failed to persist LinkedIn signals for %s", whatsapp_sender_id)
+
+                    next_questions = missing_follow_up_questions(li_parsed, known_signals)
+                    next_q = next_questions[0] if next_questions else None
+
+                    li_note = (
+                        f"LINKEDIN PROFILE PARSED — signals already saved, do NOT ask for info already extracted. "
+                        f"Extracted signals: {json.dumps(li_parsed, ensure_ascii=False)}. "
+                        f"React warmly — mention something specific you noticed (their background, tenure, stack). "
+                    )
+                    if next_q:
+                        li_note += f"Then ask exactly ONE follow-up question about: {next_q}."
+                    else:
+                        li_note += "You have a strong picture — offer to search for matching roles."
+                    msgs.append(ChatMessage(role="system", content=li_note))
+                    log.info("Auto-parsed LinkedIn for %s: %d signals", whatsapp_sender_id, len(li_parsed))
+                elif li_url:
+                    # URL detected but no API key or parse failed — store the URL at least
+                    url_signal = {"linkedin": li_url}
+                    await sessions.merge_signals(whatsapp_sender_id, url_signal)
+                    log.info("Stored LinkedIn URL (no parse): %s for %s", li_url, whatsapp_sender_id)
+        except Exception:
+            log.exception("Auto-parse LinkedIn failed for %s", whatsapp_sender_id)
+
     msgs.append(ChatMessage(role="user", content=user_content))
     persist_from = len(msgs) - 1
 

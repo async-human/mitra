@@ -109,6 +109,18 @@ class Settings(BaseSettings):
         description="Set true to use interactive list picker. False = inline plain-text cards.",
     )
 
+    # ── LINKEDIN ENRICHMENT (Proxycurl) ──────────────────────────────────────
+    proxycurl_api_key: str = Field(
+        default="",
+        validation_alias="PROXYCURL_API_KEY",
+        description=(
+            "Proxycurl API key for LinkedIn profile enrichment. "
+            "When set, the agent automatically fetches profile data when a candidate "
+            "shares their LinkedIn URL. Get one at nubela.co/proxycurl. "
+            "Leave empty to disable (agent will ask manually for CV details)."
+        ),
+    )
+
     # ── WEB MARKET RESEARCH (Tavily) ───────────────────────────────────────────
     tavily_api_key: str = Field(
         default="",
