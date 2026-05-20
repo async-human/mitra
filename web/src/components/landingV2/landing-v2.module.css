@@ -310,28 +310,11 @@
   box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.06) inset;
 }
 
-/* Soft cap where bands meet hero content */
 .heroAccentBars {
-  border-radius: 20px 20px 0 0;
-  overflow: hidden;
-  max-width: min(1120px, 100% - 2.5rem);
-  margin: 0 auto;
-  box-shadow:
-    0 -8px 32px color-mix(in srgb, var(--accent) 12%, transparent),
-    0 -1px 0 rgba(255, 255, 255, 0.08) inset;
-}
-
-.root[data-audience="company"] .heroAccentBars {
-  box-shadow:
-    0 -12px 40px rgba(0, 0, 0, 0.35),
-    0 -1px 0 rgba(255, 255, 255, 0.05) inset;
+  width: 100%;
 }
 
 @media (max-width: 640px) {
-  .heroAccentBars {
-    max-width: 100%;
-    border-radius: 14px 14px 0 0;
-  }
   .heroAccentBar:nth-child(1) { height: 4px; }
   .heroAccentBar:nth-child(2) { height: 5px; }
   .heroAccentBar:nth-child(3) { height: 7px; }
