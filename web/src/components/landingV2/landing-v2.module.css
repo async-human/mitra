@@ -2269,7 +2269,7 @@ details[open] .faqIcon {
 ══════════════════════════════════════════════════════════════ */
 
 .chSection {
-  padding: clamp(3rem, 6vw, 5rem) clamp(1.25rem, 4vw, 3rem);
+  padding: clamp(3rem, 6vw, 4.5rem) clamp(1.25rem, 4vw, 3rem);
   border-top: 1px solid var(--border);
 }
 
@@ -2277,131 +2277,286 @@ details[open] .faqIcon {
   max-width: 1120px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 5fr 7fr;
-  border-radius: 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 0;
+  border-radius: 22px;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, #1a1410 0%, #120d0a 100%);
   box-shadow:
-    0 8px 60px rgba(0, 0, 0, 0.50),
-    0 2px 16px rgba(0, 0, 0, 0.30),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-/* ── Left panel (dark) ──────────────────────────────────────── */
-
-.chLeft {
-  background: #1C1510;
-  padding: clamp(2rem, 4vw, 3rem) clamp(1.75rem, 3.5vw, 2.75rem);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 2rem;
-}
-
-.chLeftLabel {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
-  margin: 0;
-}
-
-.chHeadline {
-  font-size: clamp(1.9rem, 3.2vw, 2.8rem);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1.06;
-  color: #F2EDE7;
-  margin: 0;
-  flex: 1;
-}
-
-.chLeftSub {
-  font-size: 0.92rem;
-  color: rgba(255, 255, 255, 0.58);
-  line-height: 1.72;
-  margin: 0;
-}
-
-.chLeftBullets {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.chLeftBullets li {
-  font-size: 0.84rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.52);
-  padding-left: 1.1rem;
-  position: relative;
-  line-height: 1.5;
-}
-
-.chLeftBullets li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.55em;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
+    0 24px 64px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .chSectionInView .chCard {
   animation: v2FadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* ── Right panel (light) ────────────────────────────────────── */
+/* ── Copy column ─────────────────────────────────────────────── */
 
-.chRight {
-  background: #FDFAF6;
+.chCopy {
   padding: clamp(1.75rem, 3.5vw, 2.5rem);
   display: flex;
   flex-direction: column;
+  gap: 1.1rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.chRightLabel {
+.chEyebrow {
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(242, 237, 231, 0.42);
+  margin: 0;
+}
+
+.chHeadline {
+  font-family: var(--font-lora, Georgia, serif);
+  font-size: clamp(1.65rem, 2.8vw, 2.35rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  color: #f2ede7;
+  margin: 0;
+}
+
+.chSub {
+  font-size: 0.9rem;
+  color: rgba(242, 237, 231, 0.58);
+  line-height: 1.65;
+  margin: 0;
+  max-width: 36ch;
+}
+
+.chPerks {
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.chPerks li {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: rgba(242, 237, 231, 0.52);
+  padding-left: 1rem;
+  position: relative;
+  line-height: 1.45;
+}
+
+.chPerks li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.5em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.chCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.82rem 1.35rem;
+  width: fit-content;
+  background: #f2ede7;
+  color: #0f0a07;
+  border-radius: 11px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.chCta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.chCtaArrow {
+  opacity: 0.7;
+  transition: transform 0.15s;
+}
+
+.chCta:hover .chCtaArrow {
+  transform: translateX(3px);
+}
+
+/* ── Visual column (shortlist + roles) ─────────────────────── */
+
+.chVisual {
+  padding: clamp(1.35rem, 2.5vw, 1.75rem);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.chVisualHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.chVisualLabel {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--accent);
-  margin: 0 0 0.55rem;
 }
 
-.chRightTitle {
-  font-size: 1.35rem;
+.chVisualTitle {
+  font-size: 0.95rem;
   font-weight: 700;
-  color: #1C1917;
-  letter-spacing: -0.028em;
-  margin: 0 0 1.25rem;
+  color: rgba(242, 237, 231, 0.88);
+  letter-spacing: -0.02em;
 }
 
-/* ── Role grid with fade mask ───────────────────────────────── */
-
-.chRolesWrap {
-  position: relative;
-  flex: 1;
-  overflow: hidden;
-  margin-bottom: 1.5rem;
-}
-
-.chRolesMarquee {
-  overflow: hidden;
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-}
-
-.chRolesTrack {
+/* Shortlist preview — fills the panel */
+.chShortlist {
+  background: #ede8e0;
+  border-radius: 14px;
+  padding: 12px;
   display: flex;
-  flex-wrap: nowrap;
-  gap: 0.45rem;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.chShortlistBadge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6a6460;
+  margin-bottom: 2px;
+}
+
+.chShortlistRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f7f3ee;
+  border: 1px solid rgba(28, 25, 23, 0.07);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.chShortlistAv {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #1c1917;
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.chShortlistInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.chShortlistName {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1c1917;
+  line-height: 1.2;
+}
+
+.chShortlistSalary {
+  font-weight: 600;
+  color: #6a6460;
+  margin-left: 0.35rem;
+}
+
+.chShortlistMeta {
+  font-size: 0.6rem;
+  color: #6a6460;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chShortlistBarWrap {
+  height: 3px;
+  background: rgba(28, 25, 23, 0.08);
+  border-radius: 99px;
+  margin-top: 5px;
+  overflow: hidden;
+}
+
+.chShortlistBar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #e85d2a);
+  border-radius: 99px;
+}
+
+.chShortlistFit {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Role marquees — compact footer */
+.chRolesBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.chRolesLabel {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(242, 237, 231, 0.32);
+  margin: 0;
+}
+
+.chMarquee {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent);
+}
+
+.chMarqueeTrack {
+  display: flex;
+  gap: 0.4rem;
   width: max-content;
-  animation: chRolesScroll 32s linear infinite;
+  animation: chRolesScroll 36s linear infinite;
+}
+
+.chMarqueeReverse .chMarqueeTrack {
+  animation-direction: reverse;
+  animation-duration: 40s;
+}
+
+.chMarqueePill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(242, 237, 231, 0.55);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 99px;
+  padding: 4px 10px;
+  white-space: nowrap;
 }
 
 @keyframes chRolesScroll {
@@ -2409,72 +2564,19 @@ details[open] .faqIcon {
   to   { transform: translateX(-50%); }
 }
 
-.chRolesFade {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 80px;
-  background: linear-gradient(to bottom, transparent, #FDFAF6);
-  pointer-events: none;
-}
-
-.chPill {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  background: #F2EDE6;
-  border: 1px solid rgba(28, 25, 23, 0.09);
-  border-radius: 99px;
-  padding: 5px 11px;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.chPillDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.chPillText {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #1C1917;
-  white-space: nowrap;
-}
-
-/* ── CTA ────────────────────────────────────────────────────── */
-
-.chCta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.88rem 1.5rem;
-  background: #1C1917;
-  color: #FDFAF6;
-  border-radius: 12px;
-  font-size: 0.88rem;
-  font-weight: 700;
-  text-decoration: none;
-  letter-spacing: -0.01em;
-  transition: opacity 0.15s, transform 0.12s;
-}
-
-.chCta:hover { opacity: 0.85; transform: translateY(-1px); }
-
-.chCtaNote {
-  font-size: 0.72rem;
-  color: rgba(28, 25, 23, 0.38);
-  text-align: center;
-  margin: 0.7rem 0 0;
-}
-
 /* ── Mobile ─────────────────────────────────────────────────── */
 
-@media (max-width: 720px) {
-  .chCard { grid-template-columns: 1fr; }
+@media (max-width: 800px) {
+  .chCard {
+    grid-template-columns: 1fr;
+  }
+  .chCopy {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .chCta {
+    width: 100%;
+  }
 }
 
 /* ── Reduced motion ─────────────────────────────────────────── */
@@ -2482,7 +2584,7 @@ details[open] .faqIcon {
 @media (prefers-reduced-motion: reduce) {
   .navScrolled { transition: none; }
   .djMockupConfirmedDot { animation: none; }
-  .chRolesTrack,
+  .chMarqueeTrack,
   .proofCompaniesTrack { animation: none; }
   .problemRotorPane,
   .fqPane { animation: none; }
