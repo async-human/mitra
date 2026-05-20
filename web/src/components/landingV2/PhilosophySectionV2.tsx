@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { V2Audience } from "./LandingV2";
+import { SectionAccent } from "./SectionAccent";
 import s from "./landing-v2.module.css";
 
 const PRINCIPLES = {
@@ -88,6 +89,7 @@ export function PhilosophySectionV2({ audience }: { audience: V2Audience }) {
       className={`${s.philosophy} ${inView ? s.philosophyInView : ""}`}
       id="philosophy"
     >
+      <SectionAccent audience={audience} variant="crown" />
       <div className={s.philosophyInner} key={audience}>
         <p className={s.philosophyLabel}>The product philosophy</p>
 
