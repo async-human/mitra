@@ -62,7 +62,7 @@
 /* ── CONTENT ─────────────────────────────────────────────────────────────────── */
 
 .content {
-  max-width: 860px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 52px 32px 96px;
 }
@@ -237,38 +237,39 @@
 /* ── ROLE LIST ───────────────────────────────────────────────────────────────── */
 
 .roleList {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 8px;
 }
 
 .roleCard {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   background: #FFFFFF;
   border: 1px solid rgba(28,25,23,0.08);
-  border-radius: 16px;
-  padding: 18px 20px;
+  border-radius: 14px;
+  padding: 14px 16px;
   text-decoration: none;
   color: inherit;
   transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
-  box-shadow: 0 1px 4px rgba(28,25,23,0.04);
+  box-shadow: 0 1px 3px rgba(28,25,23,0.04);
+  min-width: 0;
 }
 
 .roleCard:hover {
-  border-color: rgba(28,25,23,0.15);
-  box-shadow: 0 6px 20px rgba(28,25,23,0.08);
+  border-color: rgba(28,25,23,0.14);
+  box-shadow: 0 4px 16px rgba(28,25,23,0.08);
   transform: translateY(-2px);
 }
 
 .roleAv {
-  width: 44px;
-  height: 44px;
-  border-radius: 11px;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
   background: #1C1917;
   color: #FFFFFF;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -284,7 +285,7 @@
 }
 
 .roleTitle {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #1C1917;
   letter-spacing: -0.01em;
@@ -292,104 +293,101 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin-bottom: 3px;
-}
-
-.roleCompany {
-  font-size: 13px;
-  color: rgba(28,25,23,0.42);
-  margin-bottom: 8px;
-}
-
-.pipeline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 12px;
-}
-
-.pipeItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: rgba(28,25,23,0.48);
-}
-
-.pipeDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(28,25,23,0.22);
-  flex-shrink: 0;
-}
-
-.pipeItem[data-stage="review"] { color: #B45309; }
-.pipeItem[data-stage="review"] .pipeDot { background: #F59E0B; }
-.pipeItem[data-stage="interested"] { color: #0369A1; }
-.pipeItem[data-stage="interested"] .pipeDot { background: #0EA5E9; }
-.pipeItem[data-stage="interview"] { color: #6D28D9; }
-.pipeItem[data-stage="interview"] .pipeDot { background: #8B5CF6; }
-.pipeItem[data-stage="offer"] { color: #047857; }
-.pipeItem[data-stage="offer"] .pipeDot { background: #10B981; }
-.pipeItem[data-stage="hired"] { color: #15803D; }
-.pipeItem[data-stage="hired"] .pipeDot { background: #22C55E; }
-
-.pipeEmpty {
-  font-size: 11.5px;
-  color: rgba(28,25,23,0.35);
-}
-
-.roleRight {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  flex-shrink: 0;
+  line-height: 1.3;
 }
 
 .roleMeta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.roleCompany {
+  font-size: 12px;
+  color: rgba(28,25,23,0.42);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.roleMetaSep {
+  font-size: 12px;
+  color: rgba(28,25,23,0.22);
   flex-shrink: 0;
 }
 
 .stageBadge {
-  padding: 3px 10px;
-  border-radius: 100px;
-  background: rgba(28,25,23,0.06);
-  color: rgba(28,25,23,0.52);
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 500;
+  color: rgba(28,25,23,0.48);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.roleRight {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .introCount {
-  font-size: 12.5px;
-  color: rgba(28,25,23,0.40);
+  font-size: 12px;
+  color: rgba(28,25,23,0.38);
+  white-space: nowrap;
 }
+
+.pipeEmpty {
+  font-size: 12px;
+  color: rgba(28,25,23,0.30);
+  white-space: nowrap;
+}
+
+.pipeChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 100px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pipeChip[data-stage="interested"] { background: rgba(14,165,233,0.10); color: #0369A1; }
+.pipeChip[data-stage="interview"]  { background: rgba(139,92,246,0.10); color: #6D28D9; }
+.pipeChip[data-stage="offer"]      { background: rgba(16,185,129,0.10); color: #047857; }
+.pipeChip[data-stage="hired"]      { background: rgba(34,197,94,0.12);  color: #15803D; }
 
 .reviewBadge {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
+  padding: 2px 9px;
   background: rgba(245,158,11,0.11);
   color: #B45309;
   border-radius: 100px;
   font-size: 11.5px;
   font-weight: 600;
   border: 1px solid rgba(217,119,6,0.16);
+  white-space: nowrap;
 }
 
 .arrow {
-  color: rgba(28,25,23,0.22);
+  color: rgba(28,25,23,0.20);
   flex-shrink: 0;
   transition: color 0.15s, transform 0.15s;
 }
 
 .roleCard:hover .arrow {
-  color: rgba(28,25,23,0.55);
+  color: rgba(28,25,23,0.52);
   transform: translateX(3px);
+}
+
+@media (max-width: 640px) {
+  .roleList {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── EMPTY STATE ─────────────────────────────────────────────────────────────── */

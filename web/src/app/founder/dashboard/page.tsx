@@ -231,78 +231,44 @@ export default async function FounderDashboardPage() {
                 {jobsWithStats.map(job => {
                   const s = job.stats;
                   const pendingReview = awaitingReviewCount(job);
+                  const activeStage = s && s.hired > 0 ? "hired"
+                    : s && s.offer > 0 ? "offer"
+                    : s && s.interview > 0 ? "interview"
+                    : s && s.interested > 0 ? "interested"
+                    : null;
 
                   return (
                     <a key={job.job_id} href={job.portal_url} className={styles.roleCard}>
-
-                      {/* Avatar */}
                       <div className={styles.roleAv}>
                         {companyInitials(job.company || job.title)}
                       </div>
 
-                      {/* Info */}
                       <div className={styles.roleInfo}>
                         <div className={styles.roleTitle}>{job.title}</div>
-                        {job.company && (
-                          <div className={styles.roleCompany}>{job.company}</div>
-                        )}
-
-                        {/* Pipeline mini-row */}
-                        <div className={styles.pipeline}>
-                          {job.total_intros > 0 ? (
-                            <>
-                              <span className={styles.pipeItem} data-stage="sent">
-                                <span className={styles.pipeDot} />
-                                {job.total_intros} introduced
-                              </span>
-                              {pendingReview > 0 && (
-                                <span className={styles.pipeItem} data-stage="review">
-                                  <span className={styles.pipeDot} />
-                                  {pendingReview} to review
-                                </span>
-                              )}
-                              {s && s.interested > 0 && (
-                                <span className={styles.pipeItem} data-stage="interested">
-                                  <span className={styles.pipeDot} />
-                                  {s.interested} interested
-                                </span>
-                              )}
-                              {s && s.interview > 0 && (
-                                <span className={styles.pipeItem} data-stage="interview">
-                                  <span className={styles.pipeDot} />
-                                  {s.interview} interviewing
-                                </span>
-                              )}
-                              {s && s.offer > 0 && (
-                                <span className={styles.pipeItem} data-stage="offer">
-                                  <span className={styles.pipeDot} />
-                                  {s.offer} offer
-                                </span>
-                              )}
-                              {s && s.hired > 0 && (
-                                <span className={styles.pipeItem} data-stage="hired">
-                                  <span className={styles.pipeDot} />
-                                  {s.hired} hired
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <span className={styles.pipeEmpty}>No intros yet</span>
-                          )}
+                        <div className={styles.roleMeta}>
+                          {job.company && <span className={styles.roleCompany}>{job.company}</span>}
+                          {job.stage && <><span className={styles.roleMetaSep}>·</span><span className={styles.stageBadge}>{job.stage}</span></>}
                         </div>
                       </div>
 
-                      {/* Right: stage + arrow */}
                       <div className={styles.roleRight}>
-                        {job.stage && (
-                          <span className={styles.stageBadge}>{job.stage}</span>
-                        )}
-                        {job.to_review > 0 && (
-                          <span className={styles.reviewBadge}>{job.to_review} to review</span>
+                        {pendingReview > 0 ? (
+                          <span className={styles.reviewBadge}>{pendingReview} to review</span>
+                        ) : activeStage ? (
+                          <span className={styles.pipeChip} data-stage={activeStage}>
+                            {activeStage === "hired" ? `${s!.hired} hired`
+                              : activeStage === "offer" ? `${s!.offer} offer`
+                              : activeStage === "interview" ? `${s!.interview} interviewing`
+                              : `${s!.interested} interested`}
+                          </span>
+                        ) : job.total_intros > 0 ? (
+                          <span className={styles.introCount}>{job.total_intros} intro{job.total_intros !== 1 ? "s" : ""}</span>
+                        ) : (
+                          <span className={styles.pipeEmpty}>No intros yet</span>
                         )}
                       </div>
 
-                      <svg className={styles.arrow} width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <svg className={styles.arrow} width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                         <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </a>
