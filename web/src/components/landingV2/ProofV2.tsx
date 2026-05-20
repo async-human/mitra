@@ -2,8 +2,7 @@ import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
 import s from "./landing-v2.module.css";
 
-const TICKER_TEXT =
-  "Placed at Razorpay  ·  Placed at Setu  ·  Placed at CRED  ·  Placed at Groww  ·  Placed at Zepto  ·  Placed at BharatPe  ·  Placed at PhonePe  ·  Placed at Slice  ·  Placed at Fi Money  ·  ";
+const COMPANIES = ["Razorpay", "Setu", "CRED", "Groww", "Zepto", "BharatPe", "Fi Money"];
 
 const STATS = {
   candidate: [
@@ -30,32 +29,36 @@ export function ProofV2({ audience }: { audience: V2Audience }) {
 
   return (
     <section className={s.proof}>
-      {/* Scrolling placed-at ticker */}
-      <div className={s.tickerStrip} aria-hidden="true">
-        <div className={s.tickerTrack}>
-          <span className={s.tickerText}>{TICKER_TEXT}</span>
-          <span className={s.tickerText}>{TICKER_TEXT}</span>
-        </div>
-      </div>
-
-      {/* Stats + CTA */}
       <div className={`${s.proofInner} ${s.audiencePane}`} key={audience}>
-        <div className={s.proofStats}>
-          {STATS[audience].map((stat) => (
-            <div key={stat.label}>
-              <div className={s.proofStatNum}>{stat.num}</div>
-              <div className={s.proofStatLabel}>{stat.label}</div>
-            </div>
+
+        {/* Stats + CTA */}
+        <div className={s.proofRow}>
+          <div className={s.proofStats}>
+            {STATS[audience].map((stat) => (
+              <div key={stat.label}>
+                <div className={s.proofStatNum}>{stat.num}</div>
+                <div className={s.proofStatLabel}>{stat.label}</div>
+              </div>
+            ))}
+          </div>
+          <a
+            href={cta.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={s.proofCta}
+          >
+            {cta.label}
+          </a>
+        </div>
+
+        {/* Placed-at company tags */}
+        <div className={s.proofCompaniesRow}>
+          <span className={s.proofCompaniesLabel}>Engineers placed at</span>
+          {COMPANIES.map((c) => (
+            <span key={c} className={s.proofCompanyTag}>{c}</span>
           ))}
         </div>
-        <a
-          href={cta.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={s.proofCta}
-        >
-          {cta.label}
-        </a>
+
       </div>
     </section>
   );
