@@ -1573,6 +1573,7 @@ details[open] .faqIcon {
 .djSection {
   padding: clamp(3rem, 6vw, 5.5rem) clamp(1.25rem, 4vw, 3rem);
   border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .djInner {
@@ -1594,17 +1595,29 @@ details[open] .faqIcon {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  height: 100%;
+  box-sizing: border-box;
   min-height: 340px;
-  transition: box-shadow 0.2s, transform 0.2s;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.22s, transform 0.22s;
 }
 
 .djCard:hover {
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
-  transform: translateY(-3px);
+  box-shadow: 0 16px 52px rgba(0, 0, 0, 0.11), 0 4px 12px rgba(0, 0, 0, 0.06);
+  transform: translateY(-4px);
+}
+
+.root[data-audience="company"] .djCard {
+  background: #1C1510;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.40), 0 1px 4px rgba(0, 0, 0, 0.30),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .root[data-audience="company"] .djCard:hover {
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(0, 0, 0, 0.35),
+              inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  transform: translateY(-4px);
 }
 
 .djCardTop {
@@ -1651,9 +1664,9 @@ details[open] .faqIcon {
   gap: 7px;
 }
 
+/* Mockup stays light in both modes — it represents a real product screen */
 .root[data-audience="company"] .djMockup {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: #EDE8E0;
 }
 
 /* Shared avatar */
