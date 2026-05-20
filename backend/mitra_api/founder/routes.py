@@ -354,10 +354,25 @@ async def founder_chat(
             content="Signals collected so far: " + json.dumps(existing_signals, ensure_ascii=False),
         ))
 
-    user_content = (
-        body.message.strip() if not is_init
-        else "[CONVERSATION START — call respond() with your opening greeting now]"
+    # If the session already has signals from a JD upload, tell the agent to
+    # only collect remaining missing fields — not run the full brief flow.
+    jd_uploaded = any(
+        k in existing_signals
+        for k in ("role_title", "first_90_days", "dealbreaker", "culture_signal")
     )
+
+    if is_init and jd_uploaded:
+        # Session seeded from JD upload — skip greeting, resume where we left off
+        user_content = (
+            "[The founder uploaded a JD and we already extracted: "
+            + json.dumps({k: v for k, v in existing_signals.items() if k not in ("intro_preference", "contact_info")}, ensure_ascii=False)
+            + ". Only ask for the fields that are still missing. Do NOT re-ask for things already collected.]"
+        )
+    elif is_init:
+        user_content = "[CONVERSATION START — call respond() with your opening greeting now]"
+    else:
+        user_content = body.message.strip()
+
     msgs.append(ChatMessage(role="user", content=user_content))
     persist_from = len(msgs) - 1
 
@@ -498,86 +513,89 @@ async def founder_upload_jd(
     if extracted:
         await store.merge_signals(sid, extracted)
 
-    # ── Build agent turn — acknowledge + ask for what's missing ──────────────
-    transcript    = await store.get_transcript(sid)
-    all_signals   = await store.get_signals(sid)
-    adapter       = get_llm_adapter(settings)
+    # ── Build structured preview + targeted missing-field request ────────────
+    all_signals = await store.get_signals(sid)
 
-    extracted_summary = json.dumps(extracted, ensure_ascii=False, indent=None)
-    user_content = (
-        f"[Founder uploaded a JD file: '{filename}'. "
-        f"Automatically extracted signals: {extracted_summary}. "
-        "Acknowledge what was successfully parsed (mention the role and company), "
-        "then ask for the single most important piece of information still missing.]"
-    )
+    # Preview: show every field extracted from the JD
+    _FIELD_LABELS: list[tuple[str, str]] = [
+        ("role_title",    "Role"),
+        ("company_name",  "Company"),
+        ("stage",         "Stage"),
+        ("location",      "Location"),
+        ("salary_range",  "Salary"),
+        ("first_90_days", "First 90 days"),
+        ("dealbreaker",   "Must-haves"),
+        ("culture_signal","Team culture"),
+        ("why_join",      "Why join"),
+        ("tech_stack",    "Stack"),
+        ("equity",        "Equity"),
+    ]
+    preview_lines: list[str] = []
+    for key, label in _FIELD_LABELS:
+        val = all_signals.get(key, "")
+        if val:
+            # Truncate very long values for readability
+            display = val if len(val) <= 120 else val[:117] + "…"
+            preview_lines.append(f"*{label}:* {display}")
 
-    msgs: list[ChatMessage] = [ChatMessage(role="system", content=FOUNDER_SYSTEM_PROMPT)]
-    msgs.extend(transcript)
+    # Compute which required fields are still missing
+    # (intro_preference and contact_info are never in a JD — ask last)
+    _REQUIRED: list[tuple[list[str], str]] = [
+        (["role_title"],                       "role title"),
+        (["company_name"],                     "company name"),
+        (["salary_range"],                     "salary range"),
+        (["first_90_days"],                    "what success looks like in the first 90 days"),
+        (["dealbreaker", "culture_signal"],    "must-have requirements or team culture"),
+        (["why_join", "stage"],                "what makes this role exciting (or your funding stage)"),
+    ]
+    _FINAL_REQUIRED: list[tuple[list[str], str]] = [
+        (["intro_preference"],  "how you'd like intros sent (WhatsApp, email, or both)"),
+        (["contact_info"],      "contact details to send introductions to"),
+    ]
 
-    if all_signals:
-        msgs.append(ChatMessage(
-            role="system",
-            content="Signals collected so far: " + json.dumps(all_signals, ensure_ascii=False),
-        ))
+    missing_brief:   list[str] = []
+    missing_contact: list[str] = []
 
-    msgs.append(ChatMessage(role="user", content=user_content))
+    for keys, label in _REQUIRED:
+        if not any(k in all_signals for k in keys):
+            missing_brief.append(label)
+    for keys, label in _FINAL_REQUIRED:
+        if not any(k in all_signals for k in keys):
+            missing_contact.append(label)
 
-    result = await adapter.complete(
-        model=settings.mitra_llm_model,
-        messages=msgs,
-        tools=[_RESPOND_TOOL],
-        max_tokens=settings.mitra_llm_max_tokens,
-        temperature=settings.mitra_llm_temperature,
-        force_tool="respond",
-    )
+    # Build the reply
+    role_name = all_signals.get("role_title") or extracted.get("role_title") or "the role"
+    company   = all_signals.get("company_name") or extracted.get("company_name") or ""
+    header    = f"✓ Extracted from *{filename}*"
+    if role_name and company:
+        header += f" — *{role_name}* at *{company}*"
+    elif role_name:
+        header += f" — *{role_name}*"
 
-    respond_call = next(
-        (tc for tc in (result.tool_calls or []) if tc.name == "respond"),
-        None,
-    )
+    parts: list[str] = [header]
 
+    if preview_lines:
+        parts.append("\n" + "\n".join(preview_lines))
+
+    all_missing = missing_brief + missing_contact
+    if all_missing:
+        missing_str = "\n".join(f"• {m}" for m in all_missing)
+        parts.append(f"\nTo complete the brief I still need:\n{missing_str}")
+        parts.append("\nCould you share these?")
+    else:
+        parts.append("\nAll required details are present — brief is complete!")
+
+    final_text    = "\n".join(parts)
     quick_replies: list[str] = []
 
-    if respond_call:
-        try:
-            args = json.loads(respond_call.arguments or "{}")
-        except json.JSONDecodeError:
-            args = {}
-
-        final_text    = str(args.get("message") or "").strip()
-        raw_signals   = args.get("signals") or {}
-        new_signals   = {str(k): str(v) for k, v in raw_signals.items() if v is not None and str(v).strip()}
-        quick_replies = [str(r) for r in (args.get("quick_replies") or [])[:4] if r]
-
-        if new_signals:
-            await store.merge_signals(sid, new_signals)
-
-        if not final_text:
-            role = extracted.get("role_title", "the role")
-            final_text = f"Got it — I've read the JD for {role}. Let me ask about a few missing details."
-    else:
-        role = extracted.get("role_title", "the role")
-        final_text = f"I've read through the JD for {role}. Let me ask about a few details."
-
     # ── Persist to transcript ─────────────────────────────────────────────────
-    # Store as a clean user/assistant pair so the conversation stays coherent
     anchor        = ChatMessage(role="user",      content=f"[Uploaded JD: {filename}]")
     assistant_msg = ChatMessage(role="assistant", content=final_text)
-
-    if not transcript:
-        await store.append_messages(sid, [anchor, assistant_msg])
-    else:
-        await store.append_messages(sid, [anchor, assistant_msg])
+    await store.append_messages(sid, [anchor, assistant_msg])
 
     # ── Compute UI state ──────────────────────────────────────────────────────
     all_signals = await store.get_signals(sid)
     step, progress, complete = _compute_step_progress(all_signals)
-
-    nudge = _missing_context_nudge(all_signals)
-    if nudge and not complete:
-        final_text = nudge
-        quick_replies = []
-        await store.append_messages(sid, [ChatMessage(role="assistant", content=final_text)])
 
     if complete and settings.mitra_database_url:
         background_tasks.add_task(_auto_submit_job, session_id, all_signals, auth_email or None)
