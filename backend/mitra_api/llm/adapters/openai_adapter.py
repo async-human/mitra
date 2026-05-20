@@ -49,6 +49,9 @@ def _to_openai_messages(messages: list[ChatMessage]) -> list[dict[str, Any]]:
                     }
                     for tc in m.tool_calls
                 ]
+            # OpenAI requires at least one of content or tool_calls
+            if "content" not in d and "tool_calls" not in d:
+                d["content"] = ""
             out.append(d)
         elif m.role == "tool":
             out.append(
@@ -103,7 +106,13 @@ class OpenAIAdapter(LLMAdapter):
         async with httpx.AsyncClient(timeout=120.0) as client:
             resp = await client.post(OPENAI_URL, json=payload, headers=headers)
             if resp.status_code >= 400:
-                log.error("openai error %s: %s", resp.status_code, resp.text)
+                # Log full body so we can diagnose validation errors
+                try:
+                    err_body = resp.json()
+                    err_msg = (err_body.get("error") or {}).get("message", resp.text[:2000])
+                except Exception:
+                    err_msg = resp.text[:2000]
+                log.error("openai error %s: %s", resp.status_code, err_msg)
                 resp.raise_for_status()
             data = resp.json()
 

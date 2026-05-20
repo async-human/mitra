@@ -32,13 +32,24 @@ class AgentSessionStore(ABC):
     ) -> tuple[list[ChatMessage], bool]:
         """
         Return the most recent `window` turns + a flag indicating older turns exist.
-        A "turn" = one user message + one assistant message (2 messages).
+        A "turn" = one user message + one assistant message (2 messages, more with tool calls).
+        Always starts at a user-message boundary so we never split a tool-call sequence.
         Returns (windowed_turns, has_older_turns).
         """
         full = await self.get_transcript(sid)
         if len(full) <= window * 2:
             return full, False
-        return full[-(window * 2):], True
+
+        # Start point based on message count, then advance to next user-message boundary
+        # so we never cut in the middle of an assistant-tool_calls / tool-result sequence.
+        candidate_start = len(full) - window * 2
+        for i in range(candidate_start, len(full)):
+            if full[i].role == "user":
+                candidate_start = i
+                break
+
+        has_older = candidate_start > 0
+        return full[candidate_start:], has_older
 
     @abstractmethod
     async def append_messages(self, sid: str, msgs: list[ChatMessage]) -> None:
