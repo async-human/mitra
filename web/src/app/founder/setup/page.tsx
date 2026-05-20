@@ -87,8 +87,8 @@ export default async function FounderSetupPage({
     redirect("/onboarding");
   }
 
-  // Single job — redirect to dashboard (which shows the role)
-  if (jobs.length === 1 && !forceList) {
+  // Always redirect to dashboard — it handles all job counts
+  if (!forceList) {
     redirect('/founder/dashboard');
   }
 
