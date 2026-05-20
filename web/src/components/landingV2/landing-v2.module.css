@@ -247,17 +247,83 @@
 
 .heroAccentBar {
   display: block;
+  position: relative;
   width: 100%;
+  overflow: hidden;
   transform-origin: center bottom;
-  animation: heroBarReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  background-size: 220% 100%;
+  animation:
+    heroBarReveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) both,
+    heroBarFlow 16s ease-in-out infinite,
+    heroBarBreathe 10s ease-in-out infinite;
 }
 
-.heroAccentBar:nth-child(1) { animation-delay: 0ms;   height: 5px; }
-.heroAccentBar:nth-child(2) { animation-delay: 40ms;  height: 7px; }
-.heroAccentBar:nth-child(3) { animation-delay: 80ms;  height: 9px; }
-.heroAccentBar:nth-child(4) { animation-delay: 120ms; height: 11px; }
-.heroAccentBar:nth-child(5) { animation-delay: 160ms; height: 13px; }
-.heroAccentBar:nth-child(6) { animation-delay: 200ms; height: 15px; }
+.heroAccentBar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 38%,
+    rgba(255, 255, 255, 0.16) 50%,
+    transparent 62%,
+    transparent 100%
+  );
+  background-size: 240% 100%;
+  opacity: 0;
+  pointer-events: none;
+  animation: heroBarShimmer 14s ease-in-out infinite;
+}
+
+.heroAccentBar:nth-child(1) {
+  height: 5px;
+  animation-delay: 0ms, 0s, 0s;
+  animation-duration: 0.75s, 18s, 9s;
+}
+.heroAccentBar:nth-child(2) {
+  height: 7px;
+  animation-delay: 45ms, 1.2s, 0.8s;
+  animation-duration: 0.75s, 20s, 10.5s;
+}
+.heroAccentBar:nth-child(3) {
+  height: 9px;
+  animation-delay: 90ms, 2.4s, 1.6s;
+  animation-duration: 0.75s, 22s, 12s;
+}
+.heroAccentBar:nth-child(4) {
+  height: 11px;
+  animation-delay: 135ms, 3.6s, 2.4s;
+  animation-duration: 0.75s, 24s, 13.5s;
+}
+.heroAccentBar:nth-child(5) {
+  height: 13px;
+  animation-delay: 180ms, 4.8s, 3.2s;
+  animation-duration: 0.75s, 26s, 15s;
+}
+.heroAccentBar:nth-child(6) {
+  height: 15px;
+  animation-delay: 225ms, 6s, 4s;
+  animation-duration: 0.75s, 28s, 16.5s;
+}
+
+.heroAccentBar:nth-child(1)::after { animation-delay: 0s; animation-duration: 12s; }
+.heroAccentBar:nth-child(2)::after { animation-delay: 2.2s; animation-duration: 13s; }
+.heroAccentBar:nth-child(3)::after { animation-delay: 4.4s; animation-duration: 14s; }
+.heroAccentBar:nth-child(4)::after { animation-delay: 6.6s; animation-duration: 15s; }
+.heroAccentBar:nth-child(5)::after { animation-delay: 8.8s; animation-duration: 16s; }
+.heroAccentBar:nth-child(6)::after { animation-delay: 11s; animation-duration: 17s; }
+
+.heroAccent[data-audience="company"] .heroAccentBar::after {
+  background: linear-gradient(
+    105deg,
+    transparent 0%,
+    transparent 38%,
+    rgba(255, 255, 255, 0.09) 50%,
+    transparent 62%,
+    transparent 100%
+  );
+}
 
 @keyframes heroBarReveal {
   from {
@@ -270,52 +336,144 @@
   }
 }
 
+@keyframes heroBarFlow {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes heroBarBreathe {
+  0%,
+  100% {
+    filter: brightness(1) saturate(1);
+  }
+  50% {
+    filter: brightness(1.05) saturate(1.04);
+  }
+}
+
+@keyframes heroBarShimmer {
+  0%,
+  100% {
+    background-position: 130% 0;
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.45;
+  }
+  48% {
+    background-position: -30% 0;
+    opacity: 0.15;
+  }
+  58% {
+    opacity: 0;
+  }
+}
+
 /* Candidate — cream → amber wash → terracotta → deep umber */
 .heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(1) {
-  background: color-mix(in srgb, var(--accent) 6%, var(--bg));
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 4%, var(--bg)) 0%,
+    color-mix(in srgb, var(--accent) 8%, var(--bg)) 50%,
+    color-mix(in srgb, var(--accent) 5%, var(--bg)) 100%
+  );
 }
 .heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(2) {
-  background: color-mix(in srgb, var(--accent) 14%, #f0e4da);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 11%, #f0e4da) 0%,
+    color-mix(in srgb, var(--accent) 17%, #f0e4da) 50%,
+    color-mix(in srgb, var(--accent) 12%, #f0e4da) 100%
+  );
 }
 .heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(3) {
-  background: color-mix(in srgb, var(--accent) 28%, #e8cfc0);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 24%, #e8cfc0) 0%,
+    color-mix(in srgb, var(--accent) 32%, #e8cfc0) 50%,
+    color-mix(in srgb, var(--accent) 26%, #e8cfc0) 100%
+  );
 }
 .heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(4) {
-  background: color-mix(in srgb, var(--accent) 48%, #d4a088);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 44%, #d4a088) 0%,
+    color-mix(in srgb, var(--accent) 52%, #d4a088) 50%,
+    color-mix(in srgb, var(--accent) 46%, #d4a088) 100%
+  );
 }
 .heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(5) {
-  background: color-mix(in srgb, var(--accent) 78%, #b85a32);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 74%, #b85a32) 0%,
+    color-mix(in srgb, var(--accent) 82%, #b85a32) 50%,
+    color-mix(in srgb, var(--accent) 76%, #b85a32) 100%
+  );
 }
 .heroAccent[data-audience="candidate"] .heroAccentBar:nth-child(6) {
   background: linear-gradient(
     90deg,
     #9a3d1f 0%,
-    var(--accent) 42%,
+    var(--accent) 38%,
+    #c45a2e 50%,
+    var(--accent) 62%,
     #7a3018 100%
   );
 }
 
 /* Company — charcoal → ember glow → rich accent anchor */
 .heroAccent[data-audience="company"] .heroAccentBar:nth-child(1) {
-  background: rgba(255, 255, 255, 0.04);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
 }
 .heroAccent[data-audience="company"] .heroAccentBar:nth-child(2) {
-  background: color-mix(in srgb, var(--accent) 10%, #1a1410);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 8%, #1a1410) 0%,
+    color-mix(in srgb, var(--accent) 13%, #1a1410) 50%,
+    color-mix(in srgb, var(--accent) 9%, #1a1410) 100%
+  );
 }
 .heroAccent[data-audience="company"] .heroAccentBar:nth-child(3) {
-  background: color-mix(in srgb, var(--accent) 22%, #221810);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 19%, #221810) 0%,
+    color-mix(in srgb, var(--accent) 26%, #221810) 50%,
+    color-mix(in srgb, var(--accent) 20%, #221810) 100%
+  );
 }
 .heroAccent[data-audience="company"] .heroAccentBar:nth-child(4) {
-  background: color-mix(in srgb, var(--accent) 38%, #2e1c12);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 34%, #2e1c12) 0%,
+    color-mix(in srgb, var(--accent) 42%, #2e1c12) 50%,
+    color-mix(in srgb, var(--accent) 36%, #2e1c12) 100%
+  );
 }
 .heroAccent[data-audience="company"] .heroAccentBar:nth-child(5) {
-  background: color-mix(in srgb, var(--accent) 62%, #4a2818);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 58%, #4a2818) 0%,
+    color-mix(in srgb, var(--accent) 66%, #4a2818) 50%,
+    color-mix(in srgb, var(--accent) 60%, #4a2818) 100%
+  );
 }
 .heroAccent[data-audience="company"] .heroAccentBar:nth-child(6) {
   background: linear-gradient(
     90deg,
     #5c2a14 0%,
-    var(--accent) 50%,
+    var(--accent) 42%,
+    #8a4020 50%,
+    var(--accent) 58%,
     #3d1a0c 100%
   );
   box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.06) inset;
@@ -336,7 +494,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   .heroAccentBar {
+    animation: heroBarReveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
+    background-size: 100% 100%;
+  }
+
+  .heroAccentBar::after {
     animation: none;
+    opacity: 0;
   }
 }
 
