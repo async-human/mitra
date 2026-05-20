@@ -82,6 +82,20 @@ export default function OnboardingPage() {
     }
   }, [authSession?.user?.name])
 
+  // ── Skip form when ?upload=1 ──────────────────────────────────────────────
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('upload') !== '1') return
+    formDataRef.current = {
+      founderName: authSession?.user?.name?.split(' ')[0] ?? '',
+      companyName: '',
+      companyUrl:  '',
+      linkedinUrl: '',
+    }
+    setPhase('chat')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ── Init: session ID + body overflow + greeting (fires when chat phase starts) ──
 
   useEffect(() => {
