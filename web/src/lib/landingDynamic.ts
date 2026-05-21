@@ -95,30 +95,43 @@ export type ConvoQuote = {
   attr: string;
 };
 
-export const FOUNDER_TESTIMONIALS: ConvoQuote[] = [
+export type FounderTestimonial = ConvoQuote & {
+  tags: string[];
+  metric: { value: string; label: string };
+};
+
+export const FOUNDER_TESTIMONIALS: FounderTestimonial[] = [
   {
     id: "f1",
     quote:
       "We stopped reading CVs. Mitra sends three people who already want to work on our problem — with context we'd have taken twenty minutes to write.",
     attr: "Founder · Series A fintech · Bangalore",
+    tags: ["Series A", "Fintech", "Pre-qualified"],
+    metric: { value: "3", label: "intros per batch" },
   },
   {
     id: "f2",
     quote:
       "First intro in five days. Every candidate knew our stack and our stage — none of the 'spray apply' noise we get from job boards.",
     attr: "CTO · B2B SaaS · 12-person eng team",
+    tags: ["B2B SaaS", "5-day intro", "Stack-aware"],
+    metric: { value: "5d", label: "to first intro" },
   },
   {
     id: "f3",
     quote:
       "The shortlist got sharper after our second hire. Mitra learned we care about ownership evidence more than pedigree.",
     attr: "Founding engineer turned CEO · healthtech",
+    tags: ["Healthtech", "Learning bar", "Ownership"],
+    metric: { value: "2×", label: "sharper shortlist" },
   },
   {
     id: "f4",
     quote:
       "Eight percent fee with a written replacement guarantee — and the first two placements were free. Easiest hiring decision we made.",
     attr: "Head of Engineering · payments infra",
+    tags: ["8% fee", "90-day guarantee", "2 free hires"],
+    metric: { value: "8%", label: "success fee" },
   },
 ];
 

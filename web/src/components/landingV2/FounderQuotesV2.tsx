@@ -11,6 +11,7 @@ import { FOUNDER_TESTIMONIALS } from "@/lib/landingDynamic";
 import s from "./landing-v2.module.css";
 
 const ROTATE_MS = 9000;
+const TOTAL = FOUNDER_TESTIMONIALS.length;
 
 function usePrefersReducedMotion(): boolean {
   const [reduce, setReduce] = useState(false);
@@ -32,7 +33,7 @@ export function FounderQuotesV2() {
   const [entered, setEntered] = useState(false);
 
   const tick = useCallback(() => {
-    setIdx((i) => (i + 1) % FOUNDER_TESTIMONIALS.length);
+    setIdx((i) => (i + 1) % TOTAL);
   }, []);
 
   useEffect(() => {
@@ -78,27 +79,46 @@ export function FounderQuotesV2() {
           aria-roledescription="Rotating testimonials"
           aria-live={reduceMotion ? "off" : "polite"}
         >
-          <span className={s.fqMark} aria-hidden="true">
-            &ldquo;
-          </span>
-          <div key={q.id} className={s.fqPane}>
-            <p className={s.fqText}>{q.quote}</p>
-            <p className={s.fqAttr}>{q.attr}</p>
-          </div>
-        </div>
+          <blockquote key={q.id} className={s.fqPane}>
+            <p className={s.fqText}>
+              <span className={s.fqMark} aria-hidden="true">&ldquo;</span>
+              {q.quote}
+            </p>
+            <footer className={s.fqAttr}>{q.attr}</footer>
+          </blockquote>
 
-        <div className={s.fqDots} role="tablist" aria-label="Testimonial">
-          {FOUNDER_TESTIMONIALS.map((item, i) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={i === idx}
-              aria-controls={`${baseId}-panel`}
-              className={`${s.fqDot} ${i === idx ? s.fqDotActive : ""}`}
-              onClick={() => setIdx(i)}
-            />
-          ))}
+          <aside className={s.fqAside} aria-hidden="true">
+            <div className={s.fqMetric}>
+              <span className={s.fqMetricValue}>{q.metric.value}</span>
+              <span className={s.fqMetricLabel}>{q.metric.label}</span>
+            </div>
+            <div className={s.fqTags}>
+              {q.tags.map((tag) => (
+                <span key={tag} className={s.fqTag}>{tag}</span>
+              ))}
+            </div>
+            <div className={s.fqIndex}>
+              <span className={s.fqIndexCurrent}>{String(idx + 1).padStart(2, "0")}</span>
+              <span className={s.fqIndexSep}>/</span>
+              <span className={s.fqIndexTotal}>{String(TOTAL).padStart(2, "0")}</span>
+            </div>
+          </aside>
+
+          <div className={s.fqFooter}>
+            <div className={s.fqDots} role="tablist" aria-label="Testimonial">
+              {FOUNDER_TESTIMONIALS.map((item, i) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === idx}
+                  aria-controls={`${baseId}-panel`}
+                  className={`${s.fqDot} ${i === idx ? s.fqDotActive : ""}`}
+                  onClick={() => setIdx(i)}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>
