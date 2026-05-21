@@ -3002,6 +3002,65 @@ details[open] .faqIcon {
   }
 }
 
+/* ── Responsive: 640px ──────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* Nav — hide sign-in link so logo + toggle + CTA fit on 375px */
+  .navSignIn { display: none; }
+
+  /* Hero — tighten chip spacing and hide vertical separators in proof row */
+  .heroChip { margin-bottom: 1.5rem; }
+  .heroProofSep { display: none; }
+  .heroProof { gap: 0.6rem 1rem; }
+
+  /* Philosophy cards — less internal padding */
+  .philosophyCard { padding: 1.5rem 1.25rem; }
+
+  /* Roadmap section already has its own 640px block above;
+     keep this block for any overrides below that. */
+}
+
+/* ── Responsive: 480px ──────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  /* Nav buttons */
+  .navToggleBtn { padding: 0.28rem 0.7rem; font-size: 0.75rem; }
+  .navCtaBtn    { padding: 0.4rem 0.9rem;  font-size: 0.78rem; }
+
+  /* Hero */
+  .heroChip   { margin-bottom: 1.25rem; }
+  .heroSub    { font-size: 0.95rem; margin-bottom: 1.75rem; }
+  .heroCtaRow { gap: 0.75rem; margin-bottom: 1.75rem; }
+  .heroPrimaryCta { padding: 0.72rem 1.25rem; }
+
+  /* Section headings */
+  .sectionTitle { margin-bottom: 1.75rem; }
+
+  /* Problem pivot card */
+  .problemPivot { padding: 1.25rem; }
+
+  /* Memory section columns */
+  .memoryColLeft,
+  .memoryColRight { padding: 1.5rem 1.25rem; }
+
+  /* FAQ cards */
+  .fqCard { padding: 1.5rem 1.25rem; min-height: unset; }
+  .fqMark { font-size: 2.5rem; }
+
+  /* Proof stats row */
+  .proofStats { gap: 1.5rem; }
+}
+
+/* ── Responsive: 360px ──────────────────────────────────────── */
+
+@media (max-width: 360px) {
+  /* Extra-small nav: shrink logo and CTA further */
+  .navLogoMark  { width: 26px; height: 26px; font-size: 0.78rem; }
+  .navLogo      { font-size: 1rem; gap: 0.35rem; }
+  .navToggleBtn { padding: 0.25rem 0.55rem; font-size: 0.72rem; }
+  .navCtaBtn    { padding: 0.38rem 0.75rem;  font-size: 0.75rem; }
+}
+
 /* ── Reduced motion ─────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
