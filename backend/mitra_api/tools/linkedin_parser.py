@@ -389,6 +389,11 @@ async def parse_linkedin_profile(url: str, api_key: str) -> dict[str, Any]:
         log.warning("LinkdAPI: expected dict, got %s", type(data).__name__)
         return {}
 
+    # LinkdAPI wraps profile data in a "data" envelope: {success, statusCode, message, data: {...}}
+    if "data" in data and isinstance(data["data"], dict):
+        data = data["data"]
+        log.info("LinkdAPI: unwrapped envelope — profile keys=%s", list(data.keys()))
+
     if not data.get("firstName") and not data.get("lastName") and not data.get("fullName"):
         log.warning("LinkdAPI: profile has no name fields for username=%s — raw: %s", username, str(data)[:400])
         return {}
