@@ -1179,15 +1179,21 @@ async def run_agent_turn(
                     next_q = next_questions[0] if next_questions else None
 
                     li_note = (
-                        f"LINKEDIN PROFILE PARSED — signals already saved, do NOT ask for info already extracted. "
+                        f"LINKEDIN PROFILE PARSED — signals already saved, do NOT re-ask for anything extracted. "
                         f"Extracted signals: {json.dumps(li_parsed, ensure_ascii=False)}. "
-                        f"React warmly — mention one specific thing you noticed (stack, background, or tenure). "
-                        f"Do NOT say 'again' or reference that they shared it before. "
+                        f"Respond with a warm 2-3 sentence profile summary that covers: "
+                        f"(1) their current role and company, "
+                        f"(2) total years of experience, "
+                        f"(3) their tech stack highlights, "
+                        f"(4) education if present, "
+                        f"(5) previous companies if notable. "
+                        f"Make it feel like you genuinely read their profile, not a dry list. "
+                        f"Do NOT say 'again' or imply they shared it before. "
                     )
                     li_note += (
-                        f"Then ask exactly ONE follow-up question about: {next_q}."
+                        f"End with exactly ONE follow-up question about: {next_q}."
                         if next_q
-                        else "You have a strong picture — offer to search for matching roles."
+                        else "You have a full picture — offer to search for matching roles right away."
                     )
                     msgs.append(ChatMessage(role="system", content=li_note))
                     log.info("Auto-parsed LinkedIn for %s: %d signals", whatsapp_sender_id, len(li_parsed))
