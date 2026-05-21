@@ -3005,8 +3005,24 @@ details[open] .faqIcon {
 /* ── Responsive: 640px ──────────────────────────────────────── */
 
 @media (max-width: 640px) {
-  /* Nav — hide sign-in link so logo + toggle + CTA fit on 375px */
+  /* Nav — two-row layout: row1 = logo + CTA, row2 = audience toggle */
+  .navInner {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 0.55rem 0;
+    row-gap: 0.45rem;
+    column-gap: 0;
+    justify-content: space-between;
+  }
+  /* Toggle drops to its own centred row */
+  .navToggle {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+  }
+  /* Hide items that don't fit / aren't needed on mobile */
   .navSignIn { display: none; }
+  .navLinks  { display: none; }
 
   /* Hero — tighten chip spacing and hide vertical separators in proof row */
   .heroChip { margin-bottom: 1.5rem; }
@@ -3015,17 +3031,14 @@ details[open] .faqIcon {
 
   /* Philosophy cards — less internal padding */
   .philosophyCard { padding: 1.5rem 1.25rem; }
-
-  /* Roadmap section already has its own 640px block above;
-     keep this block for any overrides below that. */
 }
 
 /* ── Responsive: 480px ──────────────────────────────────────── */
 
 @media (max-width: 480px) {
-  /* Nav buttons */
-  .navToggleBtn { padding: 0.28rem 0.7rem; font-size: 0.75rem; }
-  .navCtaBtn    { padding: 0.4rem 0.9rem;  font-size: 0.78rem; }
+  /* Nav */
+  .navCtaBtn    { padding: 0.4rem 0.9rem; font-size: 0.78rem; }
+  .navToggleBtn { padding: 0.3rem 0.85rem; font-size: 0.75rem; }
 
   /* Hero */
   .heroChip   { margin-bottom: 1.25rem; }
@@ -3054,11 +3067,10 @@ details[open] .faqIcon {
 /* ── Responsive: 360px ──────────────────────────────────────── */
 
 @media (max-width: 360px) {
-  /* Extra-small nav: shrink logo and CTA further */
   .navLogoMark  { width: 26px; height: 26px; font-size: 0.78rem; }
   .navLogo      { font-size: 1rem; gap: 0.35rem; }
-  .navToggleBtn { padding: 0.25rem 0.55rem; font-size: 0.72rem; }
-  .navCtaBtn    { padding: 0.38rem 0.75rem;  font-size: 0.75rem; }
+  .navCtaBtn    { padding: 0.38rem 0.75rem; font-size: 0.75rem; }
+  .navToggleBtn { padding: 0.25rem 0.65rem; font-size: 0.72rem; }
 }
 
 /* ── Reduced motion ─────────────────────────────────────────── */
