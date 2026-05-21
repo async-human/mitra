@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
@@ -51,25 +51,27 @@ export function ProblemV3({ audience }: { audience: V2Audience }) {
   const [active, setActive] = useState(false);
   const fired = useRef(false);
 
-  const onVisible = useCallback(() => {
-    if (!fired.current) { fired.current = true; setActive(true); }
-  }, []);
-
-  useEffect(() => {
-    fired.current = false;
-    setActive(false);
-  }, [audience]);
-
+  // Re-create the observer every time audience changes so the count-up
+  // restarts even when the section is already in the viewport.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+
+    fired.current = false;
+    setActive(false);
+
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) onVisible(); },
+      ([entry]) => {
+        if (entry.isIntersecting && !fired.current) {
+          fired.current = true;
+          setActive(true);
+        }
+      },
       { threshold: 0.15 },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [onVisible]);
+  }, [audience]); // audience in deps → observer re-created on toggle
 
   const numA = useCountUp(c.statA.num, 1000, active);
   const numB = useCountUp(c.statB.num, 900,  active);
