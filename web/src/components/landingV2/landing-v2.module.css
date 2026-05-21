@@ -2689,6 +2689,7 @@ details[open] .faqIcon {
 
 /* ══════════════════════════════════════════════════════════════
    Company Hire CTA Section (companies only)
+   Uses fixed light-panel colors — immune to company-mode --ink flip
 ══════════════════════════════════════════════════════════════ */
 
 .chSection {
@@ -2697,35 +2698,59 @@ details[open] .faqIcon {
 }
 
 .chCard {
+  --ch-ink: #0e0b09;
+  --ch-ink-muted: #6a6460;
+  --ch-surface: #faf7f3;
+  --ch-surface-2: #ffffff;
+  --ch-line: #e0d9d0;
+
+  position: relative;
   max-width: 1120px;
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-  gap: 0;
-  min-height: 420px;
   border-radius: 24px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--border) 40%, transparent);
-  background: #fff;
+  background: var(--ch-surface);
+  border: 1px solid var(--ch-line);
   box-shadow:
-    0 24px 64px rgba(14, 11, 9, 0.1),
-    0 4px 16px rgba(14, 11, 9, 0.05);
+    0 20px 56px rgba(14, 11, 9, 0.08),
+    0 2px 8px rgba(14, 11, 9, 0.04);
 }
 
 .chSectionInView .chCard {
   animation: v2FadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* ── Copy column (dark) ─────────────────────────────────────── */
+.chAccentRail {
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    #7a3018 0%,
+    var(--accent) 35%,
+    #e87840 55%,
+    var(--accent) 75%,
+    #5c2410 100%
+  );
+  background-size: 200% 100%;
+  animation: chAccentFlow 8s ease-in-out infinite;
+}
 
-.chCopy {
-  padding: clamp(2rem, 4vw, 3rem);
+@keyframes chAccentFlow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.chMain {
+  padding: clamp(1.75rem, 3.5vw, 2.5rem);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 2rem;
-  background: linear-gradient(165deg, #1a1410 0%, #120d0a 55%, #0f0a07 100%);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 1.35rem;
+}
+
+.chHeader {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.65rem;
+  max-width: 560px;
 }
 
 .chEyebrow {
@@ -2733,56 +2758,243 @@ details[open] .faqIcon {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(242, 237, 231, 0.42);
+  color: var(--accent);
   margin: 0;
 }
 
 .chHeadline {
-  font-family: var(--font-lora, Georgia, serif);
-  font-size: clamp(2rem, 3.6vw, 3rem);
-  font-weight: 700;
+  font-family: var(--font-jakarta, 'Plus Jakarta Sans', sans-serif);
+  font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+  font-weight: 800;
   letter-spacing: -0.035em;
-  line-height: 1.08;
-  color: #f2ede7;
+  line-height: 1.12;
+  color: var(--ch-ink);
   margin: 0;
-  max-width: 11ch;
+}
+
+.chHeadlineAccent {
+  color: var(--accent);
 }
 
 .chSub {
-  font-size: 0.88rem;
-  color: rgba(242, 237, 231, 0.55);
+  font-size: 0.92rem;
+  color: var(--ch-ink-muted);
   line-height: 1.65;
   margin: 0;
-  max-width: 38ch;
+  max-width: 52ch;
 }
 
-.chPerks {
-  list-style: none;
-  margin: 0.25rem 0 0;
-  padding: 0;
+.chStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.chStat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.65rem 1rem;
+  background: var(--ch-surface-2);
+  border: 1px solid var(--ch-line);
+  border-radius: 12px;
+  min-width: 120px;
+}
+
+.chStatValue {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ch-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.chStatLabel {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--ch-ink-muted);
+  letter-spacing: 0.02em;
+}
+
+.chShortlistPanel {
+  background: var(--ch-surface-2);
+  border: 1px solid var(--ch-line);
+  border-radius: 16px;
+  padding: 1rem 1rem 0.85rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.chShortlistHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.chShortlistLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ch-ink-muted);
+}
+
+.chShortlistLive {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.chShortlistLiveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: hiwV3LivePulse 1.8s ease-in-out infinite;
+}
+
+.chShortlistCards {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.chPerks li {
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: rgba(242, 237, 231, 0.52);
-  padding-left: 1rem;
-  position: relative;
-  line-height: 1.45;
+.chCandidate {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  background: #f4efe8;
+  border: 1px solid rgba(14, 11, 9, 0.06);
+  opacity: 0;
+  transform: translateY(10px);
 }
 
-.chPerks li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.5em;
-  width: 4px;
+.chCandidateIn {
+  animation: chCandidateIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) var(--card-delay, 0ms) both;
+}
+
+@keyframes chCandidateIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chCandidateAv {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--ch-ink);
+  color: #f2ede7;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.chCandidateBody {
+  min-width: 0;
+}
+
+.chCandidateTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.chCandidateName {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ch-ink);
+}
+
+.chCandidateFit {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.chCandidateMeta {
+  font-size: 0.68rem;
+  color: var(--ch-ink-muted);
+  margin-top: 0.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chCandidateBarTrack {
   height: 4px;
-  border-radius: 50%;
-  background: var(--accent);
+  border-radius: 99px;
+  background: rgba(14, 11, 9, 0.08);
+  margin-top: 0.4rem;
+  overflow: hidden;
+}
+
+.chCandidateBar {
+  height: 100%;
+  width: 0;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #9a3d1f, var(--accent));
+}
+
+.chCandidateBarGrow {
+  animation: chBarGrow 0.9s cubic-bezier(0.16, 1, 0.3, 1) var(--bar-delay, 0ms) both;
+}
+
+@keyframes chBarGrow {
+  to { width: var(--fit, 0%); }
+}
+
+.chCandidateSalary {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--ch-ink-muted);
+  flex-shrink: 0;
+}
+
+.chTicker {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+.chTickerTrack {
+  display: flex;
+  gap: 0.45rem;
+  width: max-content;
+  animation: chRolesScroll 32s linear infinite;
+}
+
+.chTickerPill {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ch-ink-muted);
+  background: var(--ch-surface-2);
+  border: 1px solid var(--ch-line);
+  border-radius: 99px;
+  padding: 0.35rem 0.75rem;
+  white-space: nowrap;
+}
+
+.chFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem 1.5rem;
+  padding-top: 0.25rem;
 }
 
 .chCta {
@@ -2790,172 +3002,38 @@ details[open] .faqIcon {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  margin-top: 0.5rem;
-  padding: 0.82rem 1.35rem;
-  width: fit-content;
-  background: #f2ede7;
-  color: #0f0a07;
-  border-radius: 11px;
-  font-size: 0.86rem;
+  padding: 0.85rem 1.4rem;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 12px;
+  font-size: 0.88rem;
   font-weight: 700;
   text-decoration: none;
   letter-spacing: -0.01em;
   transition: transform 0.15s, box-shadow 0.15s;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 6px 24px rgba(200, 66, 26, 0.28);
 }
 
 .chCta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 32px rgba(200, 66, 26, 0.36);
 }
 
 .chCtaArrow {
-  opacity: 0.7;
+  opacity: 0.85;
   transition: transform 0.15s;
 }
 
-.chCta:hover .chCtaArrow,
-.chCtaVisual:hover .chCtaArrow {
+.chCta:hover .chCtaArrow {
   transform: translateX(3px);
 }
 
-/* ── Visual column (light + role grid) ─────────────────────── */
-
-.chVisual {
-  padding: clamp(1.75rem, 3vw, 2.25rem);
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  background: #faf7f3;
-}
-
-.chVisualHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.chVisualLabel {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink2);
-}
-
-.chVisualTitle {
-  font-family: var(--font-lora, Georgia, serif);
-  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
-  font-weight: 700;
-  color: var(--ink);
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+.chFootnote {
+  font-size: 0.72rem;
+  color: var(--ch-ink-muted);
   margin: 0;
 }
 
-.chRoleGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.45rem;
-  height: clamp(200px, 28vw, 240px);
-  overflow: hidden;
-  margin: 0.25rem 0 0.35rem;
-  mask-image: linear-gradient(
-    180deg,
-    transparent 0%,
-    #000 14%,
-    #000 86%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    180deg,
-    transparent 0%,
-    #000 14%,
-    #000 86%,
-    transparent 100%
-  );
-}
-
-.chRoleCol {
-  overflow: hidden;
-  height: 100%;
-}
-
-.chRoleColTrack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  animation: chRoleColScroll 24s linear infinite;
-  will-change: transform;
-}
-
-.chRoleColTrackReverse {
-  animation-direction: reverse;
-}
-
-@keyframes chRoleColScroll {
-  from { transform: translateY(0); }
-  to { transform: translateY(-50%); }
-}
-
-.chRolePill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.42rem 0.72rem;
-  background: #fff;
-  border: 1px solid color-mix(in srgb, var(--border) 80%, #fff);
-  border-radius: 99px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--ink);
-  white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(14, 11, 9, 0.04);
-  flex-shrink: 0;
-}
-
-.chRoleDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
-}
-
-.chCtaVisual {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: auto;
-  padding: 0.88rem 1.25rem;
-  width: 100%;
-  background: linear-gradient(135deg, #1a1410 0%, #0f0a07 100%);
-  color: #f2ede7;
-  border-radius: 99px;
-  font-size: 0.86rem;
-  font-weight: 700;
-  text-decoration: none;
-  letter-spacing: -0.01em;
-  transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 6px 24px rgba(14, 11, 9, 0.18);
-}
-
-.chCtaVisual:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 32px rgba(14, 11, 9, 0.24);
-}
-
-.chVisualFoot {
-  font-size: 0.72rem;
-  color: var(--ink2);
-  text-align: center;
-  margin: 0;
-  line-height: 1.4;
-}
-
-/* Legacy shortlist styles — kept for LandingV2 if referenced elsewhere */
 .chShortlist {
   background: #ede8e0;
   border-radius: 14px;
@@ -3099,24 +3177,22 @@ details[open] .faqIcon {
 /* ── Mobile ─────────────────────────────────────────────────── */
 
 @media (max-width: 800px) {
-  .chCard {
-    grid-template-columns: 1fr;
-    min-height: auto;
+  .chStats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
   }
-  .chCopy {
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    min-height: 280px;
+
+  .chStat {
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
   }
-  .chHeadline {
-    max-width: none;
+
+  .chStatValue {
+    font-size: 1rem;
   }
-  .chCta,
-  .chCtaVisual {
+
+  .chCta {
     width: 100%;
-  }
-  .chRoleGrid {
-    height: 200px;
   }
 }
 
@@ -3977,8 +4053,13 @@ details[open] .faqIcon {
     width: var(--fit-pct, 94%);
   }
   .chMarqueeTrack,
-  .chRoleColTrack,
+  .chTickerTrack,
+  .chAccentRail,
+  .chCandidateIn,
+  .chCandidateBarGrow,
   .proofCompaniesTrack { animation: none; }
+  .chCandidate { opacity: 1; transform: none; }
+  .chCandidateBar { width: var(--fit, 0%); }
   .problemRotorPane,
   .fqPane { animation: none; }
   .hiwV3TabProgress,
