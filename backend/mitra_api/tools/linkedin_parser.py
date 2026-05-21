@@ -5,16 +5,25 @@ Fetches and parses a LinkedIn profile URL into structured candidate signals.
 
 Flow
 ----
-1. Candidate shares their LinkedIn URL in WhatsApp chat
+1. Candidate shares their LinkedIn URL in WhatsApp/web chat
 2. Orchestrator detects the URL via regex and calls parse_linkedin_profile()
-3. If PROXYCURL_API_KEY is configured: Proxycurl (nubela.co) API fetches the profile JSON
+3. If LINKDAPI_API_KEY is configured: LinkdAPI fetches the profile JSON
 4. Signals are extracted and mapped to the same schema as resume_parser.py
 5. Signals are merged into the candidate session (no re-asking of extracted facts)
 
+Provider
+--------
+Uses LinkdAPI (linkdapi.com) — the leading Proxycurl replacement after Proxycurl
+was shut down following LinkedIn's Jan 2025 lawsuit.
+Endpoint: GET https://linkdapi.com/api/v1/profile/full?username=<slug>
+Auth:     X-linkdapi-apikey: <key>
+Key env:  LINKDAPI_API_KEY  (set in Railway)
+Sign up:  https://linkdapi.com
+
 Graceful degradation
 --------------------
-- No PROXYCURL_API_KEY → returns {} (orchestrator falls back to manual ask)
-- Proxycurl rate limit / error → returns {} with a warning log
+- No LINKDAPI_API_KEY → returns {} (orchestrator falls back to manual ask)
+- Rate limit / error → returns {} with a warning log
 - Private/unreachable profile → returns {} with a warning
 
 Signal schema mirrors resume_parser._EXTRACT_SYSTEM so the two sources are
@@ -45,10 +54,9 @@ _LINKEDIN_BARE_RE = re.compile(
     re.I,
 )
 
-# Proxycurl API (nubela.co) — accepts a LinkedIn profile URL via the `url` query param.
-# Auth: Bearer token from https://nubela.co (same key as PROXYCURL_API_KEY).
-# Docs: https://nubela.co/proxycurl/api/v2/linkedin
-PROXYCURL_ENDPOINT = "https://nubela.co/proxycurl/api/v2/linkedin"
+# LinkdAPI — Proxycurl replacement, accepts LinkedIn username (slug after /in/)
+# Docs: https://linkdapi.com/docs
+LINKDAPI_ENDPOINT = "https://linkdapi.com/api/v1/profile/full"
 
 
 def extract_linkedin_url(text: str) -> str | None:
@@ -78,20 +86,31 @@ def _canonicalise(url: str) -> str:
     return url
 
 
-def _map_proxycurl_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
+def _extract_username(url: str) -> str | None:
+    """Extract the slug (e.g. 'harshal-shinde') from a LinkedIn profile URL."""
+    m = re.search(r"linkedin\.com/in/([\w\-%.]+)/?$", url, re.I)
+    return m.group(1).lower() if m else None
+
+
+def _map_linkdapi_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
     """
-    Map a Proxycurl profile JSON to the Mitra candidate signal schema.
+    Map a LinkdAPI profile JSON to the Mitra candidate signal schema.
     Only includes fields with real data; never guesses or fills defaults.
+
+    LinkdAPI response shape (key fields):
+      firstName, lastName, fullName, headline, location, summary
+      CurrentPositions: [{companyName, title, duration, durationParsed}]
+      experience: [{companyName, title, duration, durationParsed: {present, months}}]
+      education: [{university, degree, duration}]
+      skills: [str] or [{name}]
     """
     signals: dict[str, Any] = {}
-
-    # Always store the URL itself
     signals["linkedin"] = url
 
     # ── Basic identity ────────────────────────────────────────────────────────
-    first = (data.get("first_name") or "").strip()
-    last  = (data.get("last_name")  or "").strip()
-    full  = f"{first} {last}".strip()
+    first = (data.get("firstName") or "").strip()
+    last  = (data.get("lastName")  or "").strip()
+    full  = f"{first} {last}".strip() or (data.get("fullName") or "").strip()
     if full:
         signals["candidate_name"] = full
 
@@ -99,68 +118,74 @@ def _map_proxycurl_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
     if headline:
         signals["current_role"] = headline
 
-    location = (data.get("city") or data.get("country_full_name") or "").strip()
+    location = (data.get("location") or "").strip()
     if location:
         signals["location"] = location
 
     summary = (data.get("summary") or "").strip()
 
-    # ── Current company (most recent experience) ──────────────────────────────
-    experiences: list[dict] = data.get("experiences") or []
+    # ── Experience ────────────────────────────────────────────────────────────
+    # LinkdAPI surfaces current roles in CurrentPositions and full history in experience
+    current_positions: list[dict] = data.get("CurrentPositions") or data.get("currentPositions") or []
+    all_experience: list[dict] = data.get("experience") or data.get("experiences") or []
+
+    # Merge: current positions first, then older roles from experience
+    seen_companies: set[str] = set()
     current_company = ""
     current_title   = ""
     previous_companies: list[str] = []
-
-    # Sort: still-active roles first (ends_at is None), then by start date desc
-    def _exp_sort_key(e: dict) -> tuple:
-        ends = e.get("ends_at")
-        # Ongoing roles float to top
-        still_active = 0 if ends is None else 1
-        start = e.get("starts_at") or {}
-        return (still_active, -(start.get("year") or 0), -(start.get("month") or 0))
-
-    sorted_exp = sorted(experiences, key=_exp_sort_key)
-
     total_months = 0
-    tenure_list: list[int] = []  # months per role, for stability_seeking
+    tenure_list: list[int] = []
 
-    for exp in sorted_exp:
-        company = (exp.get("company") or "").strip()
-        title   = (exp.get("title")   or "").strip()
-        starts  = exp.get("starts_at") or {}
-        ends    = exp.get("ends_at")   or {}
+    def _extract_exp_fields(exp: dict) -> tuple[str, str, bool, int]:
+        """Return (company, title, is_current, tenure_months)."""
+        company = (
+            exp.get("companyName") or exp.get("company") or ""
+        ).strip()
+        title = (exp.get("title") or "").strip()
+        parsed = exp.get("durationParsed") or {}
+        is_current = bool(parsed.get("present") or not exp.get("ends_at"))
+        months = int(parsed.get("months") or 0)
+        return company, title, is_current, months
 
-        # Compute tenure in months
-        start_y = starts.get("year",  0)
-        start_m = starts.get("month", 1)
-        if ends:
-            end_y = ends.get("year",  0)
-            end_m = ends.get("month", 1)
-        else:
-            from datetime import date
-            today = date.today()
-            end_y, end_m = today.year, today.month
-
-        if start_y:
-            months = max(0, (end_y - start_y) * 12 + (end_m - start_m))
+    # Process current positions first
+    for exp in current_positions:
+        company, title, _, months = _extract_exp_fields(exp)
+        if not current_company and company:
+            current_company = company
+            current_title   = title
+            seen_companies.add(company.lower())
+        if months:
             total_months += months
             tenure_list.append(months)
 
-        if not current_company and company:
+    # Process full experience list
+    for exp in all_experience:
+        company, title, is_current, months = _extract_exp_fields(exp)
+        if not company:
+            continue
+        key = company.lower()
+        if key in seen_companies:
+            continue
+        seen_companies.add(key)
+
+        if is_current and not current_company:
             current_company = company
-            current_title   = title or current_title
-        elif company and company != current_company:
-            if company not in previous_companies:
-                previous_companies.append(company)
+            current_title   = title
+        elif company and company.lower() != current_company.lower():
+            previous_companies.append(company)
+
+        if months:
+            total_months += months
+            tenure_list.append(months)
 
     if current_company:
         signals["current_company"] = current_company
     if current_title:
         signals["current_role"] = current_title
     if previous_companies:
-        signals["previous_companies"] = previous_companies[:8]  # cap list length
+        signals["previous_companies"] = previous_companies[:8]
 
-    # ── Years of experience ───────────────────────────────────────────────────
     if total_months > 0:
         signals["years_experience"] = round(total_months / 12, 1)
 
@@ -168,23 +193,22 @@ def _map_proxycurl_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
     educations: list[dict] = data.get("education") or []
     if educations:
         top = educations[0]
-        school  = (top.get("school")       or "").strip()
-        degree  = (top.get("degree_name")  or "").strip()
-        field   = (top.get("field_of_study") or "").strip()
-        parts = [p for p in [degree, field, school] if p]
+        school = (top.get("university") or top.get("school") or "").strip()
+        degree = (top.get("degree") or top.get("degree_name") or "").strip()
+        field  = (top.get("fieldOfStudy") or top.get("field_of_study") or "").strip()
+        parts  = [p for p in [degree, field, school] if p]
         if parts:
             signals["education"] = ", ".join(parts)
 
-    # ── Tech stack — from skills section ─────────────────────────────────────
-    skills_raw: list[dict | str] = data.get("skills") or []
+    # ── Tech stack — from skills section ──────────────────────────────────────
+    skills_raw = data.get("skills") or []
     skill_names: list[str] = []
     for s in skills_raw:
-        name = s if isinstance(s, str) else (s.get("name") or "")
+        name = s if isinstance(s, str) else (s.get("name") or s.get("skill") or "")
         name = name.strip()
         if name:
             skill_names.append(name)
 
-    # Separate technical from soft/generic skills (simple heuristic)
     _SOFT = {"communication", "leadership", "teamwork", "management",
              "problem solving", "analytical", "microsoft office", "excel",
              "presentation", "time management", "project management"}
@@ -194,38 +218,27 @@ def _map_proxycurl_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
         if len(tech_skills) > 12:
             signals["secondary_stack"] = tech_skills[12:20]
 
-    # ── GitHub ────────────────────────────────────────────────────────────────
-    websites: list[dict] = data.get("websites") or []
-    for w in websites:
-        url_w = (w if isinstance(w, str) else w.get("url") or "").strip()
-        if "github.com" in url_w.lower():
-            signals["github"] = url_w
-            break
+    # ── Behavioral signals ────────────────────────────────────────────────────
+    all_exp_list = list(current_positions) + list(all_experience)
 
-    # ── Behavioral signals — inferred conservatively ──────────────────────────
+    # startup experience: description mentions startup keywords
+    has_startup = any(
+        any(kw in (exp.get("description") or "").lower()
+            for kw in ("startup", "seed", "series a", "series b", "founded by"))
+        for exp in all_exp_list
+    )
+    signals["has_startup_experience"] = has_startup
 
-    # startup_experience: any company in the profile is tagged as startup/seed/series
-    company_types: list[str] = []
-    for exp in sorted_exp:
-        ct = (exp.get("company_linkedin_profile_url") or "")
-        # Proxycurl sometimes surfaces company size; fall back to heuristic
-        desc = (exp.get("description") or "").lower()
-        if any(kw in desc for kw in ("startup", "seed", "series a", "series b", "founded by")):
-            company_types.append("startup")
-    signals["has_startup_experience"] = len(company_types) > 0
-
-    # leadership: any title containing lead/head/vp/director/principal/staff/architect
-    _LEAD_TITLES = re.compile(
+    # leadership titles
+    _LEAD = re.compile(
         r"\b(lead|head|vp|vice president|director|principal|staff|architect|"
-        r"co-founder|cofounder|cto|ceo|founder)\b",
-        re.I,
+        r"co-founder|cofounder|cto|ceo|founder)\b", re.I
     )
-    has_leadership = any(
-        _LEAD_TITLES.search(exp.get("title") or "") for exp in sorted_exp
+    signals["has_leadership_experience"] = any(
+        _LEAD.search(exp.get("title") or "") for exp in all_exp_list
     )
-    signals["has_leadership_experience"] = has_leadership
 
-    # stability_seeking: based on median tenure across last 3 roles
+    # stability_seeking: median tenure
     if len(tenure_list) >= 2:
         recent = tenure_list[:3]
         median_months = sorted(recent)[len(recent) // 2]
@@ -233,51 +246,43 @@ def _map_proxycurl_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
             signals["stability_seeking"] = "high"
         elif median_months <= 14:
             signals["stability_seeking"] = "low"
-        # omit "medium" — not distinctive enough to be worth including
 
-    # first_startup_move: all prior companies are large enterprises (no startup exp)
+    # first_startup_move
     _ENTERPRISE = re.compile(
         r"\b(tcs|infosys|wipro|accenture|cognizant|ibm|capgemini|hcl|"
         r"google|amazon|microsoft|meta|apple|netflix|salesforce|oracle|"
-        r"sap|deloitte|pwc|ey|kpmg)\b",
-        re.I,
+        r"sap|deloitte|pwc|ey|kpmg)\b", re.I
     )
-    all_companies = [current_company] + previous_companies
-    if all_companies and not signals.get("has_startup_experience"):
-        enterprise_count = sum(
-            1 for c in all_companies if c and _ENTERPRISE.search(c)
-        )
-        if enterprise_count == len([c for c in all_companies if c]):
+    all_companies = ([current_company] + previous_companies) if current_company else previous_companies
+    if all_companies and not has_startup:
+        non_empty = [c for c in all_companies if c]
+        if non_empty and sum(1 for c in non_empty if _ENTERPRISE.search(c)) == len(non_empty):
             signals["first_startup_move"] = True
 
-    # ownership_mindset: founding / first-eng / solo-built in any title or description
-    _OWNERSHIP_HIGH = re.compile(
-        r"\b(co-?founder|founding engineer|first engineer|"
-        r"built from scratch|0.?to.?1|sole developer|solo)\b",
-        re.I,
-    )
+    # ownership_mindset & builder_vs_maintainer — text signals
     all_text = " ".join(
         (exp.get("title") or "") + " " + (exp.get("description") or "")
-        for exp in sorted_exp
+        for exp in all_exp_list
     ) + " " + summary
+
+    _OWNERSHIP_HIGH = re.compile(
+        r"\b(co-?founder|founding engineer|first engineer|"
+        r"built from scratch|0.?to.?1|sole developer|solo)\b", re.I
+    )
     if _OWNERSHIP_HIGH.search(all_text):
         signals["ownership_mindset"] = "high"
-    elif len(sorted_exp) >= 2:
-        # Pure IC at multiple large cos → low (only if no ownership signals anywhere)
-        all_titles = " ".join(exp.get("title") or "" for exp in sorted_exp)
+    elif len(all_exp_list) >= 2:
+        all_titles = " ".join(exp.get("title") or "" for exp in all_exp_list)
         if not re.search(r"\b(lead|architect|principal|staff|head|director|founder)\b", all_titles, re.I):
             signals["ownership_mindset"] = "low"
 
-    # builder_vs_maintainer
     _BUILDER = re.compile(
         r"\b(built|created|designed|architected|launched|shipped|open.?source|"
-        r"side project|personal project|hackathon)\b",
-        re.I,
+        r"side project|personal project|hackathon)\b", re.I
     )
     _MAINTAINER = re.compile(
         r"\b(maintained|support|legacy|on-call|oncall|incident|monitoring|"
-        r"ops|operations|maintenance)\b",
-        re.I,
+        r"ops|operations|maintenance)\b", re.I
     )
     builder_hits    = len(_BUILDER.findall(all_text))
     maintainer_hits = len(_MAINTAINER.findall(all_text))
@@ -286,7 +291,7 @@ def _map_proxycurl_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
     elif maintainer_hits > builder_hits and maintainer_hits >= 2:
         signals["builder_vs_maintainer"] = "maintainer"
 
-    # industries: extract from experience descriptions / company names
+    # industries
     _INDUSTRY_MAP = {
         "fintech":    re.compile(r"\b(fintech|payments?|banking|neobank|insurance|lending|credit)\b", re.I),
         "healthtech": re.compile(r"\b(healthtech|health.?tech|health.?care|medical|hospital|pharma|clinical)\b", re.I),
@@ -297,25 +302,17 @@ def _map_proxycurl_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
         "logistics":  re.compile(r"\b(logistics|supply.chain|warehouse|fulfillment|delivery)\b", re.I),
         "infra":      re.compile(r"\b(infra(structure)?|devops|platform|cloud|kubernetes|sre)\b", re.I),
     }
-    found_industries: list[str] = []
     corp_text = " ".join(
-        (exp.get("company") or "") + " " + (exp.get("description") or "") + " " + (exp.get("title") or "")
-        for exp in sorted_exp
+        (exp.get("companyName") or exp.get("company") or "") + " "
+        + (exp.get("description") or "") + " " + (exp.get("title") or "")
+        for exp in all_exp_list
     )
+    found_industries: list[str] = []
     for industry, pat in _INDUSTRY_MAP.items():
-        if pat.search(corp_text) and industry not in found_industries:
+        if pat.search(corp_text):
             found_industries.append(industry)
     if found_industries:
         signals["industries"] = found_industries
-
-    # ── Notable projects — from projects section or top accomplishment ─────────
-    projects: list[dict] = data.get("accomplishment_projects") or []
-    if projects:
-        top_proj = projects[0]
-        proj_title = (top_proj.get("title") or "").strip()
-        proj_desc  = (top_proj.get("description") or "").strip()[:200]
-        if proj_title:
-            signals["notable_projects"] = f"{proj_title}: {proj_desc}".strip(": ")
 
     log.info(
         "LinkedIn profile mapped — %d signals: %s",
@@ -327,76 +324,73 @@ def _map_proxycurl_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
 
 async def parse_linkedin_profile(url: str, api_key: str) -> dict[str, Any]:
     """
-    Fetch a LinkedIn profile via Proxycurl (nubela.co) and return structured
+    Fetch a LinkedIn profile via LinkdAPI (linkdapi.com) and return structured
     candidate signals.
 
-    The Proxycurl API accepts a LinkedIn profile URL as the `url` query parameter.
+    LinkdAPI accepts the LinkedIn username (slug) as `username` query param.
+    Auth header: X-linkdapi-apikey.
     Returns {} on any failure.
     """
     url = _canonicalise(url)
+    username = _extract_username(url)
+    if not username:
+        log.warning("Could not extract LinkedIn username from URL: %s", url)
+        return {}
 
     if not api_key:
         return {}
 
-    log.info("Proxycurl: calling %s?url=%s", PROXYCURL_ENDPOINT, url)
+    log.info("LinkdAPI: fetching profile for username=%s", username)
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.get(
-                PROXYCURL_ENDPOINT,
-                params={"url": url},
-                headers={"Authorization": f"Bearer {api_key}"},
+                LINKDAPI_ENDPOINT,
+                params={"username": username},
+                headers={"X-linkdapi-apikey": api_key},
             )
     except Exception:
-        log.exception("Proxycurl HTTP request failed for %s", url)
+        log.exception("LinkdAPI HTTP request failed for username=%s", username)
         return {}
 
-    log.info("Proxycurl: HTTP %d for %s", resp.status_code, url)
+    log.info("LinkdAPI: HTTP %d for username=%s", resp.status_code, username)
 
     if resp.status_code == 404:
-        log.warning("Proxycurl: profile not found (404): %s", url)
-        return {}
-
-    if resp.status_code == 410:
-        log.error(
-            "Proxycurl: 410 Gone — endpoint has moved. "
-            "Check https://nubela.co/proxycurl/api for the current URL."
-        )
+        log.warning("LinkdAPI: profile not found (404) for username=%s", username)
         return {}
 
     if resp.status_code == 401:
         log.error(
-            "Proxycurl: 401 Unauthorized — PROXYCURL_API_KEY may be wrong or expired. "
-            "Verify the key at https://nubela.co"
+            "LinkdAPI: 401 Unauthorized — check that LINKDAPI_API_KEY is set to a valid "
+            "key from https://linkdapi.com"
         )
         return {}
 
     if resp.status_code == 402:
-        log.error("Proxycurl: 402 Payment Required — account has no credits remaining.")
+        log.error("LinkdAPI: 402 Payment Required — account has no credits. Check https://linkdapi.com")
         return {}
 
     if resp.status_code == 429:
-        log.warning("Proxycurl: 429 rate limit for %s", url)
+        log.warning("LinkdAPI: 429 rate limit for username=%s", username)
         return {}
 
     if not resp.is_success:
-        log.warning("Proxycurl: %d for %s — body: %s", resp.status_code, url, resp.text[:500])
+        log.warning("LinkdAPI: %d for username=%s — body: %s", resp.status_code, username, resp.text[:500])
         return {}
 
     try:
         data = resp.json()
     except Exception:
-        log.exception("Proxycurl: response JSON parse failed — body: %s", resp.text[:300])
+        log.exception("LinkdAPI: response JSON parse failed — body: %s", resp.text[:300])
         return {}
 
-    log.info("Proxycurl: response keys=%s", list(data.keys()) if isinstance(data, dict) else type(data).__name__)
+    log.info("LinkdAPI: response keys=%s", list(data.keys()) if isinstance(data, dict) else type(data).__name__)
 
     if not isinstance(data, dict):
-        log.warning("Proxycurl: expected dict, got %s: %s", type(data).__name__, str(data)[:200])
+        log.warning("LinkdAPI: expected dict, got %s", type(data).__name__)
         return {}
 
-    # Allow partial profiles — only skip if truly empty (no name fields at all)
-    if not data.get("first_name") and not data.get("last_name") and not data.get("full_name"):
-        log.warning("Proxycurl: profile has no name fields — raw: %s", str(data)[:400])
+    if not data.get("firstName") and not data.get("lastName") and not data.get("fullName"):
+        log.warning("LinkdAPI: profile has no name fields for username=%s — raw: %s", username, str(data)[:400])
         return {}
 
-    return _map_proxycurl_to_signals(data, url)
+    return _map_linkdapi_to_signals(data, url)

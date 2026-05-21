@@ -109,15 +109,16 @@ class Settings(BaseSettings):
         description="Set true to use interactive list picker. False = inline plain-text cards.",
     )
 
-    # ── LINKEDIN ENRICHMENT (Proxycurl) ──────────────────────────────────────
+    # ── LINKEDIN ENRICHMENT (LinkdAPI — replaces Proxycurl which shut down Jan 2025) ──
+    # Keep env var name as PROXYCURL_API_KEY so existing Railway deployments don't break.
+    # Just update the VALUE in Railway to your LinkdAPI key from https://linkdapi.com
     proxycurl_api_key: str = Field(
         default="",
         validation_alias="PROXYCURL_API_KEY",
         description=(
-            "Proxycurl API key for LinkedIn profile enrichment. "
-            "When set, the agent automatically fetches profile data when a candidate "
-            "shares their LinkedIn URL. Get one at nubela.co/proxycurl. "
-            "Leave empty to disable (agent will ask manually for CV details)."
+            "LinkdAPI key for LinkedIn profile enrichment (Proxycurl was shut down Jan 2025). "
+            "Set PROXYCURL_API_KEY in Railway to your LinkdAPI key from https://linkdapi.com. "
+            "Leave empty to disable (agent will ask manually)."
         ),
     )
 

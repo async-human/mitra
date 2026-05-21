@@ -1162,7 +1162,7 @@ async def run_agent_turn(
                 if s.proxycurl_api_key:
                     li_parsed = await parse_linkedin_profile(li_url, s.proxycurl_api_key)
                 else:
-                    log.warning("PROXYCURL_API_KEY not set — LinkedIn profile fetch skipped for %s", li_url)
+                    log.warning("PROXYCURL_API_KEY not set (needs LinkdAPI key) — LinkedIn fetch skipped for %s", li_url)
 
                 if li_parsed:
                     # ── Success: full profile fetched ─────────────────────────
