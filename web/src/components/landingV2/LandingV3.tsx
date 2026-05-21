@@ -23,10 +23,10 @@ export function LandingV3() {
       <NavV2 audience={audience} onAudienceChange={setAudience} />
       <main>
         <HeroV3 audience={audience} />
-        <DayJourneySection audience={audience} />
         <ProblemV3 audience={audience} />
-        <HowItWorksV3 audience={audience} />
+        <HowItWorksV3 key={audience} audience={audience} />
         <MemorySectionV2 audience={audience} />
+        <DayJourneySection audience={audience} />
         {audience === "company" && <FounderQuotesV2 />}
         <ProofV2 audience={audience} />
         <FAQV2 audience={audience} />

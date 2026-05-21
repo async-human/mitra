@@ -209,7 +209,7 @@ export function DayJourneySection({ audience }: { audience: V2Audience }) {
       <div className={s.djInner} key={audience}>
         <header className={s.djHeader}>
           <p className={`${s.sectionLabel} ${s.fadeUp}`} style={{ "--anim-delay": "0ms" } as React.CSSProperties}>
-            What to expect
+            In practice
           </p>
           <h2
             id="dj-heading"
