@@ -1181,7 +1181,8 @@ async def run_agent_turn(
                     li_note = (
                         f"LINKEDIN PROFILE PARSED — signals already saved, do NOT ask for info already extracted. "
                         f"Extracted signals: {json.dumps(li_parsed, ensure_ascii=False)}. "
-                        f"React warmly — mention something specific you noticed (their background, tenure, stack). "
+                        f"React warmly — mention one specific thing you noticed (stack, background, or tenure). "
+                        f"Do NOT say 'again' or reference that they shared it before. "
                     )
                     li_note += (
                         f"Then ask exactly ONE follow-up question about: {next_q}."

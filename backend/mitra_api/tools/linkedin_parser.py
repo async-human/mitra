@@ -97,11 +97,13 @@ def _map_linkdapi_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
     Map a LinkdAPI profile JSON to the Mitra candidate signal schema.
     Only includes fields with real data; never guesses or fills defaults.
 
-    LinkdAPI response shape (key fields):
-      firstName, lastName, fullName, headline, location, summary
-      CurrentPositions: [{companyName, title, duration, durationParsed}]
-      experience: [{companyName, title, duration, durationParsed: {present, months}}]
-      education: [{university, degree, duration}]
+    LinkdAPI actual response shape (confirmed from live API):
+      firstName, lastName, headline, summary
+      geo: {city, country, full}  — location
+      industry: str
+      currentPositions: [{companyName, title, description, start:{year,month}, end:{year,month}}]
+      fullPositions:    [{companyName, title, description, start:{year,month}, end:{year,month}}]
+      educations: [{schoolName, degree, fieldOfStudy, start:{year}, end:{year}}]
       skills: [str] or [{name}]
     """
     signals: dict[str, Any] = {}
@@ -118,18 +120,38 @@ def _map_linkdapi_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
     if headline:
         signals["current_role"] = headline
 
-    location = (data.get("location") or "").strip()
+    # geo is a dict {city, country, full} in LinkdAPI
+    geo = data.get("geo") or {}
+    if isinstance(geo, dict):
+        location = (geo.get("full") or geo.get("city") or geo.get("country") or "").strip()
+    else:
+        location = str(geo).strip()
     if location:
         signals["location"] = location
 
     summary = (data.get("summary") or "").strip()
 
     # ── Experience ────────────────────────────────────────────────────────────
-    # LinkdAPI surfaces current roles in CurrentPositions and full history in experience
-    current_positions: list[dict] = data.get("CurrentPositions") or data.get("currentPositions") or []
-    all_experience: list[dict] = data.get("experience") or data.get("experiences") or []
+    # currentPositions = active roles; fullPositions = complete history (includes current)
+    current_positions: list[dict] = data.get("currentPositions") or []
+    full_positions: list[dict]    = data.get("fullPositions") or data.get("position") or []
 
-    # Merge: current positions first, then older roles from experience
+    def _exp_months(exp: dict) -> int:
+        start = exp.get("start") or {}
+        end   = exp.get("end") or {}
+        start_y = int(start.get("year") or 0)
+        start_m = int(start.get("month") or 1)
+        if end and end.get("year"):
+            end_y = int(end.get("year") or 0)
+            end_m = int(end.get("month") or 1)
+        else:
+            from datetime import date
+            today = date.today()
+            end_y, end_m = today.year, today.month
+        if not start_y:
+            return 0
+        return max(0, (end_y - start_y) * 12 + (end_m - start_m))
+
     seen_companies: set[str] = set()
     current_company = ""
     current_title   = ""
@@ -137,44 +159,33 @@ def _map_linkdapi_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
     total_months = 0
     tenure_list: list[int] = []
 
-    def _extract_exp_fields(exp: dict) -> tuple[str, str, bool, int]:
-        """Return (company, title, is_current, tenure_months)."""
-        company = (
-            exp.get("companyName") or exp.get("company") or ""
-        ).strip()
-        title = (exp.get("title") or "").strip()
-        parsed = exp.get("durationParsed") or {}
-        is_current = bool(parsed.get("present") or not exp.get("ends_at"))
-        months = int(parsed.get("months") or 0)
-        return company, title, is_current, months
-
-    # Process current positions first
     for exp in current_positions:
-        company, title, _, months = _extract_exp_fields(exp)
-        if not current_company and company:
+        company = (exp.get("companyName") or exp.get("company") or "").strip()
+        title   = (exp.get("title") or "").strip()
+        if company and not current_company:
             current_company = company
             current_title   = title
             seen_companies.add(company.lower())
+        months = _exp_months(exp)
         if months:
             total_months += months
             tenure_list.append(months)
 
-    # Process full experience list
-    for exp in all_experience:
-        company, title, is_current, months = _extract_exp_fields(exp)
+    for exp in full_positions:
+        company = (exp.get("companyName") or exp.get("company") or "").strip()
+        title   = (exp.get("title") or "").strip()
         if not company:
             continue
         key = company.lower()
         if key in seen_companies:
             continue
         seen_companies.add(key)
-
-        if is_current and not current_company:
+        if not current_company:
             current_company = company
             current_title   = title
-        elif company and company.lower() != current_company.lower():
+        else:
             previous_companies.append(company)
-
+        months = _exp_months(exp)
         if months:
             total_months += months
             tenure_list.append(months)
@@ -185,15 +196,14 @@ def _map_linkdapi_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
         signals["current_role"] = current_title
     if previous_companies:
         signals["previous_companies"] = previous_companies[:8]
-
     if total_months > 0:
         signals["years_experience"] = round(total_months / 12, 1)
 
     # ── Education ─────────────────────────────────────────────────────────────
-    educations: list[dict] = data.get("education") or []
+    educations: list[dict] = data.get("educations") or data.get("currentEducation") or []
     if educations:
-        top = educations[0]
-        school = (top.get("university") or top.get("school") or "").strip()
+        top    = educations[0]
+        school = (top.get("schoolName") or top.get("school") or top.get("university") or "").strip()
         degree = (top.get("degree") or top.get("degree_name") or "").strip()
         field  = (top.get("fieldOfStudy") or top.get("field_of_study") or "").strip()
         parts  = [p for p in [degree, field, school] if p]
@@ -219,7 +229,7 @@ def _map_linkdapi_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
             signals["secondary_stack"] = tech_skills[12:20]
 
     # ── Behavioral signals ────────────────────────────────────────────────────
-    all_exp_list = list(current_positions) + list(all_experience)
+    all_exp_list = list(current_positions) + list(full_positions)
 
     # startup experience: description mentions startup keywords
     has_startup = any(
