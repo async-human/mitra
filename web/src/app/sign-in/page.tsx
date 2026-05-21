@@ -2,6 +2,8 @@ import { signIn } from "@/auth";
 import { Logo } from "@/components/Logo";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { SignInVisual } from "./SignInVisual";
+import s from "./sign-in.module.css";
 
 export const metadata: Metadata = {
   title: "Sign in · Mitra",
@@ -49,6 +51,17 @@ function FounderIcon() {
   );
 }
 
+function FinePrint() {
+  return (
+    <p className={s.fine}>
+      By signing in you agree to Mitra&apos;s{" "}
+      <a href="/cookies" className={s.fineLink}>Privacy Policy</a>
+      {" "}and{" "}
+      <a href="#" className={s.fineLink}>Terms of Service</a>.
+    </p>
+  );
+}
+
 type Props = { searchParams: Promise<{ role?: string; callbackUrl?: string }> };
 
 export default async function SignInPage({ searchParams }: Props) {
@@ -56,118 +69,115 @@ export default async function SignInPage({ searchParams }: Props) {
   const role = params.role as "candidate" | "founder" | undefined;
   const redirectTo = role === "founder" ? "/founder/setup" : "/dashboard";
 
-  // ── No role selected: show role picker ──────────────────────────────────────
   if (!role) {
     return (
-      <main className="signin-page">
-        <div className="signin-card signin-card--wide">
-          <div className="signin-logo-row"><Logo /></div>
+      <main className={s.page}>
+        <div className={s.formPanel}>
+          <div className={s.formInner}>
+            <div className={s.logoRow}>
+              <Logo href="/" />
+            </div>
 
-          <div className="signin-header">
-            <h1 className="signin-title">Welcome to Mitra</h1>
-            <p className="signin-sub">Who are you signing in as?</p>
+            <div className={s.header}>
+              <h1 className={s.title}>Welcome to Mitra</h1>
+              <p className={s.sub}>Who are you signing in as?</p>
+            </div>
+
+            <div className={s.roleGrid}>
+              <Link href="/sign-in?role=candidate" className={s.roleCard}>
+                <div className={s.roleIconCandidate}>
+                  <CandidateIcon />
+                </div>
+                <div className={s.roleText}>
+                  <span className={s.roleTitle}>I&apos;m a candidate</span>
+                  <span className={s.roleDesc}>Looking for my next engineering role</span>
+                </div>
+                <span className={s.roleArrow}>→</span>
+              </Link>
+
+              <Link href="/sign-in?role=founder" className={s.roleCard}>
+                <div className={s.roleIconFounder}>
+                  <FounderIcon />
+                </div>
+                <div className={s.roleText}>
+                  <span className={s.roleTitle}>I&apos;m a founder</span>
+                  <span className={s.roleDesc}>Looking to hire great engineers</span>
+                </div>
+                <span className={s.roleArrow}>→</span>
+              </Link>
+            </div>
+
+            <FinePrint />
           </div>
-
-          <div className="signin-role-grid">
-            <Link href="/sign-in?role=candidate" className="signin-role-card">
-              <div className="signin-role-icon signin-role-icon--candidate">
-                <CandidateIcon />
-              </div>
-              <div className="signin-role-text">
-                <span className="signin-role-title">I&apos;m a candidate</span>
-                <span className="signin-role-desc">Looking for my next engineering role</span>
-              </div>
-              <span className="signin-role-arrow">→</span>
-            </Link>
-
-            <Link href="/sign-in?role=founder" className="signin-role-card">
-              <div className="signin-role-icon signin-role-icon--founder">
-                <FounderIcon />
-              </div>
-              <div className="signin-role-text">
-                <span className="signin-role-title">I&apos;m a founder</span>
-                <span className="signin-role-desc">Looking to hire great engineers</span>
-              </div>
-              <span className="signin-role-arrow">→</span>
-            </Link>
-          </div>
-
-          <p className="signin-fine">
-            By signing in you agree to Mitra&apos;s{" "}
-            <a href="/cookies" className="signin-fine-link">Privacy Policy</a>
-            {" "}and{" "}
-            <a href="#" className="signin-fine-link">Terms of Service</a>.
-          </p>
         </div>
+        <SignInVisual />
       </main>
     );
   }
 
-  // ── Role selected: show provider buttons ────────────────────────────────────
   const isFounder = role === "founder";
 
   return (
-    <main className="signin-page">
-      <div className="signin-card">
-        <div className="signin-logo-row"><Logo /></div>
-
-        {/* Role badge */}
-        <div className="signin-role-badge-row">
-          <span className={`signin-role-badge signin-role-badge--${role}`}>
-            {isFounder ? <FounderIcon /> : <CandidateIcon />}
-            {isFounder ? "Signing in as founder" : "Signing in as candidate"}
-          </span>
-          <Link href="/sign-in" className="signin-role-change">Change</Link>
-        </div>
-
-        <div className="signin-header">
-          <h1 className="signin-title">
-            {isFounder ? "Founder portal" : "Welcome back"}
-          </h1>
-          <p className="signin-sub">
-            {isFounder
-              ? "Sign in to review candidates and manage introductions."
-              : "Sign in to track your pipeline and pick up where you left off."}
-          </p>
-        </div>
-
-        <div className="signin-providers">
-          <form
-            action={async () => {
-              "use server";
-              await signIn("google", { redirectTo });
-            }}
-          >
-            <button type="submit" className="signin-btn signin-btn--google">
-              <GoogleIcon />
-              Continue with Google
-            </button>
-          </form>
-
-          <div className="signin-divider">
-            <span /><p>or</p><span />
+    <main className={s.page}>
+      <div className={s.formPanel}>
+        <div className={s.formInner}>
+          <div className={s.logoRow}>
+            <Logo href="/" />
           </div>
 
-          <form
-            action={async () => {
-              "use server";
-              await signIn("linkedin", { redirectTo });
-            }}
-          >
-            <button type="submit" className="signin-btn signin-btn--linkedin">
-              <LinkedInIcon />
-              Continue with LinkedIn
-            </button>
-          </form>
-        </div>
+          <div className={s.roleBadgeRow}>
+            <span className={isFounder ? s.roleBadgeFounder : s.roleBadgeCandidate}>
+              {isFounder ? <FounderIcon /> : <CandidateIcon />}
+              {isFounder ? "Signing in as founder" : "Signing in as candidate"}
+            </span>
+            <Link href="/sign-in" className={s.roleChange}>Change</Link>
+          </div>
 
-        <p className="signin-fine">
-          By signing in you agree to Mitra&apos;s{" "}
-          <a href="/cookies" className="signin-fine-link">Privacy Policy</a>
-          {" "}and{" "}
-          <a href="#" className="signin-fine-link">Terms of Service</a>.
-        </p>
+          <div className={s.header}>
+            <h1 className={s.title}>
+              {isFounder ? "Founder portal" : "Welcome back"}
+            </h1>
+            <p className={s.sub}>
+              {isFounder
+                ? "Sign in to review candidates and manage introductions."
+                : "Sign in to track your pipeline and pick up where you left off."}
+            </p>
+          </div>
+
+          <div className={s.providers}>
+            <form
+              action={async () => {
+                "use server";
+                await signIn("google", { redirectTo });
+              }}
+            >
+              <button type="submit" className={s.btnGoogle}>
+                <GoogleIcon />
+                Continue with Google
+              </button>
+            </form>
+
+            <div className={s.divider}>
+              <span /><p>or</p><span />
+            </div>
+
+            <form
+              action={async () => {
+                "use server";
+                await signIn("linkedin", { redirectTo });
+              }}
+            >
+              <button type="submit" className={s.btnLinkedin}>
+                <LinkedInIcon />
+                Continue with LinkedIn
+              </button>
+            </form>
+          </div>
+
+          <FinePrint />
+        </div>
       </div>
+      <SignInVisual role={role} />
     </main>
   );
 }
