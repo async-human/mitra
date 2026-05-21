@@ -3002,6 +3002,129 @@ details[open] .faqIcon {
   }
 }
 
+/* ── Problem V3 — dark two-panel ───────────────────────────── */
+
+.problemV3Section {
+  background: var(--dark);
+  overflow: hidden;
+}
+
+.problemV3Inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 clamp(1.25rem, 4vw, 3rem);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 420px;
+}
+
+.problemV3Left {
+  padding: clamp(3rem, 6vw, 5rem) clamp(1.5rem, 4vw, 3.5rem) clamp(3rem, 6vw, 5rem) 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.problemV3Right {
+  padding: clamp(3rem, 6vw, 5rem) 0 clamp(3rem, 6vw, 5rem) clamp(1.5rem, 4vw, 3.5rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.problemV3Eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.28);
+  margin-bottom: 2rem;
+}
+
+.problemV3StatGroup {
+  margin-bottom: 0.6rem;
+}
+
+.problemV3StatRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.problemV3Num {
+  font-size: clamp(4.5rem, 11vw, 8rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--accent);
+}
+
+.problemV3NumMuted {
+  color: rgba(255, 255, 255, 0.18);
+}
+
+.problemV3NumLabel {
+  font-size: clamp(0.85rem, 1.8vw, 1.05rem);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.45);
+  padding-bottom: 0.65rem;
+  line-height: 1.3;
+  max-width: 14ch;
+}
+
+.problemV3Arrow {
+  font-size: 1.3rem;
+  color: rgba(255, 255, 255, 0.15);
+  margin: 0.4rem 0;
+  display: block;
+}
+
+.problemV3Context {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.22);
+  margin-top: 1.5rem;
+  font-style: italic;
+}
+
+.problemV3Punch {
+  font-size: clamp(1.4rem, 3.2vw, 2.1rem);
+  font-weight: 800;
+  line-height: 1.2;
+  color: #fff;
+  letter-spacing: -0.025em;
+  margin-bottom: 1rem;
+}
+
+.problemV3PunchSub {
+  font-size: 0.97rem;
+  color: rgba(255, 255, 255, 0.48);
+  line-height: 1.65;
+  margin-bottom: 2.5rem;
+  max-width: 38ch;
+}
+
+.problemV3Link {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: gap 0.2s;
+}
+
+.problemV3Link:hover { gap: 0.7rem; }
+
+/* HiW V3 — single tagline replaces long body */
+.hiwV3Tagline {
+  font-size: 0.88rem;
+  color: var(--ink2);
+  line-height: 1.55;
+  margin-top: 0.4rem;
+}
+
 /* ── Responsive: 640px ──────────────────────────────────────── */
 
 @media (max-width: 640px) {
@@ -3031,6 +3154,16 @@ details[open] .faqIcon {
 
   /* Philosophy cards — less internal padding */
   .philosophyCard { padding: 1.5rem 1.25rem; }
+
+  /* Problem V3 — stack panels vertically on mobile */
+  .problemV3Inner { grid-template-columns: 1fr; }
+  .problemV3Left {
+    padding-right: 0;
+    padding-bottom: 2.5rem;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .problemV3Right { padding-left: 0; padding-top: 2.5rem; }
 }
 
 /* ── Responsive: 480px ──────────────────────────────────────── */
