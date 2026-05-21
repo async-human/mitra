@@ -338,6 +338,7 @@ async def parse_linkedin_profile(url: str, api_key: str) -> dict[str, Any]:
     if not api_key:
         return {}
 
+    log.info("Proxycurl: calling %s?url=%s", PROXYCURL_ENDPOINT, url)
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.get(
@@ -349,40 +350,53 @@ async def parse_linkedin_profile(url: str, api_key: str) -> dict[str, Any]:
         log.exception("Proxycurl HTTP request failed for %s", url)
         return {}
 
+    log.info("Proxycurl: HTTP %d for %s", resp.status_code, url)
+
     if resp.status_code == 404:
-        log.warning("LinkedIn profile not found (404): %s", url)
+        log.warning("Proxycurl: profile not found (404): %s", url)
         return {}
 
     if resp.status_code == 410:
         log.error(
-            "Proxycurl returned 410 — API endpoint may have changed. "
-            "Check https://nubela.co/proxycurl/api/v2/linkedin for the current endpoint."
+            "Proxycurl: 410 Gone — endpoint has moved. "
+            "Check https://nubela.co/proxycurl/api for the current URL."
         )
         return {}
 
     if resp.status_code == 401:
         log.error(
-            "Proxycurl returned 401 Unauthorized — check that PROXYCURL_API_KEY is set "
-            "to a valid key from https://nubela.co"
+            "Proxycurl: 401 Unauthorized — PROXYCURL_API_KEY may be wrong or expired. "
+            "Verify the key at https://nubela.co"
         )
         return {}
 
+    if resp.status_code == 402:
+        log.error("Proxycurl: 402 Payment Required — account has no credits remaining.")
+        return {}
+
     if resp.status_code == 429:
-        log.warning("Proxycurl rate limit — skipping LinkedIn parse for %s", url)
+        log.warning("Proxycurl: 429 rate limit for %s", url)
         return {}
 
     if not resp.is_success:
-        log.warning("Proxycurl returned %d for %s: %s", resp.status_code, url, resp.text[:300])
+        log.warning("Proxycurl: %d for %s — body: %s", resp.status_code, url, resp.text[:500])
         return {}
 
     try:
         data = resp.json()
     except Exception:
-        log.exception("Proxycurl response JSON parse failed")
+        log.exception("Proxycurl: response JSON parse failed — body: %s", resp.text[:300])
         return {}
 
-    if not isinstance(data, dict) or not data.get("first_name"):
-        log.warning("Proxycurl returned unexpected shape for %s: %s", url, str(data)[:200])
+    log.info("Proxycurl: response keys=%s", list(data.keys()) if isinstance(data, dict) else type(data).__name__)
+
+    if not isinstance(data, dict):
+        log.warning("Proxycurl: expected dict, got %s: %s", type(data).__name__, str(data)[:200])
+        return {}
+
+    # Allow partial profiles — only skip if truly empty (no name fields at all)
+    if not data.get("first_name") and not data.get("last_name") and not data.get("full_name"):
+        log.warning("Proxycurl: profile has no name fields — raw: %s", str(data)[:400])
         return {}
 
     return _map_proxycurl_to_signals(data, url)
