@@ -8,6 +8,7 @@ import { ProblemV3 } from "./ProblemV3";
 import { HowItWorksV3 } from "./HowItWorksV3";
 import { MemorySectionV2 } from "./MemorySectionV2";
 import { FounderQuotesV2 } from "./FounderQuotesV2";
+import { CompanyHireCTASection } from "./CompanyHireCTASection";
 import { ProofV2 } from "./ProofV2";
 import { FAQV2 } from "./FAQV2";
 import { FooterV2 } from "./FooterV2";
@@ -28,6 +29,7 @@ export function LandingV3() {
         <MemorySectionV2 audience={audience} />
         <DayJourneySection audience={audience} />
         {audience === "company" && <FounderQuotesV2 />}
+        {audience === "company" && <CompanyHireCTASection />}
         <ProofV2 audience={audience} />
         <FAQV2 audience={audience} />
       </main>
