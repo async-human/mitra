@@ -18,6 +18,7 @@ from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from mitra_api.db.models import Candidate, CandidateSignal, Intro, IntroStatus, Job, Match
 from mitra_api.tools.candidates import upsert_candidate
@@ -25,6 +26,18 @@ from mitra_api.tools.compatibility import compute_compatibility
 from mitra_api.tools.fit_score import compute_fit_scores
 
 log = logging.getLogger(__name__)
+
+
+def _founder_contact(job: Job) -> tuple[str | None, str | None, str | None]:
+    """
+    Return (founder_name, founder_email, founder_wa) for a job.
+    Checks job-level fields first; falls back to the linked Company row.
+    This handles ATS-synced jobs where contact lives only on the Company.
+    """
+    name  = job.founder_name  or (job.company_rel.founder_name  if job.company_rel else None)
+    email = job.founder_email or (job.company_rel.founder_email if job.company_rel else None)
+    wa    = job.founder_wa    or (job.company_rel.founder_wa    if job.company_rel else None)
+    return name, email, wa
 
 
 def normalize_why_note_for_founder(text: str, candidate_name: str | None) -> str:
@@ -177,7 +190,8 @@ def _build_intro(
         f"• What they want next: {motivation}"
     ).rstrip()
 
-    founder_name = job.founder_name or "there"
+    founder_name, _, _ = _founder_contact(job)
+    founder_name = founder_name or "there"
 
     return (
         f"Hi {founder_name},\n\n"
@@ -244,23 +258,36 @@ def _build_response_links(
     )
 
 
+class _IntroDelivery:
+    """Result of _send_intro: distinguishes direct founder delivery from ops-relay."""
+    __slots__ = ("founder_reached", "ops_relayed")
+
+    def __init__(self, *, founder_reached: bool, ops_relayed: bool):
+        self.founder_reached = founder_reached
+        self.ops_relayed     = ops_relayed
+
+    @property
+    def any_sent(self) -> bool:
+        return self.founder_reached or self.ops_relayed
+
+
 async def _send_intro(*, founder_wa: str | None, founder_email: str | None,
                       subject: str, body: str,
                       response_token: str | None = None,
                       founder_access_token: str | None = None,
                       candidate_name: str = "the candidate",
-                      job_title: str = "", company: str = "") -> bool:
+                      job_title: str = "", company: str = "") -> _IntroDelivery:
     """
-    Deliver intro to founder.  Returns True if at least one channel succeeded.
+    Deliver intro to founder.  Returns an _IntroDelivery indicating whether
+    the founder was reached directly or whether ops received a relay copy.
     Appends one-click response links if response_token is provided.
-    Also BCC's ops email (MITRA_OPS_EMAIL) so every intro is visible to the team.
     """
     from mitra_api.config import get_settings
     from mitra_api.tools.email import send_email
 
     s = get_settings()
     ops_email = s.mitra_ops_email.strip()
-    sent = False
+    founder_reached = False
 
     # Append one-click response footer to email body
     email_body = body
@@ -276,33 +303,36 @@ async def _send_intro(*, founder_wa: str | None, founder_email: str | None,
             # WhatsApp gets the plain body without the URL footer (too long for WA)
             await send_whatsapp_reply(to_whatsapp_from_value=_to_twilio_wa(founder_wa), body=body)
             log.info("intro sent via WhatsApp to %s", founder_wa)
-            sent = True
+            founder_reached = True
         except Exception:
             log.exception("WhatsApp intro send failed for %s", founder_wa)
 
-    if founder_email and not sent:
+    if founder_email and not founder_reached:
         try:
-            sent = await send_email(
+            founder_reached = await send_email(
                 to=founder_email, subject=subject, text=email_body, bcc_ops=True,
             )
         except Exception:
             log.exception("email intro send failed for %s", founder_email)
 
-    # Fallback: no founder channel — route to ops inbox so intro is not lost
-    if not sent and ops_email:
+    # No founder channel — route to ops inbox for manual relay (does NOT count as founder reached)
+    ops_relayed = False
+    if not founder_reached and ops_email:
         no_channel_note = (
-            f"[NO FOUNDER CHANNEL — ops fallback]\n"
+            f"[NO FOUNDER CHANNEL — NEEDS MANUAL RELAY]\n"
             f"founder_email={founder_email!r}  founder_wa={founder_wa!r}\n\n"
             + email_body
         )
         try:
-            sent = await send_email(to=ops_email, subject=f"[NEEDS RELAY] {subject}", text=no_channel_note)
-            if sent:
-                log.info("intro routed to ops fallback (%s) — no founder channel", ops_email)
+            ops_relayed = await send_email(
+                to=ops_email, subject=f"[NEEDS RELAY] {subject}", text=no_channel_note,
+            )
+            if ops_relayed:
+                log.info("intro routed to ops for relay (%s) — no founder channel", ops_email)
         except Exception:
-            log.exception("ops fallback email failed for %s", ops_email)
+            log.exception("ops relay email failed for %s", ops_email)
 
-    return sent
+    return _IntroDelivery(founder_reached=founder_reached, ops_relayed=ops_relayed)
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -352,15 +382,16 @@ async def request_intro(
     # Strip the "job_" prefix that interactive_native.py prepends to row_ids
     clean_id = job_external_id.removeprefix("job_").strip()
 
+    _job_q = select(Job).options(selectinload(Job.company_rel))
     job = (await session.execute(
-        select(Job).where(Job.external_id == clean_id, Job.status == "active")
+        _job_q.where(Job.external_id == clean_id, Job.status == "active")
     )).scalar_one_or_none()
 
     if not job:
         try:
             numeric_id = int(clean_id)
             job = (await session.execute(
-                select(Job).where(Job.id == numeric_id, Job.status == "active")
+                _job_q.where(Job.id == numeric_id, Job.status == "active")
             )).scalar_one_or_none()
         except (ValueError, TypeError):
             pass
@@ -393,7 +424,7 @@ async def request_intro(
             "missing_signals": missing,
             "message": (
                 f"I'd love to send your intro to {job.company} — but to make it strong enough "
-                f"that {job.founder_name or 'the founder'} actually responds, I need a few more "
+                f"that {_founder_contact(job)[0] or 'the founder'} actually responds, I need a few more "
                 f"details first: {missing_str}. "
                 f"A complete intro is 3× more likely to get a reply. Can you share those now?"
             ),
@@ -430,8 +461,9 @@ async def request_intro(
                 candidate=candidate, job=job, signals=signals, why_note=why_note
                     or "Wanted to share a fuller picture of this candidate's background.",
             )
+            _fn, _fe, _fw = _founder_contact(job)
             followup_note = (
-                f"Hi {job.founder_name or 'there'},\n\n"
+                f"Hi {_fn or 'there'},\n\n"
                 f"Quick follow-up on my earlier intro of {candidate.name or 'the candidate'} "
                 f"for the *{job.title}* role. I now have their complete profile and wanted to "
                 f"share it properly:\n\n"
@@ -441,21 +473,26 @@ async def request_intro(
             existing_intro.sent_at    = datetime.now(timezone.utc)
             await session.flush()
             subject = f"Follow-up: {candidate.name or 'Candidate'} → {job.title} at {job.company} (full profile)"
-            await _send_intro(
-                founder_wa=job.founder_wa, founder_email=job.founder_email,
+            followup_delivery = await _send_intro(
+                founder_wa=_fw, founder_email=_fe,
                 subject=subject, body=followup_note,
             )
+            if followup_delivery.founder_reached:
+                existing_intro.status = IntroStatus.sent
+            elif followup_delivery.ops_relayed:
+                existing_intro.status = IntroStatus.pending_relay
             await session.commit()
             return {
                 "ok": True,
                 "intro_id": existing_intro.id,
                 "strengthened": True,
                 "message": (
-                    f"I've sent an updated intro to {job.founder_name or 'the founder'} at {job.company} "
+                    f"I've sent an updated intro to {_fn or 'the founder'} at {job.company} "
                     f"with your complete profile. This one is much stronger — they now have your full "
                     f"background, stack, and what you're looking for."
                 ),
-                "founder_contacted": True,
+                "founder_contacted": followup_delivery.founder_reached,
+                "ops_relayed": followup_delivery.ops_relayed,
             }
 
         # Original was already complete or signals still missing — don't resend
@@ -573,12 +610,13 @@ async def request_intro(
     session.add(match_record)
     await session.flush()
 
-    # ── Deliver to founder (+ ops BCC / fallback) ────────────────────────────
+    # ── Deliver to founder (+ ops relay fallback) ────────────────────────────
     cand_name = candidate.name or "the candidate"
     subject = f"Intro: {cand_name} → {job.title} at {job.company}"
-    founder_contacted = await _send_intro(
-        founder_wa=job.founder_wa,
-        founder_email=job.founder_email,
+    _fn, _fe, _fw = _founder_contact(job)
+    delivery = await _send_intro(
+        founder_wa=_fw,
+        founder_email=_fe,
         subject=subject,
         body=intro_note,
         response_token=response_token,
@@ -588,17 +626,27 @@ async def request_intro(
         company=job.company,
     )
 
-    if not founder_contacted:
+    # Status reflects actual delivery: only mark "sent" when the founder received it directly
+    if delivery.founder_reached:
+        intro.status = IntroStatus.sent
+    elif delivery.ops_relayed:
+        intro.status = IntroStatus.pending_relay
         log.warning(
-            "intro id=%d: delivery failed (founder_wa=%s founder_email=%s) — "
-            "ops fallback also failed; intro is persisted in DB only",
-            intro.id, job.founder_wa, job.founder_email,
+            "intro id=%d: no founder channel — routed to ops for manual relay "
+            "(founder_wa=%s founder_email=%s)",
+            intro.id, _fw, _fe,
+        )
+    else:
+        log.warning(
+            "intro id=%d: delivery failed entirely (founder_wa=%s founder_email=%s) — "
+            "ops relay also failed; intro is persisted in DB only",
+            intro.id, _fw, _fe,
         )
 
     await session.commit()
     log.info(
-        "intro id=%d candidate=%s job=%s company=%s founder_contacted=%s",
-        intro.id, candidate_phone, job_external_id, job.company, founder_contacted,
+        "intro id=%d candidate=%s job=%s company=%s status=%s",
+        intro.id, candidate_phone, job_external_id, job.company, intro.status,
     )
 
     # ── Candidate confirmation email ──────────────────────────────────────────
@@ -608,36 +656,60 @@ async def request_intro(
         try:
             from mitra_api.tools.email import send_email
             candidate_name = candidate.name or "there"
+            if delivery.founder_reached:
+                delivery_line = (
+                    f"Your intro to {_fn or 'the founder'} at {job.company} "
+                    f"for the {job.title} role has been sent directly to the founder."
+                )
+            else:
+                delivery_line = (
+                    f"Your intro for the {job.title} role at {job.company} has been submitted "
+                    f"and is being relayed to the founder by our team. "
+                    f"It may take a little longer than usual to get a response."
+                )
             confirmation_body = (
                 f"Hi {candidate_name},\n\n"
-                f"Your intro to {job.founder_name or 'the founder'} at {job.company} "
-                f"for the {job.title} role has been submitted.\n\n"
+                f"{delivery_line}\n\n"
                 f"Here's what was sent on your behalf:\n\n"
                 f"{'—' * 40}\n"
                 f"{intro_note}\n"
                 f"{'—' * 40}\n\n"
-                f"You'll hear from us as soon as there's a response. "
-                f"Typical turnaround is 24–48 hours.\n\n"
+                f"You'll hear from us as soon as there's a response.\n\n"
                 f"— Mitra"
             )
             await send_email(
                 to=candidate_email,
-                subject=f"Your intro to {job.company} has been sent · Mitra",
+                subject=f"Your intro to {job.company} has been submitted · Mitra",
                 text=confirmation_body,
                 bcc_ops=True,
             )
         except Exception:
             log.warning("candidate confirmation email failed for %s (non-critical)", candidate_email)
 
+    if delivery.founder_reached:
+        result_message = (
+            f"Done — I've sent your intro to {_fn or 'the founder'} at {job.company}. "
+            f"They typically respond within 24–48 hours. "
+            f"Check your inbox — I've sent you a copy of what was shared."
+        )
+    elif delivery.ops_relayed:
+        result_message = (
+            f"Your intro for {job.title} at {job.company} has been submitted. "
+            f"Our team is relaying it to the founder — it may take a bit longer than usual. "
+            f"We'll update you as soon as there's a response."
+        )
+    else:
+        result_message = (
+            f"Your intro has been saved but we ran into a delivery issue. "
+            f"Our team will follow up with {job.company} directly."
+        )
+
     result: dict[str, Any] = {
         "ok": True,
         "intro_id": intro.id,
-        "message": (
-            f"Done — I've sent your intro to {job.founder_name or 'the founder'} at {job.company}. "
-            f"They typically respond within 24–48 hours. "
-            f"Check your inbox — I've sent you a copy of what was shared."
-        ),
-        "founder_contacted": founder_contacted,
+        "message": result_message,
+        "founder_contacted": delivery.founder_reached,
+        "ops_relayed": delivery.ops_relayed,
         "compatibility_score": compat["overall_score"],
         "compatibility_decision": compat["decision"],
     }
@@ -674,13 +746,14 @@ async def get_intro_status(
 
     intro, job = row
     status_messages = {
-        IntroStatus.sent:         f"Your intro to {job.company} was sent. Waiting to hear back.",
-        IntroStatus.acknowledged: f"The founder at {job.company} has seen your intro.",
-        IntroStatus.interview:    f"Interview booked with {job.company}.",
-        IntroStatus.offer:        f"You have an offer from {job.company}.",
-        IntroStatus.hired:        f"Congratulations — you joined {job.company}!",
-        IntroStatus.declined:     f"The {job.company} role didn't move forward this time.",
-        IntroStatus.ghosted:      f"No reply from {job.company} yet — I'll follow up.",
+        IntroStatus.sent:          f"Your intro to {job.company} was sent directly to the founder. Waiting to hear back.",
+        IntroStatus.pending_relay: f"Your intro to {job.company} is being relayed to the founder by our team. It may take a little longer than usual.",
+        IntroStatus.acknowledged:  f"The founder at {job.company} has seen your intro.",
+        IntroStatus.interview:     f"Interview booked with {job.company}.",
+        IntroStatus.offer:         f"You have an offer from {job.company}.",
+        IntroStatus.hired:         f"Congratulations — you joined {job.company}!",
+        IntroStatus.declined:      f"The {job.company} role didn't move forward this time.",
+        IntroStatus.ghosted:       f"No reply from {job.company} yet — I'll follow up.",
     }
     return {
         "found": True,

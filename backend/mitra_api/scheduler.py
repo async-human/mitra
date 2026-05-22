@@ -469,6 +469,62 @@ async def run_offer_pending_check() -> None:
         log.exception("scheduler: offer_pending_check failed")
 
 
+async def run_ashby_sync() -> None:
+    """Daily sync of all companies with Ashby job boards."""
+    log.info("scheduler: ashby_sync starting")
+    try:
+        from mitra_api.tools.ashby import sync_all_companies
+        results = await sync_all_companies()
+        log.info("scheduler: ashby_sync done — %d companies", len(results))
+    except Exception:
+        log.exception("scheduler: ashby_sync failed")
+
+
+async def run_greenhouse_sync() -> None:
+    """Daily sync of all companies with Greenhouse job boards."""
+    log.info("scheduler: greenhouse_sync starting")
+    try:
+        from mitra_api.tools.greenhouse import sync_all_greenhouse_companies
+        results = await sync_all_greenhouse_companies()
+        log.info("scheduler: greenhouse_sync done — %d companies", len(results))
+    except Exception:
+        log.exception("scheduler: greenhouse_sync failed")
+
+
+async def run_lever_sync() -> None:
+    """Daily sync of all companies with Lever job boards."""
+    log.info("scheduler: lever_sync starting")
+    try:
+        from mitra_api.tools.lever import sync_all_lever_companies
+        results = await sync_all_lever_companies()
+        log.info("scheduler: lever_sync done — %d companies", len(results))
+    except Exception:
+        log.exception("scheduler: lever_sync failed")
+
+
+async def run_funding_discovery() -> None:
+    """Daily scan for new Indian startup funding + ATS discovery."""
+    log.info("scheduler: funding_discovery starting")
+    try:
+        from mitra_api.config import get_settings
+        from mitra_api.db.engine import get_session_factory
+        from mitra_api.tools.funding_tracker import run_funding_discovery_pipeline
+
+        settings = get_settings()
+        if not settings.anthropic_api_key.strip():
+            log.warning("scheduler: funding_discovery skipped — no ANTHROPIC_API_KEY")
+            return
+
+        factory = get_session_factory()
+        async with factory() as db:
+            result = await run_funding_discovery_pipeline(
+                db, api_key=settings.anthropic_api_key,
+            )
+        log.info("scheduler: funding_discovery done: %s", result)
+    except Exception:
+        log.exception("scheduler: funding_discovery failed")
+
+
 # ── LOOP WRAPPERS ─────────────────────────────────────────────────────────────
 
 async def _every(seconds: int, coro_fn, *args, **kwargs) -> None:
@@ -555,6 +611,22 @@ async def start_scheduler() -> list[asyncio.Task]:
             _daily_at(2, 0, run_proactive_matching),
             name="proactive-matching",
         ),
+        asyncio.create_task(
+            _daily_at(3, 0, run_ashby_sync),
+            name="ashby-sync",
+        ),
+        asyncio.create_task(
+            _daily_at(3, 30, run_greenhouse_sync),
+            name="greenhouse-sync",
+        ),
+        asyncio.create_task(
+            _daily_at(4, 0, run_lever_sync),
+            name="lever-sync",
+        ),
+        asyncio.create_task(
+            _daily_at(0, 30, run_funding_discovery),
+            name="funding-discovery",
+        ),
     ]
 
     global _TASKS
@@ -599,6 +671,14 @@ if __name__ == "__main__":
             await run_placement_checkins(90)
         elif cmd == "proactive":
             await run_proactive_matching()
+        elif cmd == "ashby":
+            await run_ashby_sync()
+        elif cmd == "greenhouse":
+            await run_greenhouse_sync()
+        elif cmd == "lever":
+            await run_lever_sync()
+        elif cmd == "funding":
+            await run_funding_discovery()
         else:
             log.info("Running all jobs once...")
             await run_candidate_reengagement()

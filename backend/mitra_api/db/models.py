@@ -103,6 +103,16 @@ class Company(Base):
     # ATS integration
     ashby_identifier:    Mapped[str|None] = mapped_column(String(100), unique=True)
     ashby_last_synced_at: Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    greenhouse_slug:     Mapped[str|None] = mapped_column(String(100), unique=True)
+    greenhouse_last_synced_at: Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    lever_slug:          Mapped[str|None] = mapped_column(String(100), unique=True)
+    lever_last_synced_at: Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+
+    # Discovery / outreach metadata
+    location: Mapped[str|None] = mapped_column(String(100))
+    source:   Mapped[str|None] = mapped_column(String(50))   # funding_tracker | manual
+    board_url: Mapped[str|None] = mapped_column(String(300))
+    signals:   Mapped[Any|None] = mapped_column(JSONB)
 
     # Founder contact
     founder_name:  Mapped[str|None] = mapped_column(String(200))
@@ -206,13 +216,14 @@ class JobEmbedding(Base):
 # ── INTROS ────────────────────────────────────────────────────────────────────
 
 class IntroStatus(str, enum.Enum):
-    sent         = "sent"
-    acknowledged = "acknowledged"   # founder replied
-    interview    = "interview"       # interview booked
-    offer        = "offer"
-    hired        = "hired"
-    declined     = "declined"
-    ghosted      = "ghosted"        # no reply after 7 days
+    sent          = "sent"           # delivered directly to founder
+    pending_relay = "pending_relay"  # no founder channel — routed to ops inbox for manual relay
+    acknowledged  = "acknowledged"   # founder replied
+    interview     = "interview"      # interview booked
+    offer         = "offer"
+    hired         = "hired"
+    declined      = "declined"
+    ghosted       = "ghosted"        # no reply after 7 days
 
 
 class Intro(Base):

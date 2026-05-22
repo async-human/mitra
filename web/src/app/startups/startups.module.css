@@ -1,0 +1,412 @@
+/* /startups — Funded startups feed */
+
+.page {
+  min-height: 100vh;
+  background: var(--sand);
+  color: var(--ink);
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.header {
+  padding: clamp(3.5rem, 6vw, 5.5rem) var(--px, 2rem) 0;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.headerEyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #C8421A;
+  margin: 0 0 1rem;
+}
+
+.headerTitle {
+  font-family: var(--font-lora), Georgia, serif;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--ink);
+  margin: 0 0 0.75rem;
+}
+
+.headerTitle em {
+  font-style: italic;
+  color: #C8421A;
+}
+
+.headerSub {
+  font-size: 1rem;
+  color: var(--ink-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.headerMeta {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-top: 1.75rem;
+  padding-bottom: 1.75rem;
+  border-bottom: 1px solid var(--sand-3);
+  flex-wrap: wrap;
+}
+
+.metaPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--sand-2);
+  border: 1px solid var(--sand-3);
+  border-radius: 99px;
+  padding: 0.3rem 0.75rem;
+}
+
+.metaDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #C8421A;
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ── Filters ─────────────────────────────────────────────────────────────── */
+
+.filters {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--sand) 92%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--sand-3);
+  padding: 0.85rem var(--px, 2rem);
+}
+
+.filtersInner {
+  max-width: 1280px;
+  margin: 0 auto;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filterGroup {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.filterDivider {
+  width: 1px;
+  height: 20px;
+  background: var(--sand-3);
+  align-self: center;
+}
+
+.filterBtn {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 99px;
+  border: 1px solid var(--sand-3);
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.filterBtn:hover {
+  border-color: #C8421A;
+  color: #C8421A;
+}
+
+.filterBtnActive {
+  background: #C8421A;
+  border-color: #C8421A;
+  color: #fff;
+}
+
+/* ── Grid ────────────────────────────────────────────────────────────────── */
+
+.main {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2.5rem var(--px, 2rem) 5rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+.empty {
+  grid-column: 1 / -1;
+  padding: 5rem 0;
+  text-align: center;
+  color: var(--ink-muted);
+  font-size: 0.92rem;
+}
+
+/* ── Card ────────────────────────────────────────────────────────────────── */
+
+.card {
+  background: #fff;
+  border: 1px solid var(--sand-3);
+  border-radius: 20px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+  animation: cardIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) var(--card-delay, 0s) both;
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card:hover {
+  border-color: color-mix(in srgb, #C8421A 30%, var(--sand-3));
+  box-shadow: 0 12px 40px rgba(200, 66, 26, 0.08), 0 2px 0 rgba(255,255,255,0.9) inset;
+  transform: translateY(-2px);
+}
+
+/* Top row: logo + name + stage */
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.cardLogo {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #C8421A;
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: -0.02em;
+}
+
+.cardNameBlock {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardName {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.cardMeta {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  margin-top: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Stage badge */
+.stageBadge {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.25rem 0.6rem;
+  border-radius: 99px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.stageSeed     { background: #FEF3C7; color: #92400E; }
+.stageA        { background: #DCFCE7; color: #166534; }
+.stageB        { background: #DBEAFE; color: #1E40AF; }
+.stageC        { background: #EDE9FE; color: #5B21B6; }
+.stageLate     { background: #F1F5F9; color: #334155; }
+.stageDefault  { background: var(--sand-2); color: var(--ink-soft); }
+
+/* Funding row */
+.cardFunding {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cardAmount {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.cardAmountLabel {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+.cardInvestors {
+  font-size: 0.72rem;
+  color: var(--ink-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.cardInvestors strong {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+/* Founder row */
+.cardFounder {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.cardFounderAv {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in srgb, #C8421A 12%, var(--sand-2));
+  color: #C8421A;
+  font-size: 0.62rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Divider */
+.cardDivider {
+  height: 1px;
+  background: var(--sand-2);
+}
+
+/* Jobs CTA footer */
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cardJobs {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.cardJobsNum {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: -0.03em;
+}
+
+.cardJobsZero {
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+.cardCta {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #C8421A;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  text-decoration: none;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, #C8421A 25%, transparent);
+  background: color-mix(in srgb, #C8421A 5%, #fff);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.cardCta:hover {
+  background: #C8421A;
+  color: #fff;
+  border-color: #C8421A;
+}
+
+.cardCtaDisabled {
+  color: var(--ink-muted);
+  border-color: var(--sand-3);
+  background: transparent;
+  pointer-events: none;
+}
+
+/* New badge */
+.newBadge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, #C8421A 10%, #fff);
+  color: #C8421A;
+  border: 1px solid color-mix(in srgb, #C8421A 20%, transparent);
+  border-radius: 99px;
+  padding: 0.15rem 0.45rem;
+  margin-left: auto;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr; }
+
+  .headerTitle { font-size: 1.75rem; }
+
+  .filters { padding: 0.75rem 1rem; }
+
+  .filterDivider { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card { animation: none; }
+  .metaDot { animation: none; }
+}

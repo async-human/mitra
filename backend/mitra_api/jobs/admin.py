@@ -35,7 +35,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from mitra_api.config import get_settings
-from mitra_api.db.engine import get_db
+from mitra_api.db.engine import get_db, get_session_factory
 from mitra_api.db.models import Candidate, Company, Intro, Job, JobEmbedding, JobStatus
 from mitra_api.tools.embeddings import EMBEDDING_DIM, embed_text, job_embed_text
 
@@ -598,6 +598,61 @@ async def get_metrics(db: AsyncSession = Depends(get_db)) -> MetricsResponse:
     )
 
 
+# ── PUBLIC COMPANY FEED ───────────────────────────────────────────────────────
+
+public_router = APIRouter(prefix="/public", tags=["public"])
+
+
+class CompanyFeedItem(BaseModel):
+    id:           int
+    name:         str
+    stage:        str | None = None
+    sector:       str | None = None
+    location:     str | None = None
+    website:      str | None = None
+    founder_name: str | None = None
+    amount_usd:   int | None = None
+    investors:    list[str]  = []
+    active_jobs:  int        = 0
+    board_url:    str | None = None
+    created_at:   str
+
+
+@public_router.get("/companies", response_model=list[CompanyFeedItem])
+async def public_companies_feed(db: AsyncSession = Depends(get_db)) -> list[CompanyFeedItem]:
+    """Public feed of funded/active companies — powers the /startups page."""
+    rows = (await db.execute(
+        select(
+            Company,
+            func.count(case((Job.status == JobStatus.active, Job.id))).label("active_jobs"),
+        )
+        .outerjoin(Job, Job.company_id == Company.id)
+        .where(Company.stage.isnot(None))
+        .group_by(Company.id)
+        .order_by(Company.created_at.desc())
+        .limit(200)
+    )).all()
+
+    items: list[CompanyFeedItem] = []
+    for company, active_jobs in rows:
+        signals = company.signals or {}
+        items.append(CompanyFeedItem(
+            id=company.id,
+            name=company.name,
+            stage=company.stage,
+            sector=company.sector,
+            location=company.location,
+            website=company.website,
+            founder_name=company.founder_name,
+            amount_usd=signals.get("amount_usd"),
+            investors=signals.get("investors") or [],
+            active_jobs=int(active_jobs),
+            board_url=company.board_url,
+            created_at=company.created_at.isoformat(),
+        ))
+    return items
+
+
 # ── COMPANY ADMIN ROUTER ──────────────────────────────────────────────────────
 
 company_router = APIRouter(prefix="/admin/companies", tags=["admin"])
@@ -606,24 +661,35 @@ company_router = APIRouter(prefix="/admin/companies", tags=["admin"])
 class CompanyIn(BaseModel):
     name:              str
     ashby_identifier:  str | None = None
+    greenhouse_slug:   str | None = None
+    lever_slug:        str | None = None
     founder_name:      str | None = None
     founder_email:     str | None = None
     founder_wa:        str | None = None
     stage:             str | None = None
     sector:            str | None = None
     website:           str | None = None
+    location:          str | None = None
+    board_url:         str | None = None
+    source:            str | None = None
 
 
 class CompanyOut(BaseModel):
     id:                   int
     name:                 str
     ashby_identifier:     str | None
+    greenhouse_slug:      str | None = None
+    lever_slug:           str | None = None
     founder_name:         str | None
     founder_email:        str | None
     stage:                str | None
     sector:               str | None
     website:              str | None
+    location:             str | None = None
+    board_url:            str | None = None
+    source:               str | None = None
     ashby_last_synced_at: str | None
+    greenhouse_last_synced_at: str | None = None
     active_jobs:          int = 0
 
     class Config:
@@ -631,17 +697,24 @@ class CompanyOut(BaseModel):
 
 
 def _company_to_out(company: Company, active_jobs: int = 0) -> CompanyOut:
-    synced = company.ashby_last_synced_at
+    ashby_synced = company.ashby_last_synced_at
+    gh_synced = company.greenhouse_last_synced_at
     return CompanyOut(
         id=company.id,
         name=company.name,
         ashby_identifier=company.ashby_identifier,
+        greenhouse_slug=company.greenhouse_slug,
+        lever_slug=company.lever_slug,
         founder_name=company.founder_name,
         founder_email=company.founder_email,
         stage=company.stage,
         sector=company.sector,
         website=company.website,
-        ashby_last_synced_at=synced.isoformat() if synced else None,
+        location=company.location,
+        board_url=company.board_url,
+        source=company.source,
+        ashby_last_synced_at=ashby_synced.isoformat() if ashby_synced else None,
+        greenhouse_last_synced_at=gh_synced.isoformat() if gh_synced else None,
         active_jobs=active_jobs,
     )
 
@@ -656,12 +729,17 @@ async def create_company(
     company = Company(
         name=payload.name,
         ashby_identifier=payload.ashby_identifier,
+        greenhouse_slug=payload.greenhouse_slug,
+        lever_slug=payload.lever_slug,
         founder_name=payload.founder_name,
         founder_email=payload.founder_email,
         founder_wa=payload.founder_wa,
         stage=payload.stage,
         sector=payload.sector,
         website=payload.website,
+        location=payload.location,
+        board_url=payload.board_url,
+        source=payload.source,
         founder_access_token=secrets.token_urlsafe(32),
     )
     db.add(company)
@@ -703,6 +781,59 @@ async def update_company(
     for field, value in payload.model_dump(exclude_none=True).items():
         setattr(company, field, value)
     await db.commit()
+    return _company_to_out(company, 0)
+
+
+class FounderContactIn(BaseModel):
+    founder_name:  str | None = None
+    founder_email: str | None = None
+    founder_wa:    str | None = None
+
+
+@company_router.put(
+    "/{company_id}/founder",
+    response_model=CompanyOut,
+    dependencies=[Depends(require_admin)],
+)
+async def set_company_founder_contact(
+    company_id: int,
+    payload: FounderContactIn,
+    db: AsyncSession = Depends(get_db),
+) -> CompanyOut:
+    """
+    Set founder contact on a Company and backfill all linked Jobs that still
+    have NULL founder fields.  Idempotent — safe to call multiple times.
+    """
+    company = (await db.execute(select(Company).where(Company.id == company_id))).scalar_one_or_none()
+    if not company:
+        raise HTTPException(404, f"Company {company_id} not found")
+
+    update = payload.model_dump(exclude_none=True)
+    for field, value in update.items():
+        setattr(company, field, value)
+
+    # Backfill linked jobs that are missing these fields
+    jobs_result = await db.execute(select(Job).where(Job.company_id == company_id))
+    backfilled = 0
+    for job in jobs_result.scalars().all():
+        changed = False
+        if payload.founder_name and not job.founder_name:
+            job.founder_name = payload.founder_name
+            changed = True
+        if payload.founder_email and not job.founder_email:
+            job.founder_email = payload.founder_email
+            changed = True
+        if payload.founder_wa and not job.founder_wa:
+            job.founder_wa = payload.founder_wa
+            changed = True
+        if changed:
+            backfilled += 1
+
+    await db.commit()
+    log.info(
+        "founder contact set on company %d (%s); backfilled %d jobs",
+        company_id, company.name, backfilled,
+    )
     return _company_to_out(company, 0)
 
 
@@ -755,3 +886,147 @@ async def sync_ashby_wait(company_id: int) -> dict:
     from mitra_api.tools.ashby import sync_company_from_ashby
     result = await sync_company_from_ashby(company_id)
     return {"ok": True, "company_id": company_id, **result}
+
+
+@company_router.post(
+    "/{company_id}/sync-greenhouse",
+    dependencies=[Depends(require_admin)],
+)
+async def sync_greenhouse(
+    company_id: int,
+    background_tasks: BackgroundTasks,
+) -> dict:
+    factory = get_session_factory()
+    async with factory() as db:
+        company = (await db.execute(
+            select(Company).where(Company.id == company_id)
+        )).scalar_one_or_none()
+
+    if not company:
+        raise HTTPException(404, f"Company {company_id} not found")
+    if not company.greenhouse_slug:
+        raise HTTPException(400, "Company has no greenhouse_slug — set it via PUT /admin/companies/{id}")
+
+    async def _run_sync() -> None:
+        from mitra_api.tools.greenhouse import sync_company_from_greenhouse
+        try:
+            result = await sync_company_from_greenhouse(company_id)
+            log.info("greenhouse-sync via API: company=%d result=%s", company_id, result)
+        except Exception:
+            log.exception("greenhouse-sync failed for company %d", company_id)
+
+    background_tasks.add_task(_run_sync)
+    return {"ok": True, "company_id": company_id, "message": "Greenhouse sync started in background"}
+
+
+@company_router.post(
+    "/{company_id}/sync-greenhouse/wait",
+    dependencies=[Depends(require_admin)],
+)
+async def sync_greenhouse_wait(company_id: int) -> dict:
+    from mitra_api.tools.greenhouse import sync_company_from_greenhouse
+    result = await sync_company_from_greenhouse(company_id)
+    return {"ok": True, "company_id": company_id, **result}
+
+
+# ── FUNDING / ATS DISCOVERY ROUTER ───────────────────────────────────────────
+
+funding_router = APIRouter(prefix="/admin/funding", tags=["admin"])
+
+
+@funding_router.post("/scan", dependencies=[Depends(require_admin)])
+async def scan_funding(dry_run: bool = False) -> dict:
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.tools.funding_tracker import run_funding_discovery_pipeline
+
+    settings = get_settings()
+    factory = get_session_factory()
+    async with factory() as db:
+        return await run_funding_discovery_pipeline(
+            db, api_key=settings.anthropic_api_key, dry_run=dry_run,
+        )
+
+
+@funding_router.post("/bootstrap", dependencies=[Depends(require_admin)])
+async def bootstrap_startups(dry_run: bool = False) -> dict:
+    """Discover ATS + sync jobs for curated Indian startups (Setu, Pronto, etc.)."""
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.tools.funding_tracker import bootstrap_known_startups
+
+    factory = get_session_factory()
+    async with factory() as db:
+        return await bootstrap_known_startups(db, dry_run=dry_run)
+
+
+@funding_router.post("/discover-ats", dependencies=[Depends(require_admin)])
+async def discover_company_ats(company_name: str) -> dict:
+    from mitra_api.tools.funding_tracker import discover_ats
+
+    result = await discover_ats(company_name)
+    return result or {"ats": None, "message": f"No ATS found for {company_name}"}
+
+
+@funding_router.get("/queue", dependencies=[Depends(require_admin)])
+async def funding_outreach_queue(db: AsyncSession = Depends(get_db)) -> list[dict]:
+    from mitra_api.tools.funding_tracker import get_outreach_queue
+    return await get_outreach_queue(db)
+
+
+@admin_router.post("/sync-all", dependencies=[Depends(require_admin)])
+async def sync_all_ats(background_tasks: BackgroundTasks) -> dict:
+    """Sync all companies with Ashby or Greenhouse identifiers."""
+
+    async def _run() -> None:
+        from mitra_api.tools.ashby import sync_all_companies as sync_ashby_all
+        from mitra_api.tools.greenhouse import sync_all_greenhouse_companies
+        from mitra_api.tools.lever import sync_all_lever_companies
+        try:
+            ashby = await sync_ashby_all()
+            gh = await sync_all_greenhouse_companies()
+            lever = await sync_all_lever_companies()
+            log.info("sync-all done ashby=%s greenhouse=%s lever=%s", ashby, gh, lever)
+        except Exception:
+            log.exception("sync-all failed")
+
+    background_tasks.add_task(_run)
+    return {"ok": True, "message": "Full ATS sync started in background"}
+
+
+@admin_router.post("/sync-greenhouse", dependencies=[Depends(require_admin)])
+async def sync_greenhouse_by_slug(
+    company_name: str,
+    slug: str,
+    stage: str = "",
+    sector: str = "",
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Create-or-update a company by Greenhouse slug and sync immediately."""
+    import secrets
+    from mitra_api.tools.greenhouse import sync_company_from_greenhouse
+
+    company = (await db.execute(
+        select(Company).where(Company.name.ilike(company_name))
+    )).scalar_one_or_none()
+
+    if not company:
+        company = Company(
+            name=company_name,
+            greenhouse_slug=slug,
+            stage=stage or None,
+            sector=sector or None,
+            board_url=f"https://boards.greenhouse.io/{slug}",
+            source="manual",
+            founder_access_token=secrets.token_urlsafe(32),
+        )
+        db.add(company)
+        await db.flush()
+    else:
+        company.greenhouse_slug = slug
+        if stage:
+            company.stage = stage
+        if sector:
+            company.sector = sector
+
+    await db.commit()
+    result = await sync_company_from_greenhouse(company.id)
+    return {"ok": True, "company_id": company.id, **result}

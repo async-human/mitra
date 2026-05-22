@@ -148,6 +148,17 @@ async def run_schema_migrations() -> None:
         """UPDATE jobs j SET company_id = c.id
            FROM companies c
            WHERE j.company = c.name AND j.company_id IS NULL""",
+        # Company ATS extensions — Greenhouse, Lever, funding tracker metadata
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS greenhouse_slug VARCHAR(100)",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS greenhouse_last_synced_at TIMESTAMPTZ",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS lever_slug VARCHAR(100)",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS lever_last_synced_at TIMESTAMPTZ",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS location VARCHAR(100)",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS source VARCHAR(50)",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS board_url VARCHAR(300)",
+        "ALTER TABLE companies ADD COLUMN IF NOT EXISTS signals JSONB",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_companies_greenhouse_slug ON companies(greenhouse_slug) WHERE greenhouse_slug IS NOT NULL",
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_companies_lever_slug ON companies(lever_slug) WHERE lever_slug IS NOT NULL",
     ]
     engine = _engine()
     async with engine.begin() as conn:
