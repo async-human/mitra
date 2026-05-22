@@ -3809,6 +3809,7 @@ body {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  overflow: hidden;
 }
 .dash-intro-updated-badge {
   flex-shrink: 0;
@@ -4178,7 +4179,7 @@ body {
 @media (max-width: 480px) {
   .dash-topbar  { padding: 0 16px; }
   .dash-main    { padding: 24px 16px 48px; gap: 18px; }
-  .dash-panel   { padding: 18px 16px; }
+  .dash-panel   { padding: 18px 16px; overflow: hidden; }
   .dash-cta-card { padding: 24px 20px; }
   .dash-cta-title { font-size: 22px; }
   .dash-wa-btn  { padding: 12px 20px; font-size: 14px; }
@@ -4186,6 +4187,9 @@ body {
   .dash-update  { padding: 12px 14px; }
   .dash-update-headline { font-size: 15px; }
   .dash-update-detail   { font-size: 13px; }
+  /* Hero actions: fill full width so 4 buttons wrap to 2 rows instead of overflowing */
+  .dash-hero-actions { flex-shrink: 1; width: 100%; }
+  .dash-hero-action  { font-size: 12px; padding: 8px 12px; }
   /* Make sure no panel child escapes the viewport */
   .dash-panels, .dash-main, .dash-panel { max-width: 100%; }
 }
