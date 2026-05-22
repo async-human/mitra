@@ -64,11 +64,21 @@ async def lifespan(app: FastAPI):
                     select(func.count()).select_from(FundedStartup)
                 )).scalar_one()
             if count == 0:
-                logging.info("startup: funded_startups empty — running RSS discovery pipeline")
-                from mitra_api.tools.funding_tracker import run_funding_discovery_pipeline
+                logging.info("startup: funded_startups empty — backfilling then running RSS pipeline")
+                from mitra_api.tools.funding_tracker import (
+                    backfill_funded_startups_from_companies,
+                    run_funding_discovery_pipeline,
+                )
                 async with factory() as db:
-                    result = await run_funding_discovery_pipeline(db)
-                logging.info("startup: funding pipeline done: %s", result)
+                    backfilled = await backfill_funded_startups_from_companies(db)
+                    logging.info("startup: backfilled %d funded_startups from companies", backfilled)
+                    count = (await db.execute(
+                        select(func.count()).select_from(FundedStartup)
+                    )).scalar_one()
+                if count == 0:
+                    async with factory() as db:
+                        result = await run_funding_discovery_pipeline(db)
+                    logging.info("startup: funding pipeline done: %s", result)
 
         asyncio.ensure_future(_seed_if_empty())
     except Exception:

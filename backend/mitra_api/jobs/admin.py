@@ -625,35 +625,67 @@ async def public_companies_feed(
 ) -> list[CompanyFeedItem]:
     """Public feed of funded/active companies — powers the /startups page.
 
-    Auto-refreshes in the background when data is stale (>24 h) so the page
-    always shows real external data without any manual intervention.
+    On empty/stale data: backfills from companies table, then runs RSS discovery
+    synchronously so the first page load is never blank after deploy.
     """
     from datetime import datetime, timezone, timedelta
 
     from mitra_api.db.models import FundedStartup
+    from mitra_api.tools.funding_tracker import (
+        backfill_funded_startups_from_companies,
+        run_funding_discovery_pipeline,
+    )
 
-    rows = (await db.execute(
-        select(FundedStartup)
-        .order_by(FundedStartup.updated_at.desc())
-        .limit(200)
-    )).scalars().all()
+    async def _load_rows() -> list[FundedStartup]:
+        return list((
+            await db.execute(
+                select(FundedStartup)
+                .order_by(FundedStartup.updated_at.desc())
+                .limit(200)
+            )
+        ).scalars().all())
 
-    # Trigger a background refresh when data is stale or absent
+    rows = await _load_rows()
+
+    if not rows:
+        backfilled = await backfill_funded_startups_from_companies(db)
+        if backfilled:
+            log.info("public/companies: backfilled %d rows from companies table", backfilled)
+        rows = await _load_rows()
+
+    if not rows:
+        log.info("public/companies: funded_startups still empty — running RSS pipeline now")
+        try:
+            await run_funding_discovery_pipeline(db)
+            rows = await _load_rows()
+        except Exception:
+            log.exception("public/companies: synchronous funding pipeline failed")
+
     stale_threshold = datetime.now(timezone.utc) - timedelta(hours=24)
     most_recent = rows[0].updated_at if rows else None
     if most_recent is not None and most_recent.tzinfo is None:
         most_recent = most_recent.replace(tzinfo=timezone.utc)
-    if most_recent is None or most_recent < stale_threshold:
+    if rows and most_recent is not None and most_recent < stale_threshold:
         async def _refresh() -> None:
             try:
                 from mitra_api.db.engine import get_session_factory
-                from mitra_api.tools.funding_tracker import run_funding_discovery_pipeline
                 factory = get_session_factory()
                 async with factory() as refresh_db:
                     await run_funding_discovery_pipeline(refresh_db)
             except Exception:
                 log.exception("background funding refresh failed")
         background_tasks.add_task(_refresh)
+
+    job_counts: dict[str, int] = {
+        name: int(count)
+        for name, count in (
+            await db.execute(
+                select(Job.company, func.count())
+                .where(Job.status == JobStatus.active)
+                .group_by(Job.company)
+            )
+        ).all()
+    }
 
     return [
         CompanyFeedItem(
@@ -666,7 +698,7 @@ async def public_companies_feed(
             founder_name=row.founder_name,
             amount_usd=row.amount_usd,
             investors=row.investors or [],
-            active_jobs=0,
+            active_jobs=job_counts.get(row.name, 0),
             board_url=row.board_url,
             created_at=row.discovered_at.isoformat(),
         )

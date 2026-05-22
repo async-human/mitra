@@ -466,6 +466,40 @@ async def _upsert_funded_startup(
     return startup, True
 
 
+async def backfill_funded_startups_from_companies(db) -> int:
+    """Copy legacy Company rows into funded_startups (instant fill after table migration)."""
+    from mitra_api.db.models import Company
+    from sqlalchemy import or_, select
+
+    companies = (await db.execute(
+        select(Company).where(
+            or_(Company.source.in_(("funding_tracker", "bootstrap")), Company.stage.isnot(None))
+        )
+    )).scalars().all()
+
+    added = 0
+    for company in companies:
+        signals = company.signals if isinstance(company.signals, dict) else {}
+        investors = signals.get("investors") or []
+        _, created = await _upsert_funded_startup(
+            db,
+            company_name=company.name,
+            stage=company.stage,
+            sector=company.sector,
+            location=company.location,
+            founder_name=company.founder_name,
+            amount_usd=signals.get("amount_usd"),
+            investors=investors if isinstance(investors, list) else [],
+            board_url=company.board_url,
+        )
+        if created:
+            added += 1
+
+    if added:
+        await db.commit()
+    return added
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[str, Any]:

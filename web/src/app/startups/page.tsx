@@ -8,17 +8,32 @@ export const metadata: Metadata = {
     "Browse India's best-funded startups that are actively hiring — Series A through late stage. Fintech, B2B SaaS, Consumer, and more.",
 };
 
-export const revalidate = 3600; // rebuild every hour
+// Always fetch fresh — avoids caching an empty first response for an hour after deploy
+export const dynamic = "force-dynamic";
+
+function apiBase(): string {
+  return (
+    process.env.MITRA_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    ""
+  ).replace(/\/$/, "");
+}
 
 async function getCompanies(): Promise<CompanyFeedItem[]> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+  const apiUrl = apiBase();
+  if (!apiUrl) {
+    console.error("startups: MITRA_API_BASE_URL / NEXT_PUBLIC_API_URL not set");
+    return [];
+  }
   try {
-    const res = await fetch(`${apiUrl}/public/companies`, {
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return [];
+    const res = await fetch(`${apiUrl}/public/companies`, { cache: "no-store" });
+    if (!res.ok) {
+      console.error("startups: API returned", res.status, res.statusText);
+      return [];
+    }
     return res.json();
-  } catch {
+  } catch (err) {
+    console.error("startups: fetch failed", err);
     return [];
   }
 }

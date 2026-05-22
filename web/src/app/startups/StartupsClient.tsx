@@ -226,6 +226,12 @@ export function StartupsClient({ companies }: { companies: CompanyFeedItem[] }) 
         <div className={s.grid}>
           {filtered.length > 0 ? (
             filtered.map((c, i) => <CompanyCard key={c.id} company={c} index={i} />)
+          ) : companies.length === 0 ? (
+            <p className={s.empty}>
+              Startup data is loading — this page refreshes automatically.
+              <br />
+              If this persists, check that the API is reachable.
+            </p>
           ) : (
             <p className={s.empty}>No companies match this filter.</p>
           )}
