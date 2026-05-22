@@ -7,6 +7,7 @@ export function FooterV2() {
       <div className={s.footerContent}>
         <div className={s.footerTop}>
           <ul className={s.footerLinks}>
+            <li><Link href="/startups">Funded startups</Link></li>
             <li><a href="#how-it-works">How it works</a></li>
             <li><a href="#for-companies">For companies</a></li>
             <li><a href="#faq">FAQ</a></li>

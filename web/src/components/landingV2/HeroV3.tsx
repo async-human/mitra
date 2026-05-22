@@ -135,6 +135,9 @@ export function HeroV3({ audience }: { audience: V2Audience }) {
                 {c.cta.label}
               </Link>
             )}
+            <Link href="/startups" className={s.heroSecondaryCta}>
+              Explore funded startups →
+            </Link>
             <a href="#how-it-works" className={s.heroSecondaryCta}>
               See how it works →
             </a>
