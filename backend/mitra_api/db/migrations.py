@@ -173,6 +173,7 @@ async def create_all() -> None:
                 board_url    VARCHAR(300),
                 source_url   VARCHAR(500),
                 funded_at    TIMESTAMPTZ,
+                source       VARCHAR(50),
                 discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )

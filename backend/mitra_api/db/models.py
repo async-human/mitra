@@ -139,7 +139,8 @@ class FundedStartup(Base):
     """
     Read-only feed of recently funded Indian startups discovered via RSS.
     Completely separate from the Company table (operational clients).
-    Populated exclusively by the funding_tracker pipeline.
+    Populated exclusively by the RSS funding_tracker pipeline (source='rss').
+    Never merged from the operational companies table.
     """
     __tablename__ = "funded_startups"
 
@@ -155,6 +156,7 @@ class FundedStartup(Base):
     board_url:    Mapped[str|None]  = mapped_column(String(300))
     source_url:   Mapped[str|None]  = mapped_column(String(500))
     funded_at:    Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
+    source:       Mapped[str|None]  = mapped_column(String(50))   # rss — external feed only
 
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at:    Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

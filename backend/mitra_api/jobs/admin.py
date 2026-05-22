@@ -633,20 +633,13 @@ async def public_companies_feed(
     from datetime import datetime, timezone, timedelta
 
     from mitra_api.db.models import FundedStartup
-    from mitra_api.tools.funding_tracker import (
-        backfill_funded_startups_from_companies,
-        run_funding_discovery_pipeline,
-        sync_curated_startups_to_feed,
-    )
-
-    # Always merge curated + operational companies into the public feed
-    await sync_curated_startups_to_feed(db)
-    await backfill_funded_startups_from_companies(db)
+    from mitra_api.tools.funding_tracker import run_funding_discovery_pipeline
 
     async def _load_rows() -> list[FundedStartup]:
         return list((
             await db.execute(
                 select(FundedStartup)
+                .where(FundedStartup.source == "rss")
                 .order_by(FundedStartup.funded_at.desc().nullslast(), FundedStartup.updated_at.desc())
                 .limit(200)
             )

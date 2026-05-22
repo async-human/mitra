@@ -3,12 +3,13 @@ mitra_api/tools/funding_tracker.py
 
 Two parallel systems for Indian startup intelligence:
 
-  RSS Funding Feed (FundedStartup table)
+  RSS Funding Feed (FundedStartup table — external only, source='rss')
     1. Fetch RSS feeds from Indian startup news sources
     2. LLM-extract structured funding events
     3. Upsert into funded_startups — powers the public /startups page
+    Never reads from or writes to the operational Company table.
 
-  ATS Bootstrap (Company table)
+  ATS Bootstrap (Company table — separate, operational)
     1. Probe Greenhouse → Ashby → Lever for curated startups
     2. Upsert operational Company rows + sync India engineering jobs
     3. Queue no-ATS companies for manual outreach via get_outreach_queue()
@@ -534,6 +535,7 @@ async def _upsert_funded_startup(
             existing.source_url = source_url
         if funded_at and not existing.funded_at:
             existing.funded_at = funded_at
+        existing.source = "rss"
         return existing, False
 
     startup = FundedStartup(
@@ -548,67 +550,10 @@ async def _upsert_funded_startup(
         website=website,
         source_url=source_url,
         funded_at=funded_at,
+        source="rss",
     )
     db.add(startup)
     return startup, True
-
-
-async def sync_curated_startups_to_feed(db) -> int:
-    """Merge the curated bootstrap list into funded_startups (with known job boards)."""
-    added = 0
-    for entry in BOOTSTRAP_COMPANIES:
-        ats_info = _known_ats_info(entry)
-        _, created = await _upsert_funded_startup(
-            db,
-            company_name=entry["name"],
-            stage=entry.get("stage"),
-            sector=entry.get("sector"),
-            location=entry.get("location", "India"),
-            founder_name=None,
-            amount_usd=None,
-            investors=[],
-            board_url=ats_info.get("board_url") if ats_info else None,
-        )
-        if created:
-            added += 1
-    if added:
-        await db.commit()
-    return added
-
-
-async def backfill_funded_startups_from_companies(db) -> int:
-    """Copy legacy Company rows into funded_startups (instant fill after table migration)."""
-    from mitra_api.db.models import Company
-    from sqlalchemy import or_, select
-
-    companies = (await db.execute(
-        select(Company).where(
-            or_(Company.source.in_(("funding_tracker", "bootstrap")), Company.stage.isnot(None))
-        )
-    )).scalars().all()
-
-    added = 0
-    for company in companies:
-        signals = company.signals if isinstance(company.signals, dict) else {}
-        investors = signals.get("investors") or []
-        _, created = await _upsert_funded_startup(
-            db,
-            company_name=company.name,
-            stage=company.stage,
-            sector=company.sector,
-            location=company.location,
-            founder_name=company.founder_name,
-            amount_usd=signals.get("amount_usd"),
-            investors=investors if isinstance(investors, list) else [],
-            board_url=company.board_url,
-            website=company.website,
-        )
-        if created:
-            added += 1
-
-    if added:
-        await db.commit()
-    return added
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -618,8 +563,7 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
     1. Fetch all RSS feeds in parallel
     2. Deduplicate items
     3. Batched LLM extraction (full feed coverage)
-    4. Upsert into funded_startups with source URLs + dates
-    5. Merge curated bootstrap startups
+    4. Upsert into funded_startups (source='rss') with source URLs + dates
     """
     import asyncio
 
@@ -629,7 +573,6 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
         "funding_events_found": 0,
         "new_companies":        0,
         "updated_companies":    0,
-        "curated_merged":       0,
     }
 
     feed_results = await asyncio.gather(*[_fetch_rss(url) for url in _RSS_FEEDS])
@@ -699,10 +642,6 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
                     stats["updated_companies"] += 1
 
             await db.commit()
-
-    if not dry_run:
-        stats["curated_merged"] = await sync_curated_startups_to_feed(db)
-        await backfill_funded_startups_from_companies(db)
 
     return stats
 

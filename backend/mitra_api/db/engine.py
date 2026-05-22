@@ -38,9 +38,10 @@ def _engine():
     normalized_url = _as_async_database_url(url)
     return create_async_engine(
         normalized_url,
-        pool_size=10,
-        max_overflow=20,
+        pool_size=5,
+        max_overflow=3,
         pool_pre_ping=True,
+        pool_recycle=300,
         echo=False,
     )
 
@@ -178,6 +179,7 @@ async def run_schema_migrations() -> None:
         "CREATE INDEX IF NOT EXISTS funded_startups_updated_idx ON funded_startups(updated_at DESC)",
         "ALTER TABLE funded_startups ADD COLUMN IF NOT EXISTS source_url VARCHAR(500)",
         "ALTER TABLE funded_startups ADD COLUMN IF NOT EXISTS funded_at TIMESTAMPTZ",
+        "ALTER TABLE funded_startups ADD COLUMN IF NOT EXISTS source VARCHAR(50)",
     ]
     engine = _engine()
     async with engine.begin() as conn:
