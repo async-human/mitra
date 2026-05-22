@@ -627,8 +627,8 @@ async def public_companies_feed(
 ) -> list[CompanyFeedItem]:
     """Public feed of funded/active companies — powers the /startups page.
 
-    On empty/stale data: backfills from companies table, then runs RSS discovery
-    synchronously so the first page load is never blank after deploy.
+    Returns cached DB rows immediately. RSS discovery runs in the background
+    when data is empty or stale (>24 h) — never blocks the HTTP response.
     """
     from datetime import datetime, timezone, timedelta
 
@@ -654,19 +654,13 @@ async def public_companies_feed(
 
     rows = await _load_rows()
 
-    if not rows:
-        log.info("public/companies: funded_startups empty — running RSS pipeline now")
-        try:
-            await run_funding_discovery_pipeline(db)
-            rows = await _load_rows()
-        except Exception:
-            log.exception("public/companies: synchronous funding pipeline failed")
-
+    # Never block the HTTP response on the slow RSS pipeline — refresh in background
     stale_threshold = datetime.now(timezone.utc) - timedelta(hours=24)
     most_recent = rows[0].updated_at if rows else None
     if most_recent is not None and most_recent.tzinfo is None:
         most_recent = most_recent.replace(tzinfo=timezone.utc)
-    if rows and most_recent is not None and most_recent < stale_threshold:
+    needs_refresh = (not rows) or (most_recent is not None and most_recent < stale_threshold)
+    if needs_refresh:
         async def _refresh() -> None:
             try:
                 from mitra_api.db.engine import get_session_factory

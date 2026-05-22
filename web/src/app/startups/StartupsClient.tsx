@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import s from "./startups.module.css";
 
 export interface CompanyFeedItem {
@@ -19,6 +19,9 @@ export interface CompanyFeedItem {
   funded_at: string | null;
   created_at: string;
 }
+
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+const SKELETON_COUNT = 9;
 
 function formatAmount(usd: number): string {
   if (usd >= 1_000_000_000) return `$${(usd / 1_000_000_000).toFixed(1)}B`;
@@ -49,6 +52,38 @@ function stageCls(stage: string | null): string {
   return s.stageLate;
 }
 
+function SkeletonBar({ wide }: { wide?: boolean }) {
+  return <span className={`${s.skeletonBar} ${wide ? s.skeletonBarWide : ""}`} />;
+}
+
+function SkeletonCard({ index }: { index: number }) {
+  return (
+    <article
+      className={`${s.card} ${s.skeletonCard}`}
+      style={{ "--card-delay": `${Math.min(index * 0.04, 0.36)}s` } as React.CSSProperties}
+      aria-hidden="true"
+    >
+      <div className={s.cardHead}>
+        <div className={`${s.cardInitial} ${s.skeletonCircle}`} />
+        <div className={s.cardIdentity}>
+          <SkeletonBar wide />
+          <SkeletonBar />
+        </div>
+        <span className={`${s.stagePill} ${s.skeletonPill}`} />
+      </div>
+      <div className={s.cardFundingBlock}>
+        <SkeletonBar wide />
+        <SkeletonBar />
+        <SkeletonBar wide />
+      </div>
+      <div className={s.cardFooter}>
+        <SkeletonBar />
+        <SkeletonBar />
+      </div>
+    </article>
+  );
+}
+
 function CompanyCard({ company, index }: { company: CompanyFeedItem; index: number }) {
   const meta = [company.sector, company.location].filter(Boolean).join(" · ");
   const fundedDate = formatFundedDate(company.funded_at);
@@ -58,7 +93,6 @@ function CompanyCard({ company, index }: { company: CompanyFeedItem; index: numb
       className={s.card}
       style={{ "--card-delay": `${Math.min(index * 0.045, 0.45)}s` } as React.CSSProperties}
     >
-      {/* Identity */}
       <div className={s.cardHead}>
         <div className={s.cardInitial}>
           {company.name.charAt(0).toUpperCase()}
@@ -84,7 +118,6 @@ function CompanyCard({ company, index }: { company: CompanyFeedItem; index: numb
         )}
       </div>
 
-      {/* Funding */}
       <div className={s.cardFundingBlock}>
         {company.amount_usd ? (
           <>
@@ -114,7 +147,6 @@ function CompanyCard({ company, index }: { company: CompanyFeedItem; index: numb
         )}
       </div>
 
-      {/* Founder */}
       {company.founder_name && (
         <div className={s.cardFounder}>
           <span className={s.cardFounderDot} aria-hidden="true" />
@@ -122,7 +154,6 @@ function CompanyCard({ company, index }: { company: CompanyFeedItem; index: numb
         </div>
       )}
 
-      {/* Footer */}
       <div className={s.cardFooter}>
         <span className={s.cardJobCount}>
           {company.active_jobs > 0 ? (
@@ -167,9 +198,42 @@ function CompanyCard({ company, index }: { company: CompanyFeedItem; index: numb
 const STAGE_ORDER  = ["Seed", "Series A", "Series B", "Series C", "Series D", "Series E", "Series F", "Growth", "IPO"];
 const SECTOR_ORDER = ["Fintech", "B2B SaaS", "Consumer", "Developer Tools", "AI / SaaS", "Healthtech", "Edtech", "Logistics", "Mobility", "Infrastructure / DevOps", "Design Tools"];
 
-export function StartupsClient({ companies }: { companies: CompanyFeedItem[] }) {
+export function StartupsClient() {
+  const [companies, setCompanies] = useState<CompanyFeedItem[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState(false);
+
   const [stageFilter,  setStageFilter]  = useState<string | null>(null);
   const [sectorFilter, setSectorFilter] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!API_URL) {
+      setLoading(false);
+      setError(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const res = await fetch(`${API_URL}/public/companies`);
+        if (!res.ok) throw new Error(String(res.status));
+        const data: CompanyFeedItem[] = await res.json();
+        if (!cancelled) {
+          setCompanies(data);
+          setError(false);
+        }
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const presentStages = useMemo(() => {
     const present = new Set(companies.map((c) => c.stage).filter(Boolean) as string[]);
@@ -202,23 +266,35 @@ export function StartupsClient({ companies }: { companies: CompanyFeedItem[] }) 
         </h1>
         <div className={s.headerStats}>
           <div className={s.headerStat}>
-            <span className={s.headerStatNum}>{companies.length}</span>
+            {loading ? (
+              <span className={`${s.headerStatNum} ${s.skeletonStat}`} />
+            ) : (
+              <span className={s.headerStatNum}>{companies.length}</span>
+            )}
             <span className={s.headerStatLabel}>Companies</span>
           </div>
           <div className={s.headerStatDiv} />
           <div className={s.headerStat}>
-            <span className={s.headerStatNum}>{totalJobs}</span>
+            {loading ? (
+              <span className={`${s.headerStatNum} ${s.skeletonStat}`} />
+            ) : (
+              <span className={s.headerStatNum}>{totalJobs}</span>
+            )}
             <span className={s.headerStatLabel}>Open roles</span>
           </div>
           <div className={s.headerStatDiv} />
           <div className={s.headerStat}>
-            <span className={s.headerStatNum}>{presentStages.length}</span>
+            {loading ? (
+              <span className={`${s.headerStatNum} ${s.skeletonStat}`} />
+            ) : (
+              <span className={s.headerStatNum}>{presentStages.length}</span>
+            )}
             <span className={s.headerStatLabel}>Funding stages</span>
           </div>
         </div>
       </header>
 
-      {(presentStages.length > 0 || presentSectors.length > 0) && (
+      {!loading && (presentStages.length > 0 || presentSectors.length > 0) && (
         <nav className={s.filters} aria-label="Filter companies">
           <div className={s.filtersInner}>
             <span className={s.filterLabel}>Filter</span>
@@ -266,14 +342,20 @@ export function StartupsClient({ companies }: { companies: CompanyFeedItem[] }) 
       )}
 
       <main className={s.main}>
-        <div className={s.grid}>
-          {filtered.length > 0 ? (
+        <div className={s.grid} aria-busy={loading}>
+          {loading ? (
+            Array.from({ length: SKELETON_COUNT }, (_, i) => (
+              <SkeletonCard key={`skel-${i}`} index={i} />
+            ))
+          ) : filtered.length > 0 ? (
             filtered.map((c, i) => <CompanyCard key={c.id} company={c} index={i} />)
+          ) : error ? (
+            <p className={s.empty}>
+              Could not load startup data. Check that the API is reachable.
+            </p>
           ) : companies.length === 0 ? (
             <p className={s.empty}>
-              Startup data is loading — this page refreshes automatically.
-              <br />
-              If this persists, check that the API is reachable.
+              No startups in the feed yet — data refreshes automatically.
             </p>
           ) : (
             <p className={s.empty}>No companies match this filter.</p>

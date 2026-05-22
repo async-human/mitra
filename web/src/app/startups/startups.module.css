@@ -439,4 +439,61 @@
 @media (prefers-reduced-motion: reduce) {
   .card { animation: none; }
   .headerRuleDot { animation: none; }
+  .skeletonBar, .skeletonCircle, .skeletonPill, .skeletonStat {
+    animation: none;
+    background: #E8E2DA;
+  }
+}
+
+/* ── Skeleton loading ─────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeletonBar {
+  display: block;
+  height: 0.65rem;
+  width: 55%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #E8E2DA 25%, #F5F0EA 50%, #E8E2DA 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  margin-bottom: 0.45rem;
+}
+
+.skeletonBarWide { width: 75%; }
+
+.skeletonCircle {
+  background: linear-gradient(90deg, #E8E2DA 25%, #F5F0EA 50%, #E8E2DA 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  color: transparent;
+}
+
+.skeletonPill {
+  width: 4.5rem;
+  height: 1.4rem;
+  background: linear-gradient(90deg, #E8E2DA 25%, #F5F0EA 50%, #E8E2DA 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  color: transparent;
+  border: none;
+}
+
+.skeletonCard {
+  pointer-events: none;
+  min-height: 220px;
+}
+
+.skeletonStat {
+  display: inline-block;
+  width: 2.5rem;
+  height: 1.5rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #E8E2DA 25%, #F5F0EA 50%, #E8E2DA 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  vertical-align: middle;
 }
