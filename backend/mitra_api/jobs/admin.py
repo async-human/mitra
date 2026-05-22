@@ -627,7 +627,7 @@ async def public_companies_feed(db: AsyncSession = Depends(get_db)) -> list[Comp
             func.count(case((Job.status == JobStatus.active, Job.id))).label("active_jobs"),
         )
         .outerjoin(Job, Job.company_id == Company.id)
-        .where(Company.stage.isnot(None))
+        .where(Company.source == "funding_tracker")
         .group_by(Company.id)
         .order_by(Company.created_at.desc())
         .limit(200)

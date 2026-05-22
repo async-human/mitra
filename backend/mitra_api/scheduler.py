@@ -506,20 +506,12 @@ async def run_funding_discovery() -> None:
     """Daily scan for new Indian startup funding + ATS discovery."""
     log.info("scheduler: funding_discovery starting")
     try:
-        from mitra_api.config import get_settings
         from mitra_api.db.engine import get_session_factory
         from mitra_api.tools.funding_tracker import run_funding_discovery_pipeline
 
-        settings = get_settings()
-        if not settings.anthropic_api_key.strip():
-            log.warning("scheduler: funding_discovery skipped — no ANTHROPIC_API_KEY")
-            return
-
         factory = get_session_factory()
         async with factory() as db:
-            result = await run_funding_discovery_pipeline(
-                db, api_key=settings.anthropic_api_key,
-            )
+            result = await run_funding_discovery_pipeline(db)
         log.info("scheduler: funding_discovery done: %s", result)
     except Exception:
         log.exception("scheduler: funding_discovery failed")
