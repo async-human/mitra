@@ -871,14 +871,25 @@ async def _upsert_funded_startup(
             existing.sector = sector
         if location and not existing.location:
             existing.location = location
-        if website and not existing.website:
-            existing.website = website
+        if not existing.website:
+            from mitra_api.tools.website_resolver import resolve_company_website
+            resolved = await resolve_company_website(
+                existing.name, sector=existing.sector, existing_website=website
+            )
+            if resolved:
+                existing.website = resolved
         if source_url:
             existing.source_url = source_url
         if funded_at and not existing.funded_at:
             existing.funded_at = funded_at
         existing.source = "rss"
         return existing, False
+
+    # Resolve a verified website for new companies
+    from mitra_api.tools.website_resolver import resolve_company_website
+    resolved_website = await resolve_company_website(
+        company_name, sector=sector, existing_website=website
+    )
 
     startup = FundedStartup(
         name=company_name,
@@ -889,7 +900,7 @@ async def _upsert_funded_startup(
         amount_usd=amount_usd,
         investors=investors or [],
         board_url=board_url,
-        website=website,
+        website=resolved_website,
         source_url=source_url,
         funded_at=funded_at,
         source="rss",

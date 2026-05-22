@@ -1066,6 +1066,22 @@ async def enrich_funding_metadata() -> dict:
     return {"ok": True, **stats}
 
 
+@funding_router.post("/backfill-websites", dependencies=[Depends(require_admin)])
+async def backfill_funded_startup_websites() -> dict:
+    """
+    Resolve and save verified website URLs for all funded_startups rows missing them.
+    Uses a four-layer pipeline: ATS board → Crunchbase → Tavily search → domain inference.
+    Every URL stored has been HEAD-verified. Safe to run multiple times (idempotent).
+    """
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.tools.website_resolver import backfill_funded_startup_websites
+
+    factory = get_session_factory()
+    async with factory() as db:
+        result = await backfill_funded_startup_websites(db)
+    return result
+
+
 @funding_router.post("/discover-ats", dependencies=[Depends(require_admin)])
 async def discover_company_ats(company_name: str) -> dict:
     from mitra_api.tools.funding_tracker import discover_ats
