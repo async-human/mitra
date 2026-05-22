@@ -855,6 +855,66 @@ async def _notify_candidate_of_response(
         log.warning("candidate WA notification failed for %s action=%s (non-critical)", phone, action)
 
 
+async def _notify_candidate_reschedule(
+    *,
+    candidate_phone: str,
+    candidate_name: str,
+    company: str,
+    job_title: str,
+    interview_details: dict,
+) -> None:
+    """Send an interview reschedule notification to the candidate."""
+    from mitra_api.tools.email import send_email
+
+    scheduled_at = interview_details.get("scheduled_at", "")
+    fmt = interview_details.get("format", "")
+    link = interview_details.get("link", "")
+
+    # Format the time for display
+    time_str = scheduled_at
+    if scheduled_at:
+        try:
+            from datetime import datetime, timezone, timedelta
+            dt = datetime.fromisoformat(scheduled_at.replace("Z", "+00:00"))
+            ist = timezone(timedelta(hours=5, minutes=30))
+            time_str = dt.astimezone(ist).strftime("%A, %d %B at %I:%M %p IST")
+        except Exception:
+            pass
+
+    format_label = {"video": "Video call", "phone": "Phone call", "in-person": "In-person"}.get(fmt, fmt)
+    link_line = f"\nMeeting link: {link}\n" if link else ""
+
+    subject = f"Interview rescheduled: {company} — {time_str} · Mitra"
+    body = (
+        f"Hi {candidate_name},\n\n"
+        f"Your interview with {company} for the {job_title} role has been rescheduled.\n\n"
+        f"New time: {time_str}\n"
+        f"Format: {format_label or 'To be confirmed'}"
+        f"{link_line}\n\n"
+        "If this time doesn't work, reply to this email and we'll sort it out.\n\n"
+        "— Mitra"
+    )
+
+    if candidate_phone.startswith("web:"):
+        cand_email = candidate_phone.removeprefix("web:").strip()
+        if "@" in cand_email:
+            try:
+                await send_email(to=cand_email, subject=subject, text=body)
+            except Exception:
+                log.warning("reschedule email failed for %s (non-critical)", cand_email)
+        return
+
+    try:
+        from mitra_api.twilio_whatsapp.client import send_whatsapp_reply
+        digits = "".join(c for c in candidate_phone if c.isdigit())
+        await send_whatsapp_reply(
+            to_whatsapp_from_value=f"whatsapp:+{digits}",
+            body=body,
+        )
+    except Exception:
+        log.warning("reschedule WA failed for %s (non-critical)", candidate_phone)
+
+
 @router.get("/respond", response_class=HTMLResponse)
 async def founder_respond(
     token: str = Query(..., description="One-click response token from intro email"),
@@ -1006,6 +1066,8 @@ class PortalCandidate(BaseModel):
     sent_at: str | None
     why_note: str | None
     signals: PortalCandidateSignals
+    interview_details: dict | None = None
+    offer_details: dict | None = None
 
 
 class PortalJob(BaseModel):
@@ -1059,6 +1121,8 @@ class PortalActionResponse(BaseModel):
     ok: bool
     new_status: str
     message: str
+    interview_details: dict | None = None
+    offer_details: dict | None = None
 
 
 def _is_intro_profile_header_line(line: str) -> bool:
@@ -1739,12 +1803,18 @@ async def founder_portal(
                 job_salary_max=job.salary_max_lpa,
             )
 
+            # Strip internal-only keys from interview_details before sending to founder
+            iv = intro.interview_details or {}
+            iv_clean = {k: v for k, v in iv.items() if k != "booking_link"} or None
+
             candidates_out.append(PortalCandidate(
                 intro_id=intro.id,
                 status=intro.status.value if hasattr(intro.status, "value") else str(intro.status),
                 sent_at=intro.sent_at.isoformat() if intro.sent_at else None,
                 why_note=why_note,
                 signals=signals,
+                interview_details=iv_clean,
+                offer_details=intro.offer_details or None,
             ))
 
     stats = PortalStats(
@@ -1834,6 +1904,9 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
         current_status = intro.status.value if hasattr(intro.status, "value") else str(intro.status)
         if current_status in {s.value for s in terminal} and body.action == "not_a_fit":
             return PortalActionResponse(ok=True, new_status=current_status, message="Already actioned.")
+
+        # Detect reschedule: already in interview state, founder is updating the time
+        is_reschedule = (body.action == "schedule" and current_status == "interview")
 
         new_status = action_map[body.action]
         now = datetime.now(timezone.utc)
@@ -1982,11 +2055,20 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
             action=body.action,
             booking_link=booking_link,
         ))
+        # Extra reschedule notification — send updated time to candidate
+        if is_reschedule and body.interview_details:
+            asyncio.create_task(_notify_candidate_reschedule(
+                candidate_phone=candidate.phone,
+                candidate_name=cand_name,
+                company=job.company,
+                job_title=job.title,
+                interview_details=body.interview_details,
+            ))
 
     status_messages = {
         "interested": f"Marked as interested — {cand_name} will be notified.",
         "not_a_fit":  f"Noted. {cand_name} has been informed respectfully.",
-        "schedule":   f"Interview stage set — we'll coordinate with {cand_name}.",
+        "schedule":   f"{'Interview rescheduled' if is_reschedule else 'Interview stage set'} — {cand_name} will be notified.",
         "offer":      f"Offer extended — {cand_name} has been notified. Exciting!",
         "hired":      f"Congratulations! {cand_name} is now marked as hired.",
     }
@@ -1996,6 +2078,8 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
         ok=True,
         new_status=new_status.value if hasattr(new_status, "value") else str(new_status),
         message=status_messages[body.action],
+        interview_details=body.interview_details if body.action == "schedule" else None,
+        offer_details=body.offer_details if body.action == "offer" else None,
     )
 
 

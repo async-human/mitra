@@ -20,12 +20,29 @@ interface PortalSignals {
   linkedin_url: string | null;
 }
 
+interface InterviewDetails {
+  scheduled_at?: string;
+  scheduled_at_iso?: string;
+  format?: string;
+  link?: string;
+  notes?: string;
+}
+
+interface OfferDetails {
+  salary_lpa?: number;
+  equity_percent?: number;
+  start_date?: string;
+  notes?: string;
+}
+
 interface PortalCandidate {
   intro_id: number;
   status: string;
   sent_at: string | null;
   why_note: string | null;
   signals: PortalSignals;
+  interview_details?: InterviewDetails | null;
+  offer_details?: OfferDetails | null;
 }
 
 interface CompanyInfo {
@@ -70,6 +87,14 @@ interface PortalStats {
   declined: number;
 }
 
+interface PortalActionResult {
+  ok: boolean;
+  new_status: string;
+  message: string;
+  interview_details?: InterviewDetails | null;
+  offer_details?: OfferDetails | null;
+}
+
 interface PortalData {
   job: PortalJob;
   candidates: PortalCandidate[];
@@ -104,6 +129,23 @@ function initials(name: string | null, role: string | null): string {
 function formatDate(iso: string | null) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
+function formatDateTime(iso: string | undefined): string {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleString("en-IN", {
+      weekday: "short", day: "numeric", month: "short",
+      hour: "2-digit", minute: "2-digit", hour12: true,
+    });
+  } catch { return iso; }
+}
+
+function formatLabel(fmt: string | undefined): string {
+  if (!fmt) return "";
+  return { video: "Video call", phone: "Phone call", "in-person": "In-person" }[fmt] ?? fmt;
 }
 
 /** Convert *bold* / **bold** markdown to <strong> for inline rendering. */
@@ -200,7 +242,7 @@ function CandidateCard({
   candidate: PortalCandidate;
   idx: number;
   token: string;
-  onStatusChange: (introId: number, newStatus: string) => void;
+  onStatusChange: (introId: number, result: PortalActionResult) => void;
 }) {
   const s = candidate.signals;
   const meta = statusMeta(candidate.status);
@@ -209,11 +251,18 @@ function CandidateCard({
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [showForm, setShowForm] = useState<"schedule" | "offer" | null>(null);
 
-  // Interview form state
-  const [ivDate, setIvDate] = useState("");
-  const [ivTime, setIvTime] = useState("");
-  const [ivFormat, setIvFormat] = useState("video");
-  const [ivLink, setIvLink] = useState("");
+  // Interview form state — pre-fill from existing interview_details if available
+  const existingIv = candidate.interview_details;
+  const [ivDate, setIvDate] = useState(() => {
+    const raw = existingIv?.scheduled_at_iso || existingIv?.scheduled_at || "";
+    return raw ? raw.slice(0, 10) : "";
+  });
+  const [ivTime, setIvTime] = useState(() => {
+    const raw = existingIv?.scheduled_at_iso || existingIv?.scheduled_at || "";
+    return raw ? raw.slice(11, 16) : "";
+  });
+  const [ivFormat, setIvFormat] = useState(existingIv?.format || "video");
+  const [ivLink, setIvLink] = useState(existingIv?.link || "");
 
   // Offer form state
   const [ofSalary, setOfSalary] = useState("");
@@ -231,12 +280,12 @@ function CandidateCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, intro_id: candidate.intro_id, action, ...extraBody }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.detail || "Failed");
+      const data: PortalActionResult = await res.json();
+      if (!res.ok) throw new Error((data as { detail?: string }).detail || "Failed");
       setToast({ msg: data.message, ok: true });
       setActionState("done");
       setShowForm(null);
-      onStatusChange(candidate.intro_id, data.new_status);
+      onStatusChange(candidate.intro_id, data);
     } catch (e: unknown) {
       setActionState("idle");
       setToast({ msg: e instanceof Error ? e.message : "Something went wrong", ok: false });
@@ -364,10 +413,36 @@ function CandidateCard({
         </div>
       )}
 
+      {/* Interview details banner — shown when interview is booked */}
+      {candidate.status === "interview" && candidate.interview_details?.scheduled_at && showForm === null && (
+        <div className="fpc-iv-banner">
+          <div className="fpc-iv-banner-icon"><IconCalendar /></div>
+          <div className="fpc-iv-banner-body">
+            <p className="fpc-iv-banner-label">Interview scheduled</p>
+            <p className="fpc-iv-banner-time">
+              {formatDateTime(candidate.interview_details.scheduled_at_iso || candidate.interview_details.scheduled_at)}
+              {candidate.interview_details.format && (
+                <span className="fpc-iv-banner-fmt"> · {formatLabel(candidate.interview_details.format)}</span>
+              )}
+            </p>
+            {candidate.interview_details.link && (
+              <a
+                href={candidate.interview_details.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="fpc-iv-banner-link"
+              >
+                {candidate.interview_details.link}
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Inline schedule form */}
       {showForm === "schedule" && (
         <div className="fpc-form">
-          <p className="fpc-form-title">Schedule interview</p>
+          <p className="fpc-form-title">{candidate.status === "interview" ? "Reschedule interview" : "Schedule interview"}</p>
           <div className="fpc-form-row">
             <label className="fpc-form-label">Date</label>
             <input type="date" className="fpc-form-input" value={ivDate} onChange={e => setIvDate(e.target.value)} />
@@ -455,6 +530,9 @@ function CandidateCard({
               <button className="fpc-btn fpc-btn--offer" disabled={actionState === "loading"} onClick={() => setShowForm("offer")}>
                 {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
                 Offer extended
+              </button>
+              <button className="fpc-btn fpc-btn--schedule" disabled={actionState === "loading"} onClick={() => setShowForm("schedule")}>
+                <IconCalendar />Reschedule
               </button>
               <button className="fpc-btn fpc-btn--pass" disabled={actionState === "loading"} onClick={() => doAction("not_a_fit")}>
                 <IconX />Didn&apos;t proceed
@@ -578,12 +656,18 @@ export function FounderPortalClient({
 
   useEffect(() => { load(); }, [load]);
 
-  const handleStatusChange = useCallback((introId: number, newStatus: string) => {
+  const handleStatusChange = useCallback((introId: number, result: PortalActionResult) => {
     setData(prev => {
       if (!prev) return prev;
-      const updated = prev.candidates.map(c =>
-        c.intro_id === introId ? { ...c, status: newStatus } : c
-      );
+      const updated = prev.candidates.map(c => {
+        if (c.intro_id !== introId) return c;
+        return {
+          ...c,
+          status: result.new_status,
+          ...(result.interview_details != null ? { interview_details: result.interview_details } : {}),
+          ...(result.offer_details != null ? { offer_details: result.offer_details } : {}),
+        };
+      });
       return {
         ...prev,
         candidates: updated,
