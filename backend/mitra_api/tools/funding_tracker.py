@@ -21,6 +21,7 @@ Provider switching is env-only — no code changes needed:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -44,11 +45,26 @@ _RSS_FEEDS: list[str] = [
     "https://news.google.com/rss/search?q=Indian+startup+Series+C+D+funding&hl=en-IN&gl=IN&ceid=IN:en",
     "https://news.google.com/rss/search?q=Indian+startup+raised+crore+million&hl=en-IN&gl=IN&ceid=IN:en",
     "https://inc42.com/feed/",
-    "https://entrackr.com/feed/",
+    "https://techcrunch.com/tag/india/feed/",
     "https://yourstory.com/feed",
 ]
 
 _LLM_BATCH_SIZE = 35
+
+# Only one RSS+LLM pipeline at a time (startup seed, /public/companies, scheduler share this).
+_pipeline_lock = asyncio.Lock()
+_last_pipeline_stats: dict[str, Any] | None = None
+
+_FUNDING_HEADLINE_KEYWORDS = (
+    "funding", "raises", "raised", " crore", "million", " billion",
+    "series a", "series b", "series c", "series d", "series e", "series f",
+    "seed round", "pre-seed", "secures", "bags ", "closes ", "investment",
+)
+
+_ROUNDUP_HEADLINE_PHRASES = (
+    "funding and acquisitions", "this week", "startups from", "startups raised",
+    "weekly roundup", "acquisitions in", "between ", "including ",
+)
 
 
 @dataclass
@@ -244,31 +260,55 @@ async def extract_funding_from_headlines(items: list[RssItem]) -> list[dict[str,
     from mitra_api.config import get_settings
     from mitra_api.llm.factory import get_llm_adapter
 
+    candidates: list[tuple[int, RssItem]] = [
+        (i, item) for i, item in enumerate(items)
+        if _is_funding_headline(item.title) and not _is_roundup_headline(item.title)
+    ]
+    if not candidates:
+        return []
+
+    log.info(
+        "funding LLM: pre-filtered %d/%d headlines for extraction",
+        len(candidates), len(items),
+    )
+
     s       = get_settings()
     adapter = get_llm_adapter(s)
     all_events: list[dict[str, Any]] = []
     llm_failed = False
 
-    for batch_start in range(0, len(items), _LLM_BATCH_SIZE):
-        batch = items[batch_start:batch_start + _LLM_BATCH_SIZE]
+    for batch_start in range(0, len(candidates), _LLM_BATCH_SIZE):
+        batch_slice = candidates[batch_start:batch_start + _LLM_BATCH_SIZE]
+        batch_items = [item for _, item in batch_slice]
+        global_offset = batch_slice[0][0]
         try:
             batch_events = await _extract_batch(
-                adapter, s.mitra_llm_cheap_model, batch, global_offset=batch_start,
+                adapter, s.mitra_llm_cheap_model, batch_items, global_offset=global_offset,
             )
             all_events.extend(batch_events)
             log.info(
-                "funding LLM batch %d–%d: extracted %d events",
-                batch_start + 1, batch_start + len(batch), len(batch_events),
+                "funding LLM batch %d–%d (of %d candidates): extracted %d events",
+                batch_start + 1, batch_start + len(batch_slice), len(candidates), len(batch_events),
             )
         except Exception:
             llm_failed = True
-            log.exception("funding LLM batch failed at offset %d", batch_start)
-            break  # stop wasting API calls when key is invalid
+            log.exception("funding LLM batch failed at candidate offset %d", batch_start)
+            break
 
     if llm_failed and not all_events:
-        return []  # caller will run heuristic fallback
+        return []
 
     return _dedupe_events(all_events)
+
+
+def _is_funding_headline(title: str) -> bool:
+    lower = title.lower()
+    return any(kw in lower for kw in _FUNDING_HEADLINE_KEYWORDS)
+
+
+def _is_roundup_headline(title: str) -> bool:
+    lower = title.lower()
+    return any(p in lower for p in _ROUNDUP_HEADLINE_PHRASES)
 
 
 _BAD_NAME_PHRASES = (
@@ -769,14 +809,37 @@ async def _prune_junk_funded_startups(db) -> int:
 
 
 async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[str, Any]:
+    """Run RSS funding pipeline; concurrent callers wait for the in-progress run."""
+    global _last_pipeline_stats
+
+    if _pipeline_lock.locked():
+        log.info("funding_discovery: pipeline already in progress — waiting")
+        async with _pipeline_lock:
+            return dict(_last_pipeline_stats or {"status": "completed_by_other"})
+
+    async with _pipeline_lock:
+        stats = await _run_funding_discovery_pipeline_impl(db, dry_run=dry_run)
+        _last_pipeline_stats = stats
+        log.info(
+            "funding_discovery: finished — new=%s updated=%s skipped_sanitize=%s "
+            "events=%s headlines=%s junk_removed=%s",
+            stats.get("new_companies"),
+            stats.get("updated_companies"),
+            stats.get("skipped_sanitize"),
+            stats.get("funding_events_found"),
+            stats.get("headlines_collected"),
+            stats.get("junk_rows_removed"),
+        )
+        return stats
+
+
+async def _run_funding_discovery_pipeline_impl(db, *, dry_run: bool = False) -> dict[str, Any]:
     """
     1. Fetch all RSS feeds in parallel
     2. Deduplicate items
     3. Batched LLM extraction (full feed coverage)
     4. Upsert into funded_startups (source='rss') with source URLs + dates
     """
-    import asyncio
-
     stats: dict[str, Any] = {
         "feeds_fetched":        len(_RSS_FEEDS),
         "headlines_collected":  0,
@@ -784,6 +847,7 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
         "new_companies":        0,
         "updated_companies":    0,
         "junk_rows_removed":    0,
+        "skipped_sanitize":     0,
     }
 
     if not dry_run:
@@ -824,6 +888,7 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
             for event in events:
                 company_name = _sanitize_company_name((event.get("company_name") or "").strip())
                 if not company_name:
+                    stats["skipped_sanitize"] += 1
                     continue
 
                 headline_idx = event.get("headline_index")
