@@ -41,6 +41,10 @@ function formatFundedDate(iso: string | null): string | null {
   }
 }
 
+function websiteHref(url: string): string {
+  return url.startsWith("http") ? url : `https://${url}`;
+}
+
 function stageCls(stage: string | null): string {
   if (!stage) return s.stageDefault;
   const n = stage.toLowerCase();
@@ -87,6 +91,7 @@ function SkeletonCard({ index }: { index: number }) {
 function CompanyCard({ company, index }: { company: CompanyFeedItem; index: number }) {
   const meta = [company.sector, company.location].filter(Boolean).join(" · ");
   const fundedDate = formatFundedDate(company.funded_at);
+  const websiteUrl = company.website ? websiteHref(company.website) : null;
 
   return (
     <article
@@ -98,18 +103,19 @@ function CompanyCard({ company, index }: { company: CompanyFeedItem; index: numb
           {company.name.charAt(0).toUpperCase()}
         </div>
         <div className={s.cardIdentity}>
-          <p className={s.cardName}>{company.name}</p>
-          {meta && <p className={s.cardMeta}>{meta}</p>}
-          {company.website && (
+          {websiteUrl ? (
             <a
-              href={company.website.startsWith("http") ? company.website : `https://${company.website}`}
+              href={websiteUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className={s.cardWebsite}
+              className={`${s.cardName} ${s.cardNameLink}`}
             >
-              {company.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+              {company.name}
             </a>
+          ) : (
+            <p className={s.cardName}>{company.name}</p>
           )}
+          {meta && <p className={s.cardMeta}>{meta}</p>}
         </div>
         {company.stage && (
           <span className={`${s.stagePill} ${stageCls(company.stage)}`}>
@@ -150,6 +156,7 @@ function CompanyCard({ company, index }: { company: CompanyFeedItem; index: numb
       {company.founder_name && (
         <div className={s.cardFounder}>
           <span className={s.cardFounderDot} aria-hidden="true" />
+          <span className={s.cardFounderLabel}>Founder</span>
           {company.founder_name}
         </div>
       )}

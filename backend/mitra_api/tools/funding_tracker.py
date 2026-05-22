@@ -179,8 +179,8 @@ For each genuine Indian tech startup funding round, return a JSON object with:
   sector          (string — e.g. "Fintech", "B2B SaaS", "Consumer", "Developer Tools", "AI / SaaS", "Healthtech")
   location        (string — city or "India")
   investors       (array of strings, up to 5 investor names — empty array if none mentioned)
-  founder_name    (string or null — only if explicitly named)
-  website         (string or null — company website URL if mentioned or clearly inferrable, else null)
+  founder_name    (string or null — CEO/co-founder name from headline or description, e.g. "founded by X", "CEO X")
+  website         (string or null — official company website with https://, e.g. https://razorpay.com — only if confident)
   funded_at       (string "YYYY-MM-DD" or null — best estimate of announcement date from headline context)
 
 Conversion: ₹1 crore ≈ $120,000. ₹1000 crore ≈ $120M.
@@ -735,7 +735,7 @@ async def _upsert_funded_startup(
     if source_url:
         source_url = source_url[:480]
     if website:
-        website = website[:280]
+        website = _normalize_website(website)
     if amount_usd is not None and amount_usd > 10_000_000_000:
         amount_usd = None
 
@@ -785,7 +785,212 @@ async def _upsert_funded_startup(
     return startup, True
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+def _normalize_website(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    url = raw.strip()
+    if not url or url.lower() in ("null", "none", "n/a"):
+        return None
+    if not url.startswith(("http://", "https://")):
+        url = f"https://{url.lstrip('/')}"
+    return url[:280]
+
+
+def _normalize_founder_name(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    name = str(raw).strip()
+    if not name or name.lower() in ("null", "none", "n/a", "unknown"):
+        return None
+    if len(name) < 3 or len(name) > 80 or len(name.split()) > 5:
+        return None
+    return name[:200]
+
+
+_ENRICH_STARTUP_SYSTEM = """\
+You enrich Indian startup metadata. Given a numbered list of startups, return a JSON array.
+Each object must include:
+  company_name  (string — exact name from the list)
+  founder_name  (string or null — CEO or co-founder full name, only if well-known or clearly inferrable)
+  website       (string or null — official company website with https://, only if confident)
+
+Rules:
+- Only include facts you are highly confident about — never invent founders or URLs
+- For website, prefer the company's own domain (not LinkedIn, Crunchbase, or news articles)
+- Return one object per startup in the list (use null for unknown fields)
+- Return ONLY valid JSON — no markdown\
+"""
+
+
+async def _llm_enrich_startups_batch(rows: list[Any]) -> dict[str, dict[str, str | None]]:
+    from mitra_api.config import get_settings
+    from mitra_api.llm.factory import get_llm_adapter
+    from mitra_api.llm.types import ChatMessage
+
+    if not rows:
+        return {}
+
+    s = get_settings()
+    adapter = get_llm_adapter(s)
+    numbered = "\n".join(
+        f"{i + 1}. {row.name} — {row.sector or 'sector unknown'}, {row.location or 'India'}"
+        for i, row in enumerate(rows)
+    )
+    try:
+        result = await adapter.complete(
+            model=s.mitra_llm_cheap_model,
+            messages=[
+                ChatMessage(role="system", content=_ENRICH_STARTUP_SYSTEM),
+                ChatMessage(role="user", content=f"Startups:\n{numbered}"),
+            ],
+            tools=None,
+            max_tokens=2048,
+            temperature=0.0,
+        )
+    except Exception:
+        log.exception("startup enrichment LLM batch failed")
+        return {}
+
+    raw = (result.content or "").strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1].lstrip("json").strip()
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        log.warning("startup enrichment: non-JSON response: %s", raw[:200])
+        return {}
+
+    if not isinstance(parsed, list):
+        return {}
+
+    out: dict[str, dict[str, str | None]] = {}
+    for item in parsed:
+        if not isinstance(item, dict):
+            continue
+        name = (item.get("company_name") or "").strip()
+        if not name:
+            continue
+        out[name.lower()] = {
+            "founder_name": (item.get("founder_name") or None),
+            "website": _normalize_website(item.get("website")),
+        }
+    return out
+
+
+async def _tavily_enrich_one(name: str, sector: str | None) -> dict[str, str | None]:
+    from mitra_api.config import get_settings
+    from mitra_api.tools.market_research import web_market_research
+
+    s = get_settings()
+    if not (s.tavily_api_key or "").strip():
+        return {}
+
+    sector_bit = f" {sector}" if sector else ""
+    query = f'"{name}"{sector_bit} India startup founder CEO official website'
+    search = await web_market_research(query, s)
+    if not search.get("ok"):
+        return {}
+
+    from mitra_api.llm.factory import get_llm_adapter
+    from mitra_api.llm.types import ChatMessage
+
+    adapter = get_llm_adapter(s)
+    try:
+        result = await adapter.complete(
+            model=s.mitra_llm_cheap_model,
+            messages=[
+                ChatMessage(
+                    role="system",
+                    content=(
+                        "Extract startup metadata from web search results. "
+                        'Return JSON: {"founder_name": string|null, "website": string|null}. '
+                        "Only confident facts. Website must be the company's own domain."
+                    ),
+                ),
+                ChatMessage(
+                    role="user",
+                    content=f"Startup: {name}\n\nSearch results:\n{search.get('message', '')[:3000]}",
+                ),
+            ],
+            tools=None,
+            max_tokens=256,
+            temperature=0.0,
+        )
+    except Exception:
+        log.exception("startup tavily parse failed for %s", name)
+        return {}
+
+    raw = (result.content or "").strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1].lstrip("json").strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+
+    if not isinstance(data, dict):
+        return {}
+    return {
+        "founder_name": (data.get("founder_name") or None),
+        "website": _normalize_website(data.get("website")),
+    }
+
+
+async def enrich_funded_startups_metadata(db) -> dict[str, int]:
+    """Fill missing founder_name / website for RSS startups via LLM (+ optional Tavily)."""
+    from mitra_api.db.models import FundedStartup
+    from sqlalchemy import or_, select
+
+    rows = list((
+        await db.execute(
+            select(FundedStartup)
+            .where(FundedStartup.source == "rss")
+            .where(or_(FundedStartup.founder_name.is_(None), FundedStartup.website.is_(None)))
+            .order_by(FundedStartup.updated_at.desc())
+            .limit(40)
+        )
+    ).scalars().all())
+
+    stats = {"candidates": len(rows), "founders_added": 0, "websites_added": 0, "tavily_enriched": 0}
+    if not rows:
+        return stats
+
+    for batch_start in range(0, len(rows), 12):
+        batch = rows[batch_start:batch_start + 12]
+        enriched = await _llm_enrich_startups_batch(batch)
+        for row in batch:
+            data = enriched.get(row.name.lower(), {})
+            if data.get("founder_name") and not row.founder_name:
+                founder = _normalize_founder_name(data["founder_name"])
+                if founder:
+                    row.founder_name = founder
+                    stats["founders_added"] += 1
+            if data.get("website") and not row.website:
+                row.website = data["website"]
+                stats["websites_added"] += 1
+
+    still_missing = [
+        r for r in rows
+        if not r.founder_name or not r.website
+    ][:8]
+    for row in still_missing:
+        extra = await _tavily_enrich_one(row.name, row.sector)
+        if not extra:
+            continue
+        stats["tavily_enriched"] += 1
+        if extra.get("founder_name") and not row.founder_name:
+            founder = _normalize_founder_name(extra["founder_name"])
+            if founder:
+                row.founder_name = founder
+                stats["founders_added"] += 1
+        if extra.get("website") and not row.website:
+            row.website = extra["website"]
+            stats["websites_added"] += 1
+
+    await db.flush()
+    log.info("startup enrichment: %s", stats)
+    return stats
+
 
 async def _prune_junk_funded_startups(db) -> int:
     """Remove or rename RSS feed rows whose names are headline fragments, not brands."""
@@ -822,13 +1027,15 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
         _last_pipeline_stats = stats
         log.info(
             "funding_discovery: finished — new=%s updated=%s skipped_sanitize=%s "
-            "events=%s headlines=%s junk_removed=%s",
+            "events=%s headlines=%s junk_removed=%s founders_added=%s websites_added=%s",
             stats.get("new_companies"),
             stats.get("updated_companies"),
             stats.get("skipped_sanitize"),
             stats.get("funding_events_found"),
             stats.get("headlines_collected"),
             stats.get("junk_rows_removed"),
+            stats.get("founders_added"),
+            stats.get("websites_added"),
         )
         return stats
 
@@ -848,6 +1055,8 @@ async def _run_funding_discovery_pipeline_impl(db, *, dry_run: bool = False) -> 
         "updated_companies":    0,
         "junk_rows_removed":    0,
         "skipped_sanitize":     0,
+        "founders_added":       0,
+        "websites_added":       0,
     }
 
     if not dry_run:
@@ -914,11 +1123,11 @@ async def _run_funding_discovery_pipeline_impl(db, *, dry_run: bool = False) -> 
                             stage=_normalise_stage(event.get("stage") or ""),
                             sector=event.get("sector"),
                             location=event.get("location") or "India",
-                            founder_name=event.get("founder_name") or None,
+                            founder_name=_normalize_founder_name(event.get("founder_name")),
                             amount_usd=event.get("amount_usd"),
                             investors=event.get("investors") or [],
                             board_url=None,
-                            website=event.get("website"),
+                            website=_normalize_website(event.get("website")),
                             source_url=(source_item.link if source_item else None),
                             funded_at=funded_at,
                         )
@@ -931,6 +1140,12 @@ async def _run_funding_discovery_pipeline_impl(db, *, dry_run: bool = False) -> 
                     log.warning("funding_discovery: skipped bad row for %r", company_name[:80])
 
             await db.commit()
+
+    if not dry_run:
+        enrich_stats = await enrich_funded_startups_metadata(db)
+        stats["founders_added"] = enrich_stats.get("founders_added", 0)
+        stats["websites_added"] = enrich_stats.get("websites_added", 0)
+        await db.commit()
 
     return stats
 

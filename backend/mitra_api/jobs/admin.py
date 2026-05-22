@@ -1043,6 +1043,22 @@ async def scan_funding(dry_run: bool = False) -> dict:
         return await run_funding_discovery_pipeline(db, dry_run=dry_run)
 
 
+@funding_router.post("/enrich", dependencies=[Depends(require_admin)])
+async def enrich_funding_metadata() -> dict:
+    """
+    Fill missing founder_name and website for existing funded_startups rows.
+    Uses LLM batch enrichment; falls back to Tavily web search if TAVILY_API_KEY is set.
+    """
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.tools.funding_tracker import enrich_funded_startups_metadata
+
+    factory = get_session_factory()
+    async with factory() as db:
+        stats = await enrich_funded_startups_metadata(db)
+        await db.commit()
+    return {"ok": True, **stats}
+
+
 @funding_router.post("/discover-ats", dependencies=[Depends(require_admin)])
 async def discover_company_ats(company_name: str) -> dict:
     from mitra_api.tools.funding_tracker import discover_ats
