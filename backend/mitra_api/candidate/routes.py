@@ -191,7 +191,8 @@ class IntroSummary(BaseModel):
     job_title: str
     company: str
     status: str
-    sent_at: str | None = None   # ISO-8601
+    sent_at: str | None = None       # ISO-8601
+    updated_at: str | None = None    # ISO-8601 — last status change / reschedule
     interview_details: dict | None = None  # {"scheduled_at","format","link","notes"}
     offer_details: dict | None = None      # {"salary_lpa","equity_percent","start_date","notes"}
     booking_link: str | None = None        # Cal.com scheduling URL (set when status == acknowledged)
@@ -265,6 +266,7 @@ async def list_candidate_intros(
             company=job.company,
             status=str(intro.status),
             sent_at=intro.sent_at.isoformat() if intro.sent_at else None,
+            updated_at=intro.updated_at.isoformat() if intro.updated_at else None,
             interview_details={k: v for k, v in (intro.interview_details or {}).items() if k != "booking_link"} or None,
             offer_details=intro.offer_details or None,
             booking_link=_booking_link(intro, job),

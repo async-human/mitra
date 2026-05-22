@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { introStatusMeta, isTerminalIntroStatus, sortIntrosByPriority } from "./candidatePipeline";
+import { introStatusMeta, isRecentlyUpdated, isTerminalIntroStatus, sortIntrosByPriority } from "./candidatePipeline";
 import type { CandidateIntro } from "./introTypes";
 
 function formatDate(iso: string | null): string {
@@ -20,13 +20,22 @@ function IntrosEmptyIcon() {
   );
 }
 
-function formatDateTime(iso: string | undefined): string {
-  if (!iso) return "";
-  const d = new Date(iso);
+function formatDateTime(isoOrFmt: string | undefined): string {
+  if (!isoOrFmt) return "";
+  // Try ISO parse first; if it fails the string is already human-readable
+  const d = new Date(isoOrFmt);
+  if (isNaN(d.getTime())) return isoOrFmt; // already formatted by Cal.com
   return d.toLocaleString("en-IN", {
     weekday: "short", day: "numeric", month: "short",
     hour: "2-digit", minute: "2-digit", hour12: true,
   });
+}
+
+function resolveDisplayTime(iv: { scheduled_at?: string; scheduled_at_iso?: string } | null | undefined): string {
+  if (!iv) return "";
+  // scheduled_at_iso is always a valid ISO string; scheduled_at may be pre-formatted
+  const src = iv.scheduled_at_iso || iv.scheduled_at || "";
+  return formatDateTime(src);
 }
 
 function interviewFormatLabel(format: string | undefined): string {
@@ -46,14 +55,16 @@ function introRowHint(intro: CandidateIntro): string {
         return `₹${od.salary_lpa}L / year on file · open for full terms`;
       }
       return "Offer details inside — tap to review";
-    case "interview":
-      if (iv?.scheduled_at) {
-        const bits = [formatDateTime(iv.scheduled_at)];
-        const fmt = interviewFormatLabel(iv.format);
+    case "interview": {
+      const timeStr = resolveDisplayTime(iv);
+      if (timeStr) {
+        const bits = [timeStr];
+        const fmt = interviewFormatLabel(iv?.format);
         if (fmt) bits.push(fmt);
         return bits.join(" · ");
       }
       return "Interview time · confirming with the team";
+    }
     case "acknowledged":
       return intro.booking_link
         ? "Founder is interested — tap to book your interview slot"
@@ -128,7 +139,7 @@ function IntroDetailModal({ intro, onClose }: { intro: CandidateIntro; onClose: 
               <div className="dash-modal-facts">
                 <div className="dash-modal-fact">
                   <span className="dash-modal-fact-label">When</span>
-                  <span className="dash-modal-fact-value">{formatDateTime(iv.scheduled_at)}</span>
+                  <span className="dash-modal-fact-value">{resolveDisplayTime(iv)}</span>
                 </div>
                 {iv.format && (
                   <div className="dash-modal-fact">
@@ -225,20 +236,26 @@ function IntroRow({
   onSelect: (i: CandidateIntro) => void;
 }) {
   const meta = introStatusMeta(intro.status);
-  const isClickable = ["interview", "offer", "hired"].includes(intro.status) ||
-    (intro.status === "acknowledged");
+  const isClickable = ["interview", "offer", "hired", "acknowledged"].includes(intro.status);
   const hint = introRowHint(intro);
+  const showUpdatedBadge = isRecentlyUpdated(intro) &&
+    intro.updated_at && intro.updated_at !== intro.sent_at &&
+    !isTerminalIntroStatus(intro.status);
   return (
     <button
-      className={`dash-intro-row${isClickable ? " dash-intro-row--clickable" : ""}`}
+      className={`dash-intro-row${isClickable ? " dash-intro-row--clickable" : ""}${showUpdatedBadge ? " dash-intro-row--updated" : ""}`}
       onClick={() => isClickable && onSelect(intro)}
       type="button"
     >
       <div className="dash-intro-av">
         {intro.company.slice(0, 2).toUpperCase()}
+        {showUpdatedBadge && <span className="dash-intro-av-dot" aria-label="Recently updated" />}
       </div>
       <div className="dash-intro-info">
-        <span className="dash-intro-role">{intro.job_title}</span>
+        <div className="dash-intro-title-row">
+          <span className="dash-intro-role">{intro.job_title}</span>
+          {showUpdatedBadge && <span className="dash-intro-updated-badge">Updated</span>}
+        </div>
         <span className="dash-intro-company">{intro.company}</span>
         {hint ? <span className="dash-intro-hint">{hint}</span> : null}
       </div>

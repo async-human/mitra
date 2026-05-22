@@ -132,16 +132,16 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
-function formatDateTime(iso: string | undefined): string {
-  if (!iso) return "";
+function formatDateTime(isoOrFmt: string | undefined): string {
+  if (!isoOrFmt) return "";
   try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return iso;
+    const d = new Date(isoOrFmt);
+    if (isNaN(d.getTime())) return isoOrFmt; // already formatted
     return d.toLocaleString("en-IN", {
       weekday: "short", day: "numeric", month: "short",
       hour: "2-digit", minute: "2-digit", hour12: true,
     });
-  } catch { return iso; }
+  } catch { return isoOrFmt; }
 }
 
 function formatLabel(fmt: string | undefined): string {

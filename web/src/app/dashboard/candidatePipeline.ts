@@ -4,6 +4,7 @@ export interface IntroLike {
   job_id: number;
   status: string;
   sent_at: string | null;
+  updated_at?: string | null;
 }
 
 const STATUS_RANK: Record<string, number> = {
@@ -20,13 +21,40 @@ export function rankIntroStatus(status: string): number {
   return STATUS_RANK[status] ?? 50;
 }
 
-/** Need attention first; outcomes (hired / declined) last; newer intros before older within the same band. */
+const RECENT_UPDATE_MS = 48 * 60 * 60 * 1000; // 48 hours
+
+export function isRecentlyUpdated(intro: IntroLike): boolean {
+  const ts = intro.updated_at || intro.sent_at;
+  if (!ts) return false;
+  return Date.now() - new Date(ts).getTime() < RECENT_UPDATE_MS;
+}
+
+/**
+ * Recently-updated active intros float to the very top, then by status rank,
+ * then by recency within the same rank band.
+ */
 export function sortIntrosByPriority<T extends IntroLike>(intros: T[]): T[] {
+  const isTerminal = (s: string) => s === "hired" || s === "declined";
   return [...intros].sort((a, b) => {
+    // Terminal intros always sink to the bottom
+    const aT = isTerminal(a.status) ? 1 : 0;
+    const bT = isTerminal(b.status) ? 1 : 0;
+    if (aT !== bT) return aT - bT;
+
+    // Among non-terminal: recently updated floats to top
+    if (!aT && !bT) {
+      const aR = isRecentlyUpdated(a) ? 0 : 1;
+      const bR = isRecentlyUpdated(b) ? 0 : 1;
+      if (aR !== bR) return aR - bR;
+    }
+
+    // Within same recency band: status rank
     const dr = rankIntroStatus(a.status) - rankIntroStatus(b.status);
     if (dr !== 0) return dr;
-    const ta = a.sent_at ? new Date(a.sent_at).getTime() : 0;
-    const tb = b.sent_at ? new Date(b.sent_at).getTime() : 0;
+
+    // Within same status: newer first
+    const ta = (a.updated_at || a.sent_at) ? new Date((a.updated_at || a.sent_at)!).getTime() : 0;
+    const tb = (b.updated_at || b.sent_at) ? new Date((b.updated_at || b.sent_at)!).getTime() : 0;
     return tb - ta;
   });
 }

@@ -3719,6 +3719,8 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
 }
 .dash-intro-company {
   font-size: 12px;
@@ -3782,6 +3784,40 @@ body {
 }
 .dash-intro-row--clickable:hover {
   background: #E8E6E0;
+}
+.dash-intro-row--updated {
+  border-left: 3px solid #7C3AED;
+  padding-left: calc(var(--dash-intro-px, 16px) - 3px);
+}
+.dash-intro-av {
+  position: relative;
+}
+.dash-intro-av-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #7C3AED;
+  border: 1.5px solid #fff;
+}
+.dash-intro-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.dash-intro-updated-badge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #7C3AED;
+  background: #F5F3FF;
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 .dash-intro-chevron {
   font-size: 16px;

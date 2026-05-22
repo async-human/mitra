@@ -101,31 +101,42 @@ function getDashboardUpdate(matches: StoredMatchCard[], intros: CandidateIntro[]
   const interviews = intros.filter((i) => i.status === "interview");
   if (interviews.length === 1) {
     const iv = interviews[0].interview_details;
-    const when =
-      iv?.scheduled_at &&
-      new Date(iv.scheduled_at).toLocaleString("en-IN", {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
+    const isRescheduled = iv?.notes?.toLowerCase().includes("rescheduled");
+    const timeStr = (() => {
+      const src = iv?.scheduled_at_iso || iv?.scheduled_at || "";
+      if (!src) return "";
+      const d = new Date(src);
+      if (isNaN(d.getTime())) return src; // already formatted
+      return d.toLocaleString("en-IN", {
+        weekday: "short", day: "numeric", month: "short",
+        hour: "2-digit", minute: "2-digit", hour12: true,
       });
+    })();
     return {
       kind: "interview",
-      label: "Interview booked",
+      label: isRescheduled ? "Interview rescheduled" : "Interview booked",
       headline: `Up next with ${interviews[0].company}`,
-      detail: when
-        ? `Scheduled ${when}. Full details are in Introductions.`
+      detail: timeStr
+        ? `${isRescheduled ? "New time: " : "Scheduled "}${timeStr}. Full details are in Introductions.`
         : "Time is being confirmed — details will appear in Introductions.",
     };
   }
   if (interviews.length > 1) {
+    // Surface the most recently updated interview at the top notice
+    const sorted = [...interviews].sort((a, b) => {
+      const ta = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return tb - ta;
+    });
+    const latest = sorted[0];
+    const isRescheduled = latest?.interview_details?.notes?.toLowerCase().includes("rescheduled");
     return {
       kind: "interview",
-      label: "Interviews booked",
+      label: isRescheduled ? "Interview rescheduled" : "Interviews booked",
       headline: `${interviews.length} interviews on your calendar`,
-      detail: "Open Introductions for times, links, and notes for each role.",
+      detail: isRescheduled
+        ? `${latest.company} rescheduled — open Introductions for the new time.`
+        : "Open Introductions for times, links, and notes for each role.",
     };
   }
   const hiredList = intros.filter((i) => i.status === "hired");
