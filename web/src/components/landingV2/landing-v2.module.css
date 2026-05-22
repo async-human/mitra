@@ -4095,22 +4095,18 @@ details[open] .faqIcon {
 /* ── Responsive: 640px ──────────────────────────────────────── */
 
 @media (max-width: 640px) {
-  /* Nav — two-row layout: row1 = logo + CTA, row2 = audience toggle */
+  /* Nav — single row: Logo | Toggle | CTA */
   .navInner {
-    flex-wrap: wrap;
-    height: auto;
-    padding: 0.55rem 0;
-    row-gap: 0.45rem;
-    column-gap: 0;
+    flex-wrap: nowrap;
+    height: 52px;
+    gap: 0.5rem;
     justify-content: space-between;
   }
-  /* Toggle drops to its own centred row */
   .navToggle {
-    order: 3;
-    width: 100%;
-    justify-content: center;
+    flex-shrink: 1;
   }
-  /* Hide items that don't fit / aren't needed on mobile */
+  .navToggleBtn { padding: 0.28rem 0.72rem; font-size: 0.73rem; }
+  /* Hide items that don't fit on mobile */
   .navSignIn { display: none; }
   .navLinks  { display: none; }
 
@@ -4137,8 +4133,7 @@ details[open] .faqIcon {
 
 @media (max-width: 480px) {
   /* Nav */
-  .navCtaBtn    { padding: 0.4rem 0.9rem; font-size: 0.78rem; }
-  .navToggleBtn { padding: 0.3rem 0.85rem; font-size: 0.75rem; }
+  .navCtaBtn { padding: 0.38rem 0.85rem; font-size: 0.77rem; }
 
   /* Hero */
   .heroChip   { margin-bottom: 1.25rem; }
@@ -4165,8 +4160,8 @@ details[open] .faqIcon {
 @media (max-width: 360px) {
   .navLogoMark  { width: 26px; height: 26px; font-size: 0.78rem; }
   .navLogo      { font-size: 1rem; gap: 0.35rem; }
-  .navCtaBtn    { padding: 0.38rem 0.75rem; font-size: 0.75rem; }
-  .navToggleBtn { padding: 0.25rem 0.65rem; font-size: 0.72rem; }
+  .navCtaBtn    { padding: 0.35rem 0.65rem; font-size: 0.73rem; }
+  .navToggleBtn { padding: 0.24rem 0.6rem; font-size: 0.7rem; }
 }
 
 /* ── Reduced motion ─────────────────────────────────────────── */
