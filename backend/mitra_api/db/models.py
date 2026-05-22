@@ -153,6 +153,8 @@ class FundedStartup(Base):
     investors:    Mapped[Any|None]  = mapped_column(JSONB)   # list[str]
     website:      Mapped[str|None]  = mapped_column(String(300))
     board_url:    Mapped[str|None]  = mapped_column(String(300))
+    source_url:   Mapped[str|None]  = mapped_column(String(500))
+    funded_at:    Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
 
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at:    Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

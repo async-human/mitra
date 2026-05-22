@@ -176,6 +176,8 @@ async def run_schema_migrations() -> None:
         )""",
         "CREATE INDEX IF NOT EXISTS funded_startups_stage_idx ON funded_startups(stage)",
         "CREATE INDEX IF NOT EXISTS funded_startups_updated_idx ON funded_startups(updated_at DESC)",
+        "ALTER TABLE funded_startups ADD COLUMN IF NOT EXISTS source_url VARCHAR(500)",
+        "ALTER TABLE funded_startups ADD COLUMN IF NOT EXISTS funded_at TIMESTAMPTZ",
     ]
     engine = _engine()
     async with engine.begin() as conn:

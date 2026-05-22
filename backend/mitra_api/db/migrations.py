@@ -171,6 +171,8 @@ async def create_all() -> None:
                 investors    JSONB,
                 website      VARCHAR(300),
                 board_url    VARCHAR(300),
+                source_url   VARCHAR(500),
+                funded_at    TIMESTAMPTZ,
                 discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                 updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )

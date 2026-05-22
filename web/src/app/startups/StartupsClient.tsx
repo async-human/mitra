@@ -15,6 +15,8 @@ export interface CompanyFeedItem {
   investors: string[];
   active_jobs: number;
   board_url: string | null;
+  source_url: string | null;
+  funded_at: string | null;
   created_at: string;
 }
 
@@ -23,6 +25,17 @@ function formatAmount(usd: number): string {
   if (usd >= 1_000_000)     return `$${Math.round(usd / 1_000_000)}M`;
   if (usd >= 1_000)         return `$${Math.round(usd / 1_000)}K`;
   return `$${usd.toLocaleString()}`;
+}
+
+function formatFundedDate(iso: string | null): string | null {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+  } catch {
+    return null;
+  }
 }
 
 function stageCls(stage: string | null): string {
@@ -38,6 +51,7 @@ function stageCls(stage: string | null): string {
 
 function CompanyCard({ company, index }: { company: CompanyFeedItem; index: number }) {
   const meta = [company.sector, company.location].filter(Boolean).join(" · ");
+  const fundedDate = formatFundedDate(company.funded_at);
 
   return (
     <article
@@ -52,6 +66,16 @@ function CompanyCard({ company, index }: { company: CompanyFeedItem; index: numb
         <div className={s.cardIdentity}>
           <p className={s.cardName}>{company.name}</p>
           {meta && <p className={s.cardMeta}>{meta}</p>}
+          {company.website && (
+            <a
+              href={company.website.startsWith("http") ? company.website : `https://${company.website}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={s.cardWebsite}
+            >
+              {company.website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+            </a>
+          )}
         </div>
         {company.stage && (
           <span className={`${s.stagePill} ${stageCls(company.stage)}`}>
@@ -65,19 +89,25 @@ function CompanyCard({ company, index }: { company: CompanyFeedItem; index: numb
         {company.amount_usd ? (
           <>
             <div className={s.cardAmount}>{formatAmount(company.amount_usd)}</div>
-            <div className={s.cardAmountNote}>Raised</div>
+            <div className={s.cardAmountNote}>
+              Raised{fundedDate ? ` · ${fundedDate}` : ""}
+            </div>
             {company.investors.length > 0 && (
               <p className={s.cardInvestors}>
-                {company.investors.slice(0, 3).join(" · ")}
+                <span className={s.cardInvestorsLabel}>Backed by </span>
+                {company.investors.slice(0, 4).join(" · ")}
               </p>
             )}
           </>
         ) : (
           <>
-            <p className={s.cardUndisclosed}>Amount undisclosed</p>
+            <p className={s.cardUndisclosed}>
+              Amount undisclosed{fundedDate ? ` · ${fundedDate}` : ""}
+            </p>
             {company.investors.length > 0 && (
               <p className={s.cardInvestors} style={{ marginTop: "0.35rem" }}>
-                {company.investors.slice(0, 3).join(" · ")}
+                <span className={s.cardInvestorsLabel}>Backed by </span>
+                {company.investors.slice(0, 4).join(" · ")}
               </p>
             )}
           </>
@@ -104,18 +134,31 @@ function CompanyCard({ company, index }: { company: CompanyFeedItem; index: numb
             "No open roles"
           )}
         </span>
-        {company.board_url ? (
-          <a
-            href={company.board_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={s.cardLink}
-          >
-            View roles →
-          </a>
-        ) : (
-          <span className={s.cardLinkNone}>Board not listed</span>
-        )}
+        <div className={s.cardLinks}>
+          {company.board_url && (
+            <a
+              href={company.board_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={s.cardLink}
+            >
+              View roles →
+            </a>
+          )}
+          {company.source_url && (
+            <a
+              href={company.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={s.cardLinkSecondary}
+            >
+              Source →
+            </a>
+          )}
+          {!company.board_url && !company.source_url && (
+            <span className={s.cardLinkNone}>Board not listed</span>
+          )}
+        </div>
       </div>
     </article>
   );

@@ -25,7 +25,9 @@ import logging
 import re
 import secrets
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import httpx
@@ -36,16 +38,24 @@ log = logging.getLogger(__name__)
 # All are RSS/Atom — no JS challenge, no Cloudflare, bot-friendly.
 # Google News RSS is the most reliable: aggregates all major Indian publications.
 _RSS_FEEDS: list[str] = [
-    # Google News: broad coverage, aggregates Inc42 + YourStory + Entrackr + ET
     "https://news.google.com/rss/search?q=India+startup+funding+Series&hl=en-IN&gl=IN&ceid=IN:en",
+    "https://news.google.com/rss/search?q=Indian+startup+seed+funding+raised&hl=en-IN&gl=IN&ceid=IN:en",
+    "https://news.google.com/rss/search?q=Indian+startup+Series+C+D+funding&hl=en-IN&gl=IN&ceid=IN:en",
     "https://news.google.com/rss/search?q=Indian+startup+raised+crore+million&hl=en-IN&gl=IN&ceid=IN:en",
-    # Inc42 native RSS
     "https://inc42.com/feed/",
-    # Entrackr — best for Series A/B funding news
     "https://entrackr.com/feed/",
-    # YourStory
     "https://yourstory.com/feed",
 ]
+
+_LLM_BATCH_SIZE = 35
+
+
+@dataclass
+class RssItem:
+    title: str
+    description: str
+    link: str | None = None
+    pub_date: datetime | None = None
 
 _HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; MitraFundingBot/1.0; +https://mitra.work)"}
 
@@ -84,36 +94,49 @@ def _strip_html(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _parse_feed(xml_text: str) -> list[str]:
-    """
-    Parse RSS 2.0 or Atom feed.
-    Returns a list of "title. description" strings — one per item.
-    """
-    items: list[str] = []
+def _parse_pub_date(raw: str | None) -> datetime | None:
+    if not raw:
+        return None
+    try:
+        dt = parsedate_to_datetime(raw.strip())
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+
+def _parse_feed(xml_text: str) -> list[RssItem]:
+    """Parse RSS 2.0 or Atom feed into structured items."""
+    items: list[RssItem] = []
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError:
         return items
 
-    # RSS 2.0
     for item in root.findall(".//item"):
         title = _strip_html(item.findtext("title") or "")
         desc  = _strip_html(item.findtext("description") or "")
+        link  = (item.findtext("link") or "").strip() or None
+        pub   = _parse_pub_date(item.findtext("pubDate"))
         if title:
-            items.append(f"{title}. {desc[:200]}".strip(" ."))
+            items.append(RssItem(title=title, description=desc[:300], link=link, pub_date=pub))
 
-    # Atom
     for entry in root.findall(f".//{{{_ATOM_NS}}}entry"):
         title   = _strip_html(entry.findtext(f"{{{_ATOM_NS}}}title")   or "")
         summary = _strip_html(entry.findtext(f"{{{_ATOM_NS}}}summary") or "")
+        link_el = entry.find(f"{{{_ATOM_NS}}}link")
+        link    = link_el.get("href") if link_el is not None else None
+        pub_raw = entry.findtext(f"{{{_ATOM_NS}}}published") or entry.findtext(f"{{{_ATOM_NS}}}updated")
+        pub     = _parse_pub_date(pub_raw)
         if title:
-            items.append(f"{title}. {summary[:200]}".strip(" ."))
+            items.append(RssItem(title=title, description=summary[:300], link=link, pub_date=pub))
 
     return items
 
 
-async def _fetch_rss(url: str) -> list[str]:
-    """Fetch one RSS feed and return parsed item strings."""
+async def _fetch_rss(url: str) -> list[RssItem]:
+    """Fetch one RSS feed and return parsed items."""
     try:
         async with httpx.AsyncClient(timeout=12.0, headers=_HEADERS, follow_redirects=True) as client:
             resp = await client.get(url)
@@ -129,67 +152,115 @@ async def _fetch_rss(url: str) -> list[str]:
 # ── LLM extraction ────────────────────────────────────────────────────────────
 
 _EXTRACTION_SYSTEM = """\
-You extract Indian tech startup funding announcements from news headlines.
+You extract Indian tech startup funding announcements from numbered news headlines.
 
-For each genuine Indian tech startup funding round you find, return a JSON object:
-  company_name  (string — the startup name only, not the parent group)
-  amount_usd    (integer in USD — null if not mentioned or unclear)
-  stage         (one of: pre_seed | seed | series_a | series_b | series_c | series_d | series_e | series_f | growth | ipo | bridge | unknown)
-  sector        (string — e.g. "Fintech", "B2B SaaS", "Consumer", "Developer Tools", "AI / SaaS", "Healthtech", "Edtech", "Logistics")
-  location      (string — city or "India" if not specified)
-  investors     (array of strings, max 3 investor names — empty array if none mentioned)
-  founder_name  (string or null — only if explicitly named in the headline)
+For each genuine Indian tech startup funding round, return a JSON object with:
+  headline_index  (integer — the headline number this event came from)
+  company_name    (string — startup name only, not the parent group)
+  amount_usd      (integer in USD — null if not mentioned or unclear)
+  stage           (one of: pre_seed | seed | series_a | series_b | series_c | series_d | series_e | series_f | growth | ipo | bridge | unknown)
+  sector          (string — e.g. "Fintech", "B2B SaaS", "Consumer", "Developer Tools", "AI / SaaS", "Healthtech")
+  location        (string — city or "India")
+  investors       (array of strings, up to 5 investor names — empty array if none mentioned)
+  founder_name    (string or null — only if explicitly named)
+  website         (string or null — company website URL if mentioned or clearly inferrable, else null)
+  funded_at       (string "YYYY-MM-DD" or null — best estimate of announcement date from headline context)
 
 Conversion: ₹1 crore ≈ $120,000. ₹1000 crore ≈ $120M.
 
-Strict rules:
-- Only include is_tech companies (software, fintech, SaaS, consumer-tech, health-tech, etc.)
-- Skip: real estate, pharma, manufacturing, government, M&A deals, secondary sales
-- Skip companies that are clearly not Indian
-- If the same company appears multiple times, include it only once (latest/largest round)
-- If you cannot determine the company is Indian tech, skip it
+Rules:
+- Include ALL stages from pre-seed through growth/IPO — do not filter to only Series A/B
+- Only Indian tech startups (software, fintech, SaaS, consumer-tech, health-tech, etc.)
+- Skip: real estate, pharma, manufacturing, pure M&A, secondary sales
+- Extract as many distinct companies as the headlines support — aim for breadth, not just the largest rounds
+- One entry per company (dedupe within your response)
+- headline_index must match the numbered headline the event came from
 
-Return ONLY a valid JSON array — no markdown, no explanation, no commentary.\
+Return ONLY a valid JSON array — no markdown, no commentary.\
 """
 
 
-async def extract_funding_from_headlines(headlines: list[str]) -> list[dict[str, Any]]:
-    """
-    Call the cheap LLM to extract funding events from a batch of headlines.
-    Provider and model are read from settings — env-only switch.
-    """
-    if not headlines:
+def _dedupe_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_name: dict[str, dict[str, Any]] = {}
+    for event in events:
+        name = (event.get("company_name") or "").strip()
+        if not name:
+            continue
+        key = name.lower()
+        prev = by_name.get(key)
+        if not prev:
+            by_name[key] = event
+            continue
+        prev_amt = prev.get("amount_usd") or 0
+        new_amt = event.get("amount_usd") or 0
+        if new_amt >= prev_amt:
+            by_name[key] = event
+    return list(by_name.values())
+
+
+def _parse_funded_at(raw: str | None, fallback: datetime | None = None) -> datetime | None:
+    if raw:
+        try:
+            dt = datetime.fromisoformat(raw[:10])
+            return dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            pass
+    return fallback
+
+
+async def _extract_batch(
+    adapter, model: str, items: list[RssItem], *, global_offset: int = 0,
+) -> list[dict[str, Any]]:
+    from mitra_api.llm.types import ChatMessage
+
+    numbered = "\n".join(
+        f"{global_offset + i + 1}. {it.title}. {it.description[:180]}"
+        for i, it in enumerate(items)
+    )
+    result = await adapter.complete(
+        model=model,
+        messages=[
+            ChatMessage(role="system", content=_EXTRACTION_SYSTEM),
+            ChatMessage(role="user",   content=f"Headlines:\n{numbered}"),
+        ],
+        tools=None,
+        max_tokens=4096,
+        temperature=0.0,
+    )
+    raw = (result.content or "").strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1].lstrip("json").strip()
+    parsed = json.loads(raw)
+    return parsed if isinstance(parsed, list) else []
+
+
+async def extract_funding_from_headlines(items: list[RssItem]) -> list[dict[str, Any]]:
+    """Extract funding events from RSS items — batched LLM calls for full coverage."""
+    if not items:
         return []
 
     from mitra_api.config import get_settings
     from mitra_api.llm.factory import get_llm_adapter
-    from mitra_api.llm.types import ChatMessage
 
     s       = get_settings()
     adapter = get_llm_adapter(s)
+    all_events: list[dict[str, Any]] = []
 
-    # Number the headlines so the LLM can reference them
-    numbered = "\n".join(f"{i+1}. {h}" for i, h in enumerate(headlines[:80]))
+    for batch_start in range(0, len(items), _LLM_BATCH_SIZE):
+        batch = items[batch_start:batch_start + _LLM_BATCH_SIZE]
+        try:
+            batch_events = await _extract_batch(
+                adapter, s.mitra_llm_cheap_model, batch, global_offset=batch_start,
+            )
+            all_events.extend(batch_events)
+            log.info(
+                "funding LLM batch %d–%d: extracted %d events",
+                batch_start + 1, batch_start + len(batch), len(batch_events),
+            )
+        except Exception:
+            log.exception("funding LLM batch failed at offset %d", batch_start)
 
-    try:
-        result = await adapter.complete(
-            model=s.mitra_llm_cheap_model,
-            messages=[
-                ChatMessage(role="system", content=_EXTRACTION_SYSTEM),
-                ChatMessage(role="user",   content=f"Headlines:\n{numbered}"),
-            ],
-            tools=None,
-            max_tokens=2000,
-            temperature=0.0,
-        )
-        raw = (result.content or "").strip()
-        if raw.startswith("```"):
-            raw = raw.split("```")[1].lstrip("json").strip()
-        parsed = json.loads(raw)
-        return parsed if isinstance(parsed, list) else []
-    except Exception:
-        log.exception("funding LLM extraction failed")
-        return []
+    return _dedupe_events(all_events)
 
 
 # ── ATS probing ───────────────────────────────────────────────────────────────
@@ -431,6 +502,9 @@ async def _upsert_funded_startup(
     location: str | None, founder_name: str | None,
     amount_usd: int | None, investors: list[str],
     board_url: str | None,
+    website: str | None = None,
+    source_url: str | None = None,
+    funded_at: datetime | None = None,
 ) -> tuple[Any, bool]:
     from mitra_api.db.models import FundedStartup
     from sqlalchemy import select
@@ -440,16 +514,26 @@ async def _upsert_funded_startup(
     ).scalar_one_or_none()
 
     if existing:
-        if amount_usd and not existing.amount_usd:
+        if amount_usd and (not existing.amount_usd or amount_usd > existing.amount_usd):
             existing.amount_usd = amount_usd
-        if investors and not existing.investors:
+        if investors and (not existing.investors or len(investors) > len(existing.investors or [])):
             existing.investors = investors
         if founder_name and not existing.founder_name:
             existing.founder_name = founder_name
         if board_url and not existing.board_url:
             existing.board_url = board_url
-        if stage and not existing.stage:
+        if stage and (not existing.stage or existing.stage.lower() == "unknown"):
             existing.stage = stage
+        if sector and not existing.sector:
+            existing.sector = sector
+        if location and not existing.location:
+            existing.location = location
+        if website and not existing.website:
+            existing.website = website
+        if source_url and not existing.source_url:
+            existing.source_url = source_url
+        if funded_at and not existing.funded_at:
+            existing.funded_at = funded_at
         return existing, False
 
     startup = FundedStartup(
@@ -461,9 +545,35 @@ async def _upsert_funded_startup(
         amount_usd=amount_usd,
         investors=investors or [],
         board_url=board_url,
+        website=website,
+        source_url=source_url,
+        funded_at=funded_at,
     )
     db.add(startup)
     return startup, True
+
+
+async def sync_curated_startups_to_feed(db) -> int:
+    """Merge the curated bootstrap list into funded_startups (with known job boards)."""
+    added = 0
+    for entry in BOOTSTRAP_COMPANIES:
+        ats_info = _known_ats_info(entry)
+        _, created = await _upsert_funded_startup(
+            db,
+            company_name=entry["name"],
+            stage=entry.get("stage"),
+            sector=entry.get("sector"),
+            location=entry.get("location", "India"),
+            founder_name=None,
+            amount_usd=None,
+            investors=[],
+            board_url=ats_info.get("board_url") if ats_info else None,
+        )
+        if created:
+            added += 1
+    if added:
+        await db.commit()
+    return added
 
 
 async def backfill_funded_startups_from_companies(db) -> int:
@@ -491,6 +601,7 @@ async def backfill_funded_startups_from_companies(db) -> int:
             amount_usd=signals.get("amount_usd"),
             investors=investors if isinstance(investors, list) else [],
             board_url=company.board_url,
+            website=company.website,
         )
         if created:
             added += 1
@@ -505,9 +616,10 @@ async def backfill_funded_startups_from_companies(db) -> int:
 async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[str, Any]:
     """
     1. Fetch all RSS feeds in parallel
-    2. Deduplicate headlines
-    3. Single LLM call to extract all funding events
-    4. Upsert into funded_startups table (separate from operational Company table)
+    2. Deduplicate items
+    3. Batched LLM extraction (full feed coverage)
+    4. Upsert into funded_startups with source URLs + dates
+    5. Merge curated bootstrap startups
     """
     import asyncio
 
@@ -517,64 +629,81 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
         "funding_events_found": 0,
         "new_companies":        0,
         "updated_companies":    0,
+        "curated_merged":       0,
     }
 
-    # 1 — Fetch all RSS feeds in parallel
     feed_results = await asyncio.gather(*[_fetch_rss(url) for url in _RSS_FEEDS])
-    all_headlines: list[str] = []
+    all_items: list[RssItem] = []
     seen_titles: set[str] = set()
     for items in feed_results:
         for item in items:
-            key = item[:80].lower()
+            key = item.title[:80].lower()
             if key not in seen_titles:
                 seen_titles.add(key)
-                all_headlines.append(item)
+                all_items.append(item)
 
-    stats["headlines_collected"] = len(all_headlines)
-    log.info("funding_discovery: %d unique headlines from %d feeds", len(all_headlines), len(_RSS_FEEDS))
+    stats["headlines_collected"] = len(all_items)
+    log.info("funding_discovery: %d unique headlines from %d feeds", len(all_items), len(_RSS_FEEDS))
 
-    if not all_headlines:
-        log.warning("funding_discovery: no headlines collected — all RSS feeds may be down")
-        return stats
+    if all_items:
+        events = await extract_funding_from_headlines(all_items)
+        stats["funding_events_found"] = len(events)
+        log.info("funding_discovery: LLM extracted %d funding events (deduped)", len(events))
 
-    # 2 — Single LLM call for all headlines
-    events = await extract_funding_from_headlines(all_headlines)
-    stats["funding_events_found"] = len(events)
-    log.info("funding_discovery: LLM extracted %d funding events", len(events))
-
-    if dry_run:
-        for e in events:
-            log.info(
-                "DRY RUN: %s  stage=%s  amount_usd=%s  investors=%s",
-                e.get("company_name"), e.get("stage"),
-                e.get("amount_usd"), e.get("investors"),
-            )
-        return stats
-
-    # 3 — Upsert each event into funded_startups
-    for event in events:
-        company_name = (event.get("company_name") or "").strip()
-        if not company_name:
-            continue
-
-        _, created = await _upsert_funded_startup(
-            db,
-            company_name=company_name,
-            stage=_normalise_stage(event.get("stage") or ""),
-            sector=event.get("sector"),
-            location=event.get("location") or "India",
-            founder_name=event.get("founder_name") or None,
-            amount_usd=event.get("amount_usd"),
-            investors=event.get("investors") or [],
-            board_url=None,
-        )
-        await db.flush()
-        if created:
-            stats["new_companies"] += 1
+        if dry_run:
+            for e in events:
+                log.info(
+                    "DRY RUN: %s  stage=%s  amount_usd=%s  investors=%s",
+                    e.get("company_name"), e.get("stage"),
+                    e.get("amount_usd"), e.get("investors"),
+                )
         else:
-            stats["updated_companies"] += 1
+            for event in events:
+                company_name = (event.get("company_name") or "").strip()
+                if not company_name:
+                    continue
 
-    await db.commit()
+                headline_idx = event.get("headline_index")
+                source_item: RssItem | None = None
+                if headline_idx is not None:
+                    try:
+                        idx = int(headline_idx) - 1
+                        if 0 <= idx < len(all_items):
+                            source_item = all_items[idx]
+                    except (TypeError, ValueError):
+                        pass
+
+                funded_at = _parse_funded_at(
+                    event.get("funded_at"),
+                    fallback=source_item.pub_date if source_item else None,
+                )
+
+                _, created = await _upsert_funded_startup(
+                    db,
+                    company_name=company_name,
+                    stage=_normalise_stage(event.get("stage") or ""),
+                    sector=event.get("sector"),
+                    location=event.get("location") or "India",
+                    founder_name=event.get("founder_name") or None,
+                    amount_usd=event.get("amount_usd"),
+                    investors=event.get("investors") or [],
+                    board_url=None,
+                    website=event.get("website"),
+                    source_url=source_item.link if source_item else None,
+                    funded_at=funded_at,
+                )
+                await db.flush()
+                if created:
+                    stats["new_companies"] += 1
+                else:
+                    stats["updated_companies"] += 1
+
+            await db.commit()
+
+    if not dry_run:
+        stats["curated_merged"] = await sync_curated_startups_to_feed(db)
+        await backfill_funded_startups_from_companies(db)
+
     return stats
 
 

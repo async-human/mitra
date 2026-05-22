@@ -615,6 +615,8 @@ class CompanyFeedItem(BaseModel):
     investors:    list[str]  = []
     active_jobs:  int        = 0
     board_url:    str | None = None
+    source_url:   str | None = None
+    funded_at:    str | None = None
     created_at:   str
 
 
@@ -634,13 +636,18 @@ async def public_companies_feed(
     from mitra_api.tools.funding_tracker import (
         backfill_funded_startups_from_companies,
         run_funding_discovery_pipeline,
+        sync_curated_startups_to_feed,
     )
+
+    # Always merge curated + operational companies into the public feed
+    await sync_curated_startups_to_feed(db)
+    await backfill_funded_startups_from_companies(db)
 
     async def _load_rows() -> list[FundedStartup]:
         return list((
             await db.execute(
                 select(FundedStartup)
-                .order_by(FundedStartup.updated_at.desc())
+                .order_by(FundedStartup.funded_at.desc().nullslast(), FundedStartup.updated_at.desc())
                 .limit(200)
             )
         ).scalars().all())
@@ -648,13 +655,7 @@ async def public_companies_feed(
     rows = await _load_rows()
 
     if not rows:
-        backfilled = await backfill_funded_startups_from_companies(db)
-        if backfilled:
-            log.info("public/companies: backfilled %d rows from companies table", backfilled)
-        rows = await _load_rows()
-
-    if not rows:
-        log.info("public/companies: funded_startups still empty — running RSS pipeline now")
+        log.info("public/companies: funded_startups empty — running RSS pipeline now")
         try:
             await run_funding_discovery_pipeline(db)
             rows = await _load_rows()
@@ -700,6 +701,8 @@ async def public_companies_feed(
             investors=row.investors or [],
             active_jobs=job_counts.get(row.name, 0),
             board_url=row.board_url,
+            source_url=row.source_url,
+            funded_at=row.funded_at.isoformat() if row.funded_at else None,
             created_at=row.discovered_at.isoformat(),
         )
         for row in rows
