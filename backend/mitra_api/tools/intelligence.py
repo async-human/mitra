@@ -361,6 +361,9 @@ async def learn_from_outcome(
         job.founder_profile = fp
 
         # ── Snapshot outcome for learning (Phase 5 dataset) ──────────────────
+        # Use a savepoint so a failure here cannot abort the outer transaction.
+        # A plain try/except is NOT enough — PostgreSQL marks the whole transaction
+        # as aborted on any SQL error, regardless of Python exception handling.
         try:
             from sqlalchemy import text
             payload: dict[str, Any] = {
@@ -377,20 +380,21 @@ async def learn_from_outcome(
                 "job_stage":          job.stage,
                 "job_sector":         job.sector,
             }
-            await session.execute(
-                text("""
-                    INSERT INTO agent_memory_snapshots
-                        (subject_type, subject_id, memory_type, payload, policy_version)
-                    VALUES (:st, :sid, :mt, :pl::jsonb, :pv)
-                """),
-                {
-                    "st": "founder",
-                    "sid": job.id,
-                    "mt": "outcome_signal",
-                    "pl": json.dumps(payload),
-                    "pv": "v1",
-                },
-            )
+            async with session.begin_nested():
+                await session.execute(
+                    text("""
+                        INSERT INTO agent_memory_snapshots
+                            (subject_type, subject_id, memory_type, payload, policy_version)
+                        VALUES (:st, :sid, :mt, :pl::jsonb, :pv)
+                    """),
+                    {
+                        "st": "founder",
+                        "sid": job.id,
+                        "mt": "outcome_signal",
+                        "pl": json.dumps(payload),
+                        "pv": "v1",
+                    },
+                )
         except Exception:
             log.debug("learn_from_outcome: snapshot insert failed (non-critical)")
 

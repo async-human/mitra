@@ -182,6 +182,17 @@ async def run_schema_migrations() -> None:
         "ALTER TABLE funded_startups ADD COLUMN IF NOT EXISTS source VARCHAR(50)",
         "ALTER TABLE funded_startups ADD COLUMN IF NOT EXISTS enriched_at TIMESTAMPTZ",
         "CREATE INDEX IF NOT EXISTS funded_startups_enriched_idx ON funded_startups(enriched_at ASC NULLS FIRST)",
+        # Phase 5 — agent memory snapshots (outcome learning + portrait versioning)
+        """CREATE TABLE IF NOT EXISTS agent_memory_snapshots (
+            id            SERIAL PRIMARY KEY,
+            subject_type  VARCHAR(20) NOT NULL,
+            subject_id    INTEGER NOT NULL,
+            memory_type   VARCHAR(40) NOT NULL,
+            payload       JSONB NOT NULL,
+            policy_version VARCHAR(20),
+            created_at    TIMESTAMPTZ DEFAULT NOW()
+        )""",
+        "CREATE INDEX IF NOT EXISTS ams_subject_idx ON agent_memory_snapshots(subject_type, subject_id)",
     ]
     engine = _engine()
     async with engine.begin() as conn:
