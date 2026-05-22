@@ -221,11 +221,40 @@ async def list_candidate_intros(
             .order_by(Intro.requested_at.desc())
         )).all()
 
-    def _booking_link(intro: Intro) -> str | None:
-        iv = intro.interview_details or {}
+    # Derive candidate email/name once for booking link generation
+    cand_email = sid.removeprefix("web:").strip() if "@" in sid else ""
+    cand_name  = candidate.name or ""
+
+    # Cal.com config — fetched once, reused per acknowledged intro
+    _cal_url: str | None = None
+    try:
+        from mitra_api.config import get_settings as _gs
+        _cal_url = _gs().cal_booking_url or None
+    except Exception:
+        pass
+
+    def _booking_link(intro: Intro, job: Job) -> str | None:
         status = str(intro.status)
-        if status in ("acknowledged", "sent") and iv.get("booking_link"):
+        if status not in ("acknowledged",):
+            return None
+        # Prefer stored link (set when founder clicked interested)
+        iv = intro.interview_details or {}
+        if iv.get("booking_link"):
             return iv["booking_link"]
+        # Fall back: generate on-the-fly so existing acknowledged intros work immediately
+        if _cal_url and cand_email:
+            try:
+                from mitra_api.tools.cal import build_booking_link
+                return build_booking_link(
+                    _cal_url,
+                    intro_id=intro.id,
+                    candidate_name=cand_name,
+                    candidate_email=cand_email,
+                    company=job.company or "",
+                    role=job.title or "",
+                )
+            except Exception:
+                pass
         return None
 
     return [
@@ -238,7 +267,7 @@ async def list_candidate_intros(
             sent_at=intro.sent_at.isoformat() if intro.sent_at else None,
             interview_details={k: v for k, v in (intro.interview_details or {}).items() if k != "booking_link"} or None,
             offer_details=intro.offer_details or None,
-            booking_link=_booking_link(intro),
+            booking_link=_booking_link(intro, job),
         )
         for intro, job in rows
     ]
