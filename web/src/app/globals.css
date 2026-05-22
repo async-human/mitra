@@ -3965,6 +3965,19 @@ body {
 .dash-modal-chat-btn--primary:hover {
   background: var(--teal-2);
 }
+.dash-modal-book-btn {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: #7C3AED;
+  transition: background 0.15s;
+}
+.dash-modal-book-btn:hover { background: #6D28D9; }
 @keyframes statusPop {
   from { transform: scale(0.85); opacity: 0; }
   to   { transform: scale(1);    opacity: 1; }

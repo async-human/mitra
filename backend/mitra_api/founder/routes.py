@@ -767,7 +767,7 @@ _ACTION_MESSAGES = {
     "interested": (
         "Good news — {company} wants to connect",
         "Great news — {founder} at {company} responded to your intro for the *{role}* role "
-        "and they're interested in connecting!\n\nWe'll coordinate next steps and reach out to you shortly.",
+        "and they're interested in connecting!\n\n{booking_prompt}",
     ),
     "not_a_fit": (
         "Update on your intro to {company}",
@@ -803,19 +803,29 @@ async def _notify_candidate_of_response(
     company: str,
     job_title: str,
     action: str,
+    booking_link: str = "",
 ) -> None:
     """
     Notify the candidate when a founder takes an action on their intro.
     Sends via email for web candidates (phone starts with 'web:')
     and via WhatsApp for WhatsApp candidates (plain phone number).
+    When action is 'interested' and a booking_link is provided, includes
+    the Cal.com scheduling link so the candidate can self-book.
     """
     from mitra_api.tools.email import send_email
 
     subject_tpl, body_tpl = _ACTION_MESSAGES.get(action, _ACTION_MESSAGES["not_a_fit"])
+    booking_prompt = (
+        f"You can book your interview slot directly here:\n{booking_link}\n\n"
+        "Pick a time that works — it only takes 30 seconds."
+        if booking_link and action == "interested"
+        else "We'll coordinate next steps and reach out to you shortly."
+    )
     ctx = {
-        "founder": founder_name or "the founder",
-        "company": company,
-        "role":    job_title,
+        "founder":         founder_name or "the founder",
+        "company":         company,
+        "role":            job_title,
+        "booking_prompt":  booking_prompt,
     }
     subject = subject_tpl.format(**ctx) + " · Mitra"
     body    = f"Hi {candidate_name},\n\n" + body_tpl.format(**ctx) + "\n\n— Mitra"
@@ -836,9 +846,7 @@ async def _notify_candidate_of_response(
         return
     try:
         from mitra_api.twilio_whatsapp.client import send_whatsapp_reply
-        # WhatsApp body: plain text without email subject line, keep markdown bold (*..*)
         wa_body = f"Hi {candidate_name},\n\n" + body_tpl.format(**ctx) + "\n\n— Mitra"
-        # Normalise to whatsapp:+XXXXXXXXXX format
         digits = "".join(c for c in phone if c.isdigit())
         wa_to  = f"whatsapp:+{digits}"
         await send_whatsapp_reply(to_whatsapp_from_value=wa_to, body=wa_body)
@@ -907,6 +915,43 @@ async def founder_respond(
     company    = job.company if job else "the company"
     job_title  = job.title   if job else "the role"
 
+    # Build Cal.com booking link for "interested" actions and persist it
+    booking_link = ""
+    if action == "interested" and candidate and job:
+        try:
+            from mitra_api.config import get_settings as _gs
+            from mitra_api.tools.cal import build_booking_link
+            _s = _gs()
+            if _s.cal_booking_url:
+                cand_phone = candidate.phone or ""
+                cand_email = (
+                    cand_phone.removeprefix("web:").strip()
+                    if cand_phone.startswith("web:") and "@" in cand_phone
+                    else ""
+                )
+                booking_link = build_booking_link(
+                    _s.cal_booking_url,
+                    intro_id=intro.id,
+                    candidate_name=cand_name,
+                    candidate_email=cand_email,
+                    company=job.company or "",
+                    role=job.title or "",
+                )
+                if booking_link:
+                    factory2 = get_session_factory()
+                    async with factory2() as db2:
+                        _intro = (await db2.execute(
+                            select(Intro).where(Intro.id == intro.id)
+                        )).scalar_one_or_none()
+                        if _intro:
+                            _intro.interview_details = {
+                                **(_intro.interview_details or {}),
+                                "booking_link": booking_link,
+                            }
+                            await db2.commit()
+        except Exception:
+            log.debug("booking link generation failed in founder_respond (non-critical)")
+
     # Fire-and-forget candidate notification (email or WhatsApp)
     if candidate and candidate.phone:
         import asyncio
@@ -917,6 +962,7 @@ async def founder_respond(
             company=company,
             job_title=job_title,
             action=action,
+            booking_link=booking_link,
         ))
 
     if action == "interested":
@@ -1886,6 +1932,45 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
 
     cand_name = (candidate.name or "there") if candidate else "there"
 
+    # Build Cal.com booking link when founder marks "interested"
+    booking_link = ""
+    if body.action == "interested" and candidate:
+        try:
+            from mitra_api.config import get_settings as _gs
+            from mitra_api.tools.cal import build_booking_link
+            _s = _gs()
+            if _s.cal_booking_url:
+                # Derive candidate email — web: prefix encodes the email directly
+                cand_phone = candidate.phone or ""
+                cand_email = (
+                    cand_phone.removeprefix("web:").strip()
+                    if cand_phone.startswith("web:") and "@" in cand_phone
+                    else ""
+                )
+                booking_link = build_booking_link(
+                    _s.cal_booking_url,
+                    intro_id=intro.id,
+                    candidate_name=cand_name,
+                    candidate_email=cand_email,
+                    company=job.company or "",
+                    role=job.title or "",
+                )
+                # Persist booking link so the candidate dashboard can show it
+                if booking_link:
+                    factory2 = get_session_factory()
+                    async with factory2() as db2:
+                        _intro = (await db2.execute(
+                            select(Intro).where(Intro.id == intro.id)
+                        )).scalar_one_or_none()
+                        if _intro:
+                            _intro.interview_details = {
+                                **(_intro.interview_details or {}),
+                                "booking_link": booking_link,
+                            }
+                            await db2.commit()
+        except Exception:
+            log.debug("booking link generation failed (non-critical)")
+
     if candidate and candidate.phone:
         import asyncio
         asyncio.create_task(_notify_candidate_of_response(
@@ -1895,6 +1980,7 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
             company=job.company,
             job_title=job.title,
             action=body.action,
+            booking_link=booking_link,
         ))
 
     status_messages = {

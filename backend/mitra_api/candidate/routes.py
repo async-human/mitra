@@ -194,6 +194,7 @@ class IntroSummary(BaseModel):
     sent_at: str | None = None   # ISO-8601
     interview_details: dict | None = None  # {"scheduled_at","format","link","notes"}
     offer_details: dict | None = None      # {"salary_lpa","equity_percent","start_date","notes"}
+    booking_link: str | None = None        # Cal.com scheduling URL (set when status == acknowledged)
 
 
 @router.get("/intros", response_model=list[IntroSummary])
@@ -220,6 +221,13 @@ async def list_candidate_intros(
             .order_by(Intro.requested_at.desc())
         )).all()
 
+    def _booking_link(intro: Intro) -> str | None:
+        iv = intro.interview_details or {}
+        status = str(intro.status)
+        if status in ("acknowledged", "sent") and iv.get("booking_link"):
+            return iv["booking_link"]
+        return None
+
     return [
         IntroSummary(
             intro_id=intro.id,
@@ -228,8 +236,9 @@ async def list_candidate_intros(
             company=job.company,
             status=str(intro.status),
             sent_at=intro.sent_at.isoformat() if intro.sent_at else None,
-            interview_details=intro.interview_details or None,
+            interview_details={k: v for k, v in (intro.interview_details or {}).items() if k != "booking_link"} or None,
             offer_details=intro.offer_details or None,
+            booking_link=_booking_link(intro),
         )
         for intro, job in rows
     ]

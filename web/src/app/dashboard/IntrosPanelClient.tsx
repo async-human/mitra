@@ -55,7 +55,9 @@ function introRowHint(intro: CandidateIntro): string {
       }
       return "Interview time · confirming with the team";
     case "acknowledged":
-      return "Founder is interested — intro thread is live";
+      return intro.booking_link
+        ? "Founder is interested — tap to book your interview slot"
+        : "Founder is interested — intro thread is live";
     case "sent":
       return "Waiting for the company to acknowledge";
     case "ghosted":
@@ -92,6 +94,32 @@ function IntroDetailModal({ intro, onClose }: { intro: CandidateIntro; onClose: 
           {meta.label}
           {intro.sent_at && <span className="dash-modal-status-date">· Intro sent {formatDate(intro.sent_at)}</span>}
         </div>
+
+        {intro.status === "acknowledged" && intro.booking_link && (
+          <div className="dash-modal-section">
+            <p className="dash-modal-section-title">Schedule your interview</p>
+            <p className="dash-modal-pending">
+              The founder has reviewed your intro and wants to connect. Pick a slot that works for you — the whole thing takes 30 seconds.
+            </p>
+            <a
+              href={intro.booking_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dash-modal-book-btn"
+              onClick={onClose}
+            >
+              Book interview slot →
+            </a>
+          </div>
+        )}
+
+        {intro.status === "acknowledged" && !intro.booking_link && (
+          <div className="dash-modal-section">
+            <p className="dash-modal-pending">
+              Great news — the founder is interested! We&apos;re coordinating next steps and will reach out shortly with interview details.
+            </p>
+          </div>
+        )}
 
         {intro.status === "interview" && (
           <div className="dash-modal-section">
@@ -197,7 +225,8 @@ function IntroRow({
   onSelect: (i: CandidateIntro) => void;
 }) {
   const meta = introStatusMeta(intro.status);
-  const isClickable = ["interview", "offer", "hired"].includes(intro.status);
+  const isClickable = ["interview", "offer", "hired"].includes(intro.status) ||
+    (intro.status === "acknowledged");
   const hint = introRowHint(intro);
   return (
     <button

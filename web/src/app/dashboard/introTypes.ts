@@ -23,4 +23,5 @@ export interface CandidateIntro {
   sent_at: string | null;
   interview_details?: InterviewDetails | null;
   offer_details?: OfferDetails | null;
+  booking_link?: string | null;
 }
