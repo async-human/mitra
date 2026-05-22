@@ -192,6 +192,7 @@ Rules:
 - Extract as many distinct companies as the headlines support — aim for breadth, not just the largest rounds
 - One entry per company (dedupe within your response)
 - headline_index must match the numbered headline the event came from
+- headline_index MUST point to the headline that specifically describes THIS company's funding round — never assign an unrelated index
 
 Return ONLY a valid JSON array — no markdown, no commentary.\
 """
@@ -224,6 +225,67 @@ def _parse_funded_at(raw: str | None, fallback: datetime | None = None) -> datet
         except ValueError:
             pass
     return fallback
+
+
+def _company_tokens(name: str) -> list[str]:
+    stop = {"pvt", "ltd", "private", "limited", "inc", "labs", "the", "and", "for"}
+    tokens: list[str] = []
+    for part in re.split(r"[\W_]+", name.lower()):
+        if len(part) >= 3 and part not in stop:
+            tokens.append(part)
+    return tokens
+
+
+def _headline_mentions_company(company_name: str, item: RssItem) -> bool:
+    hay = f"{item.title} {item.description}".lower()
+    name_lower = company_name.lower()
+    if name_lower in hay:
+        return True
+    tokens = _company_tokens(company_name)
+    long_hits = sum(1 for t in tokens if len(t) >= 4 and t in hay)
+    if long_hits >= 1:
+        return True
+    if len(tokens) >= 2 and sum(1 for t in tokens if t in hay) >= 2:
+        return True
+    return False
+
+
+def _mention_score(company_name: str, item: RssItem) -> int:
+    hay = f"{item.title} {item.description}".lower()
+    score = 0
+    if company_name.lower() in hay:
+        score += 10
+    for token in _company_tokens(company_name):
+        if token in hay:
+            score += 4 if len(token) >= 4 else 1
+    if _is_funding_headline(item.title):
+        score += 2
+    return score
+
+
+def _find_best_source_item(
+    company_name: str,
+    all_items: list[RssItem],
+    preferred_idx: int | None,
+) -> RssItem | None:
+    """Resolve the RSS item that actually mentions this company's funding."""
+    if preferred_idx is not None and 0 <= preferred_idx < len(all_items):
+        candidate = all_items[preferred_idx]
+        if _headline_mentions_company(company_name, candidate):
+            return candidate
+
+    best: RssItem | None = None
+    best_score = 0
+    for item in all_items:
+        if _is_roundup_headline(item.title):
+            continue
+        if not _headline_mentions_company(company_name, item):
+            continue
+        score = _mention_score(company_name, item)
+        if score > best_score:
+            best_score = score
+            best = item
+    return best if best_score >= 3 else None
 
 
 async def _extract_batch(
@@ -760,7 +822,7 @@ async def _upsert_funded_startup(
             existing.location = location
         if website and not existing.website:
             existing.website = website
-        if source_url and not existing.source_url:
+        if source_url:
             existing.source_url = source_url
         if funded_at and not existing.funded_at:
             existing.funded_at = funded_at
@@ -992,6 +1054,43 @@ async def enrich_funded_startups_metadata(db) -> dict[str, int]:
     return stats
 
 
+async def _relink_funded_startup_sources(db, all_items: list[RssItem]) -> dict[str, int]:
+    """Fix or clear source_url for rows whose article does not mention the company."""
+    from mitra_api.db.models import FundedStartup
+    from sqlalchemy import select
+
+    rows = (
+        await db.execute(select(FundedStartup).where(FundedStartup.source == "rss"))
+    ).scalars().all()
+    stats = {"checked": len(rows), "fixed": 0, "cleared": 0}
+
+    for row in rows:
+        preferred_idx: int | None = None
+        if row.source_url:
+            for i, item in enumerate(all_items):
+                if item.link and item.link.split("?")[0] == row.source_url.split("?")[0]:
+                    preferred_idx = i
+                    break
+            if preferred_idx is not None:
+                item = all_items[preferred_idx]
+                if _headline_mentions_company(row.name, item):
+                    continue
+
+        match = _find_best_source_item(row.name, all_items, preferred_idx)
+        if match and match.link:
+            if row.source_url != match.link:
+                row.source_url = match.link[:480]
+                stats["fixed"] += 1
+        elif row.source_url:
+            row.source_url = None
+            stats["cleared"] += 1
+
+    if stats["fixed"] or stats["cleared"]:
+        await db.flush()
+    log.info("source relink: %s", stats)
+    return stats
+
+
 async def _prune_junk_funded_startups(db) -> int:
     """Remove or rename RSS feed rows whose names are headline fragments, not brands."""
     from mitra_api.db.models import FundedStartup
@@ -1057,6 +1156,8 @@ async def _run_funding_discovery_pipeline_impl(db, *, dry_run: bool = False) -> 
         "skipped_sanitize":     0,
         "founders_added":       0,
         "websites_added":       0,
+        "sources_matched":      0,
+        "sources_unmatched":    0,
     }
 
     if not dry_run:
@@ -1101,14 +1202,18 @@ async def _run_funding_discovery_pipeline_impl(db, *, dry_run: bool = False) -> 
                     continue
 
                 headline_idx = event.get("headline_index")
-                source_item: RssItem | None = None
+                preferred_idx: int | None = None
                 if headline_idx is not None:
                     try:
-                        idx = int(headline_idx) - 1
-                        if 0 <= idx < len(all_items):
-                            source_item = all_items[idx]
+                        preferred_idx = int(headline_idx) - 1
                     except (TypeError, ValueError):
-                        pass
+                        preferred_idx = None
+
+                source_item = _find_best_source_item(company_name, all_items, preferred_idx)
+                if source_item:
+                    stats["sources_matched"] += 1
+                else:
+                    stats["sources_unmatched"] += 1
 
                 funded_at = _parse_funded_at(
                     event.get("funded_at"),
@@ -1140,6 +1245,11 @@ async def _run_funding_discovery_pipeline_impl(db, *, dry_run: bool = False) -> 
                     log.warning("funding_discovery: skipped bad row for %r", company_name[:80])
 
             await db.commit()
+            if all_items:
+                relink_stats = await _relink_funded_startup_sources(db, all_items)
+                stats["sources_fixed"] = relink_stats.get("fixed", 0)
+                stats["sources_cleared"] = relink_stats.get("cleared", 0)
+                await db.commit()
 
     if not dry_run:
         enrich_stats = await enrich_funded_startups_metadata(db)
