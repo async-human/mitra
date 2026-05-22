@@ -254,6 +254,7 @@ class IntroStatus(str, enum.Enum):
     hired         = "hired"
     declined      = "declined"
     ghosted       = "ghosted"        # no reply after 7 days
+    role_filled   = "role_filled"    # another candidate was hired — role is now closed
 
 
 class Intro(Base):

@@ -15,6 +15,7 @@ const STATUS_RANK: Record<string, number> = {
   ghosted: 4,
   hired: 5,
   declined: 6,
+  role_filled: 7,
 };
 
 export function rankIntroStatus(status: string): number {
@@ -34,7 +35,7 @@ export function isRecentlyUpdated(intro: IntroLike): boolean {
  * then by recency within the same rank band.
  */
 export function sortIntrosByPriority<T extends IntroLike>(intros: T[]): T[] {
-  const isTerminal = (s: string) => s === "hired" || s === "declined";
+  const isTerminal = (s: string) => s === "hired" || s === "declined" || s === "role_filled";
   return [...intros].sort((a, b) => {
     // Terminal intros always sink to the bottom
     const aT = isTerminal(a.status) ? 1 : 0;
@@ -69,6 +70,7 @@ export const INTRO_STATUS_META: Record<
   offer: { label: "Offer received", color: "#059669", bg: "#ECFDF5", dot: "#6EE7B7", pulse: true },
   hired: { label: "Hired 🎉", color: "#059669", bg: "#ECFDF5", dot: "#6EE7B7" },
   declined: { label: "Not a fit", color: "#6B7280", bg: "#F3F4F6", dot: "#D1D5DB" },
+  role_filled: { label: "Role filled", color: "#6B7280", bg: "#F3F4F6", dot: "#D1D5DB" },
   ghosted: { label: "Awaiting reply", color: "#9CA3AF", bg: "#F9FAFB", dot: "#E5E7EB" },
 };
 
@@ -84,5 +86,5 @@ export function introStatusMeta(status: string) {
 }
 
 export function isTerminalIntroStatus(status: string): boolean {
-  return status === "hired" || status === "declined";
+  return status === "hired" || status === "declined" || status === "role_filled";
 }

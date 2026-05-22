@@ -915,6 +915,45 @@ async def _notify_candidate_reschedule(
         log.warning("reschedule WA failed for %s (non-critical)", candidate_phone)
 
 
+async def _notify_candidate_role_filled(
+    *,
+    candidate_phone: str,
+    candidate_name: str,
+    company: str,
+    job_title: str,
+) -> None:
+    """Notify a candidate that a role they were introduced for has been filled."""
+    from mitra_api.tools.email import send_email
+
+    subject = f"Update on your intro to {company} · Mitra"
+    body = (
+        f"Hi {candidate_name},\n\n"
+        f"The {job_title} role at {company} has been filled by another candidate.\n\n"
+        "We're already looking for similar opportunities that match your profile — "
+        "we'll reach out as soon as we have a strong fit.\n\n"
+        "— Mitra"
+    )
+
+    if candidate_phone.startswith("web:"):
+        cand_email = candidate_phone.removeprefix("web:").strip()
+        if "@" in cand_email:
+            try:
+                await send_email(to=cand_email, subject=subject, text=body)
+            except Exception:
+                log.warning("role-filled email failed for %s (non-critical)", cand_email)
+        return
+
+    try:
+        from mitra_api.twilio_whatsapp.client import send_whatsapp_reply
+        digits = "".join(c for c in candidate_phone if c.isdigit())
+        await send_whatsapp_reply(
+            to_whatsapp_from_value=f"whatsapp:+{digits}",
+            body=body,
+        )
+    except Exception:
+        log.warning("role-filled WA failed for %s (non-critical)", candidate_phone)
+
+
 @router.get("/respond", response_class=HTMLResponse)
 async def founder_respond(
     token: str = Query(..., description="One-click response token from intro email"),
@@ -1996,6 +2035,36 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
         except Exception:
             log.debug("learn_from_outcome failed (non-critical)")
 
+        # When a candidate is hired: close the job and wind down all other active intros
+        if body.action == "hired":
+            from mitra_api.db.models import JobStatus
+            job.status = JobStatus.filled
+            log.info("job %d marked as filled (hired candidate: intro %d)", job.id, intro.id)
+
+            # Find all other non-terminal intros for the same job
+            terminal_statuses = {
+                IntroStatus.hired, IntroStatus.declined,
+                IntroStatus.role_filled,
+            }
+            other_intros = (await db.execute(
+                select(Intro).where(
+                    Intro.job_id == job.id,
+                    Intro.id != intro.id,
+                    Intro.status.notin_([s.value for s in terminal_statuses]),
+                )
+            )).scalars().all()
+
+            if other_intros:
+                for other in other_intros:
+                    other.status         = IntroStatus.role_filled
+                    other.decline_reason = "This role has been filled by another candidate."
+                    other.decline_reason_code = "role_filled"
+                    other.updated_at     = now
+                log.info(
+                    "closed %d other intros for job %d (role filled)",
+                    len(other_intros), job.id,
+                )
+
         await db.commit()
 
         # Notify candidate asynchronously
@@ -2003,7 +2072,36 @@ async def founder_portal_action(body: PortalActionRequest) -> PortalActionRespon
             select(Candidate).where(Candidate.id == intro.candidate_id)
         )).scalar_one_or_none()
 
+        # Load other affected candidates for role-filled notifications (after commit)
+        other_intros_for_notify: list[tuple] = []
+        if body.action == "hired":
+            try:
+                rows_notify = (await db.execute(
+                    select(Intro, Candidate)
+                    .join(Candidate, Intro.candidate_id == Candidate.id)
+                    .where(
+                        Intro.job_id == job.id,
+                        Intro.id != intro.id,
+                        Intro.status == IntroStatus.role_filled.value,
+                    )
+                )).all()
+                other_intros_for_notify = list(rows_notify)
+            except Exception:
+                log.debug("could not load other candidates for role-filled notify")
+
     cand_name = (candidate.name or "there") if candidate else "there"
+
+    # Fire role-filled notifications for all other candidates
+    if body.action == "hired" and other_intros_for_notify:
+        import asyncio
+        for _other_intro, _other_candidate in other_intros_for_notify:
+            _other_name = (_other_candidate.name or "there") if _other_candidate else "there"
+            asyncio.create_task(_notify_candidate_role_filled(
+                candidate_phone=_other_candidate.phone,
+                candidate_name=_other_name,
+                company=job.company,
+                job_title=job.title,
+            ))
 
     # Build Cal.com booking link when founder marks "interested"
     booking_link = ""

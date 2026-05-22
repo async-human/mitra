@@ -77,6 +77,8 @@ function introRowHint(intro: CandidateIntro): string {
       return "Role closed — you're set";
     case "declined":
       return "This introduction didn't move forward";
+    case "role_filled":
+      return "This role has been filled — Mitra is finding you similar matches";
     default:
       return "";
   }
@@ -202,6 +204,15 @@ function IntroDetailModal({ intro, onClose }: { intro: CandidateIntro; onClose: 
           </div>
         )}
 
+        {intro.status === "role_filled" && (
+          <div className="dash-modal-section">
+            <p className="dash-modal-section-title">Role filled</p>
+            <p className="dash-modal-pending">
+              Another candidate was selected for this role. Mitra is already scanning for similar opportunities that match your profile — we&apos;ll reach out as soon as we have a strong fit.
+            </p>
+          </div>
+        )}
+
         <div className="dash-modal-footer">
           <p className="dash-modal-footer-note">
             {intro.status === "offer"
@@ -236,7 +247,7 @@ function IntroRow({
   onSelect: (i: CandidateIntro) => void;
 }) {
   const meta = introStatusMeta(intro.status);
-  const isClickable = ["interview", "offer", "hired", "acknowledged"].includes(intro.status);
+  const isClickable = ["interview", "offer", "hired", "acknowledged", "role_filled"].includes(intro.status);
   const hint = introRowHint(intro);
   const showUpdatedBadge = isRecentlyUpdated(intro) &&
     intro.updated_at && intro.updated_at !== intro.sent_at &&

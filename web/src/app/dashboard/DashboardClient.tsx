@@ -141,7 +141,7 @@ function getDashboardUpdate(matches: StoredMatchCard[], intros: CandidateIntro[]
   }
   const hiredList = intros.filter((i) => i.status === "hired");
   if (hiredList.length > 0 && offers.length === 0 && interviews.length === 0) {
-    const stillOpen = intros.some((i) => !["hired", "declined"].includes(i.status));
+    const stillOpen = intros.some((i) => !["hired", "declined", "role_filled"].includes(i.status));
     return {
       kind: "hired",
       label: stillOpen ? "Great news — pipeline still open" : "Great news",
@@ -154,7 +154,7 @@ function getDashboardUpdate(matches: StoredMatchCard[], intros: CandidateIntro[]
         : "Each introduction is summarized in the list below.",
     };
   }
-  const pipelineActive = intros.filter((i) => !["hired", "declined"].includes(i.status));
+  const pipelineActive = intros.filter((i) => !["hired", "declined", "role_filled"].includes(i.status));
   if (intros.length > 0 && pipelineActive.length === 0 && hiredList.length === 0) {
     return {
       kind: "intros",
@@ -164,7 +164,7 @@ function getDashboardUpdate(matches: StoredMatchCard[], intros: CandidateIntro[]
     };
   }
   if (intros.length > 0) {
-    const nActive = intros.filter((i) => !["hired", "declined"].includes(i.status)).length;
+    const nActive = intros.filter((i) => !["hired", "declined", "role_filled"].includes(i.status)).length;
     const nDone = intros.length - nActive;
     return {
       kind: "intros",
