@@ -184,6 +184,13 @@ async def create_all() -> None:
         await conn.execute(text(
             "CREATE INDEX IF NOT EXISTS funded_startups_updated_idx ON funded_startups(updated_at DESC)"
         ))
+        await conn.execute(text(
+            "ALTER TABLE funded_startups ADD COLUMN IF NOT EXISTS enriched_at TIMESTAMPTZ"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS funded_startups_enriched_idx "
+            "ON funded_startups(enriched_at ASC NULLS FIRST)"
+        ))
         log.info("funded_startups table ready")
 
     await engine.dispose()

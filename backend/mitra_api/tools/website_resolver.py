@@ -41,13 +41,50 @@ _AGGREGATOR_DOMAINS = {
     "startuptalky.com", "thecareerlabs.com",
 }
 
-_VERIFY_TIMEOUT = 5.0
+# Domain parking services — these return 200 but are not real company sites.
+# A URL that redirects to any of these after following redirects is rejected.
+_PARKING_DOMAINS = {
+    "godaddy.com", "domainnameshop.com", "sedo.com", "hugedomains.com",
+    "dan.com", "afternic.com", "parkingcrew.net", "above.com",
+    "bodis.com", "cashparking.com", "uniregistry.com", "namecheap.com",
+    "networksolutions.com", "domain.com", "bluehost.com", "hostgator.com",
+    "hostinger.com", "wixsite.com",
+    # Generic "this domain is for sale" indicators
+}
+
+# Strings in the final URL path/domain that indicate a parking page
+_PARKING_URL_PATTERNS = (
+    "domain-for-sale", "domain_for_sale", "forsale", "buy-this-domain",
+    "parked-content", "parking", "this-domain",
+)
+
+_VERIFY_TIMEOUT = 6.0
 _SEARCH_TIMEOUT = 10.0
+_CONTENT_TIMEOUT = 8.0
 
 
 # ── URL helpers ───────────────────────────────────────────────────────────────
 
+def _is_parking_url(url: str) -> bool:
+    """Returns True if the URL looks like a domain parking page."""
+    try:
+        parsed = urlparse(url)
+        host = parsed.netloc.lower().lstrip("www.")
+        if any(host == d or host.endswith("." + d) for d in _PARKING_DOMAINS):
+            return True
+        full = url.lower()
+        if any(p in full for p in _PARKING_URL_PATTERNS):
+            return True
+    except Exception:
+        pass
+    return False
+
+
 async def _verify_url(url: str) -> bool:
+    """
+    Verify a URL is live and not a parking page.
+    Follows redirects and rejects if the final destination is a known parking service.
+    """
     if not url or not url.startswith("http"):
         return False
     try:
@@ -57,7 +94,54 @@ async def _verify_url(url: str) -> bool:
             headers={"User-Agent": "Mozilla/5.0 (compatible; MitraBot/1.0)"},
         ) as client:
             resp = await client.head(url)
-            return resp.status_code < 400
+            if resp.status_code >= 400:
+                return False
+            # Check the final URL after all redirects
+            final_url = str(resp.url)
+            if _is_parking_url(final_url):
+                log.debug("website_resolver: parking page detected: %s → %s", url, final_url)
+                return False
+            return True
+    except Exception:
+        return False
+
+
+async def _verify_url_with_content(url: str, company_name: str) -> bool:
+    """
+    Stronger verification for Layer 4 (domain inference).
+    Does a GET request and checks the page body actually mentions the company.
+    Rejects parking pages even if they return 200.
+    """
+    if not url or not url.startswith("http"):
+        return False
+    try:
+        async with httpx.AsyncClient(
+            timeout=_CONTENT_TIMEOUT,
+            follow_redirects=True,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; MitraBot/1.0)"},
+        ) as client:
+            resp = await client.get(url)
+            if resp.status_code >= 400:
+                return False
+            final_url = str(resp.url)
+            if _is_parking_url(final_url):
+                log.debug("website_resolver: parking page at %s", final_url)
+                return False
+            # Require the company name to appear in the page content
+            text = resp.text[:3000].lower()
+            name_lower = company_name.lower().strip()
+            # Try the full name and the first meaningful word
+            first_word = re.sub(r"[^a-z]", "", name_lower.split()[0]) if name_lower else ""
+            name_slug  = re.sub(r"[^a-z0-9]", "", name_lower)
+            if name_lower in text or name_slug in text or (
+                len(first_word) >= 4 and first_word in text
+            ):
+                return True
+            log.debug(
+                "website_resolver: domain %s live but company name '%s' not in page",
+                url, company_name,
+            )
+            return False
     except Exception:
         return False
 
@@ -207,16 +291,15 @@ async def _resolve_from_search(company_name: str, sector: str | None = None) -> 
             name_slug = re.sub(r"[^a-z0-9]", "", company_name.lower())
             for r in resp.json().get("results", []):
                 url = _normalise_url(r.get("url", ""))
-                if not url or _is_aggregator(url):
+                if not url or _is_aggregator(url) or _is_parking_url(url):
                     continue
                 title = r.get("title", "").lower()
                 if name_slug in url.lower() or company_name.lower() in title:
-                    if await _verify_url(url):
-                        parsed = urlparse(url)
-                        root = f"{parsed.scheme}://{parsed.netloc}"
-                        if await _verify_url(root):
-                            log.info("website_resolver: Tavily → %s", root)
-                            return root
+                    parsed = urlparse(url)
+                    root = f"{parsed.scheme}://{parsed.netloc}"
+                    if not _is_parking_url(root) and await _verify_url(root):
+                        log.info("website_resolver: Tavily → %s", root)
+                        return root
     except Exception:
         log.debug("website_resolver: tavily failed for %s", company_name)
 
@@ -226,6 +309,11 @@ async def _resolve_from_search(company_name: str, sector: str | None = None) -> 
 # ── Layer 4: Domain inference ─────────────────────────────────────────────────
 
 async def _resolve_from_domain_inference(company_name: str) -> str | None:
+    """
+    Last-resort layer. Uses _verify_url_with_content — requires both that
+    the domain resolves AND that the page body mentions the company name.
+    This prevents GoDaddy parking pages and unrelated sites from matching.
+    """
     clean = re.sub(
         r"\b(pvt|ltd|private|limited|inc|technologies|tech|labs|ai|hq|india)\b",
         "", company_name.lower().strip()
@@ -248,7 +336,7 @@ async def _resolve_from_domain_inference(company_name: str) -> str | None:
     ]
 
     for url in candidates:
-        if await _verify_url(url):
+        if await _verify_url_with_content(url, company_name):
             log.info("website_resolver: domain inference → %s", url)
             return url
 

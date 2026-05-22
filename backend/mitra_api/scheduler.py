@@ -517,6 +517,21 @@ async def run_funding_discovery() -> None:
         log.exception("scheduler: funding_discovery failed")
 
 
+async def run_weekly_company_enrichment() -> None:
+    """Weekly re-verification of website URLs and backfill for funded_startups."""
+    log.info("scheduler: weekly_company_enrichment starting")
+    try:
+        from mitra_api.db.engine import get_session_factory
+        from mitra_api.tools.company_enrichment_scheduler import run_weekly_funded_startup_enrichment
+
+        factory = get_session_factory()
+        async with factory() as db:
+            result = await run_weekly_funded_startup_enrichment(db)
+        log.info("scheduler: weekly_company_enrichment done: %s", result)
+    except Exception:
+        log.exception("scheduler: weekly_company_enrichment failed")
+
+
 # ── LOOP WRAPPERS ─────────────────────────────────────────────────────────────
 
 async def _every(seconds: int, coro_fn, *args, **kwargs) -> None:
@@ -537,7 +552,7 @@ async def _daily_at(hour: int, minute: int, coro_fn, *args, **kwargs) -> None:
         now    = datetime.now(timezone.utc)
         target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
         if target <= now:
-            target = target + timedelta(days=1)  # safe: timedelta handles month rollover
+            target = target + timedelta(days=1)
         wait = (target - now).total_seconds()
         await asyncio.sleep(wait)
         try:
@@ -546,6 +561,26 @@ async def _daily_at(hour: int, minute: int, coro_fn, *args, **kwargs) -> None:
             raise
         except Exception:
             log.exception("scheduler daily error in %s", coro_fn.__name__)
+
+
+async def _weekly_on(weekday: int, hour: int, minute: int, coro_fn, *args, **kwargs) -> None:
+    """Run coro_fn once per week on the given weekday (0=Mon … 6=Sun) at UTC hour:minute."""
+    while True:
+        now  = datetime.now(timezone.utc)
+        days_ahead = (weekday - now.weekday()) % 7
+        target = (now + timedelta(days=days_ahead)).replace(
+            hour=hour, minute=minute, second=0, microsecond=0
+        )
+        if target <= now:
+            target += timedelta(weeks=1)
+        wait = (target - now).total_seconds()
+        await asyncio.sleep(wait)
+        try:
+            await coro_fn(*args, **kwargs)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("scheduler weekly error in %s", coro_fn.__name__)
 
 
 # ── START / STOP ──────────────────────────────────────────────────────────────
@@ -618,6 +653,10 @@ async def start_scheduler() -> list[asyncio.Task]:
         asyncio.create_task(
             _daily_at(0, 30, run_funding_discovery),
             name="funding-discovery",
+        ),
+        asyncio.create_task(
+            _weekly_on(6, 2, 0, run_weekly_company_enrichment),  # Sunday 02:00 UTC
+            name="weekly-company-enrichment",
         ),
     ]
 

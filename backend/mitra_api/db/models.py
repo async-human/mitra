@@ -158,8 +158,9 @@ class FundedStartup(Base):
     funded_at:    Mapped[datetime|None] = mapped_column(DateTime(timezone=True))
     source:       Mapped[str|None]  = mapped_column(String(50))   # rss — external feed only
 
-    discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at:    Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    discovered_at: Mapped[datetime]      = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at:    Mapped[datetime]      = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    enriched_at:   Mapped[datetime|None] = mapped_column(DateTime(timezone=True))  # last website re-verification
 
 
 # ── JOBS ──────────────────────────────────────────────────────────────────────
