@@ -1050,12 +1050,19 @@ async def enrich_funding_metadata() -> dict:
     Uses LLM batch enrichment; falls back to Tavily web search if TAVILY_API_KEY is set.
     """
     from mitra_api.db.engine import get_session_factory
-    from mitra_api.tools.funding_tracker import enrich_funded_startups_metadata
+    from mitra_api.tools.funding_tracker import (
+        _acquire_pipeline_db_lock,
+        _pg_advisory_unlock,
+        enrich_funded_startups_metadata,
+    )
 
     factory = get_session_factory()
     async with factory() as db:
-        stats = await enrich_funded_startups_metadata(db)
-        await db.commit()
+        await _acquire_pipeline_db_lock(db)
+        try:
+            stats = await enrich_funded_startups_metadata()
+        finally:
+            await _pg_advisory_unlock(db)
     return {"ok": True, **stats}
 
 

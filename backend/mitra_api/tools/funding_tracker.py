@@ -51,9 +51,10 @@ _RSS_FEEDS: list[str] = [
 
 _LLM_BATCH_SIZE = 35
 
-# Only one RSS+LLM pipeline at a time (startup seed, /public/companies, scheduler share this).
+# Only one RSS+LLM pipeline at a time (in-process + cross-container via Postgres advisory lock).
 _pipeline_lock = asyncio.Lock()
 _last_pipeline_stats: dict[str, Any] | None = None
+_PIPELINE_PG_LOCK_KEY = 8392741
 
 _FUNDING_HEADLINE_KEYWORDS = (
     "funding", "raises", "raised", " crore", "million", " billion",
@@ -73,6 +74,17 @@ class RssItem:
     description: str
     link: str | None = None
     pub_date: datetime | None = None
+
+
+@dataclass
+class _StartupEnrichTarget:
+    id: int
+    name: str
+    sector: str | None
+    location: str | None
+    founder_name: str | None
+    website: str | None
+
 
 _HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; MitraFundingBot/1.0; +https://mitra.work)"}
 
@@ -102,6 +114,45 @@ BOOTSTRAP_COMPANIES: list[dict[str, str]] = [
     {"name": "BrowserStack", "stage": "Series B", "sector": "Developer Tools"},
     {"name": "Chargebee", "stage": "Series H", "sector": "B2B SaaS"},
 ]
+
+
+async def _commit_with_retry(db, *, attempts: int = 4) -> None:
+    from sqlalchemy.exc import DBAPIError
+
+    for attempt in range(attempts):
+        try:
+            await db.commit()
+            return
+        except DBAPIError as exc:
+            await db.rollback()
+            err = str(getattr(exc, "orig", exc)).lower()
+            if "deadlock" not in err or attempt >= attempts - 1:
+                raise
+            log.warning("DB commit deadlock — retry %d/%d", attempt + 1, attempts)
+            await asyncio.sleep(0.4 * (attempt + 1))
+
+
+async def _pg_advisory_lock(db) -> None:
+    from sqlalchemy import text
+    await db.execute(text("SELECT pg_advisory_lock(:k)"), {"k": _PIPELINE_PG_LOCK_KEY})
+
+
+async def _pg_advisory_unlock(db) -> None:
+    from sqlalchemy import text
+    await db.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": _PIPELINE_PG_LOCK_KEY})
+
+
+async def _try_pg_advisory_lock(db) -> bool:
+    from sqlalchemy import text
+    result = await db.execute(text("SELECT pg_try_advisory_lock(:k)"), {"k": _PIPELINE_PG_LOCK_KEY})
+    return bool(result.scalar())
+
+
+async def _acquire_pipeline_db_lock(db) -> None:
+    if await _try_pg_advisory_lock(db):
+        return
+    log.info("funding_discovery: waiting for cross-instance DB lock")
+    await _pg_advisory_lock(db)
 
 
 # ── RSS parsing ───────────────────────────────────────────────────────────────
@@ -998,58 +1049,100 @@ async def _tavily_enrich_one(name: str, sector: str | None) -> dict[str, str | N
     }
 
 
-async def enrich_funded_startups_metadata(db) -> dict[str, int]:
-    """Fill missing founder_name / website for RSS startups via LLM (+ optional Tavily)."""
+async def _apply_startup_enrichment_updates(
+    updates: list[tuple[int, str | None, str | None]],
+    stats: dict[str, int],
+) -> None:
+    if not updates:
+        return
+    from mitra_api.db.engine import get_session_factory
+    from mitra_api.db.models import FundedStartup
+
+    factory = get_session_factory()
+    async with factory() as db:
+        for row_id, founder, website in updates:
+            row = await db.get(FundedStartup, row_id)
+            if row is None:
+                continue
+            if founder and not row.founder_name:
+                row.founder_name = founder
+                stats["founders_added"] += 1
+            if website and not row.website:
+                row.website = website
+                stats["websites_added"] += 1
+        await _commit_with_retry(db)
+
+
+async def enrich_funded_startups_metadata() -> dict[str, int]:
+    """Fill missing founder_name / website — LLM batches with short DB transactions."""
+    from mitra_api.db.engine import get_session_factory
     from mitra_api.db.models import FundedStartup
     from sqlalchemy import or_, select
 
-    rows = list((
-        await db.execute(
-            select(FundedStartup)
-            .where(FundedStartup.source == "rss")
-            .where(or_(FundedStartup.founder_name.is_(None), FundedStartup.website.is_(None)))
-            .order_by(FundedStartup.updated_at.desc())
-            .limit(40)
-        )
-    ).scalars().all())
+    factory = get_session_factory()
+    stats = {"candidates": 0, "founders_added": 0, "websites_added": 0, "tavily_enriched": 0}
 
-    stats = {"candidates": len(rows), "founders_added": 0, "websites_added": 0, "tavily_enriched": 0}
-    if not rows:
+    async with factory() as db:
+        rows = list((
+            await db.execute(
+                select(FundedStartup)
+                .where(FundedStartup.source == "rss")
+                .where(or_(FundedStartup.founder_name.is_(None), FundedStartup.website.is_(None)))
+                .order_by(FundedStartup.updated_at.desc())
+                .limit(40)
+            )
+        ).scalars().all())
+        targets = [
+            _StartupEnrichTarget(
+                id=r.id,
+                name=r.name,
+                sector=r.sector,
+                location=r.location,
+                founder_name=r.founder_name,
+                website=r.website,
+            )
+            for r in rows
+        ]
+
+    stats["candidates"] = len(targets)
+    if not targets:
         return stats
 
-    for batch_start in range(0, len(rows), 12):
-        batch = rows[batch_start:batch_start + 12]
+    for batch_start in range(0, len(targets), 12):
+        batch = targets[batch_start:batch_start + 12]
         enriched = await _llm_enrich_startups_batch(batch)
-        for row in batch:
-            data = enriched.get(row.name.lower(), {})
-            if data.get("founder_name") and not row.founder_name:
-                founder = _normalize_founder_name(data["founder_name"])
+        updates: list[tuple[int, str | None, str | None]] = []
+        for target in batch:
+            data = enriched.get(target.name.lower(), {})
+            founder = (
+                _normalize_founder_name(data.get("founder_name"))
+                if data.get("founder_name") and not target.founder_name
+                else None
+            )
+            website = data.get("website") if data.get("website") and not target.website else None
+            if founder or website:
+                updates.append((target.id, founder, website))
                 if founder:
-                    row.founder_name = founder
-                    stats["founders_added"] += 1
-            if data.get("website") and not row.website:
-                row.website = data["website"]
-                stats["websites_added"] += 1
+                    target.founder_name = founder
+                if website:
+                    target.website = website
+        await _apply_startup_enrichment_updates(updates, stats)
 
-    still_missing = [
-        r for r in rows
-        if not r.founder_name or not r.website
-    ][:8]
-    for row in still_missing:
-        extra = await _tavily_enrich_one(row.name, row.sector)
+    still_missing = [t for t in targets if not t.founder_name or not t.website][:8]
+    for target in still_missing:
+        extra = await _tavily_enrich_one(target.name, target.sector)
         if not extra:
             continue
         stats["tavily_enriched"] += 1
-        if extra.get("founder_name") and not row.founder_name:
-            founder = _normalize_founder_name(extra["founder_name"])
-            if founder:
-                row.founder_name = founder
-                stats["founders_added"] += 1
-        if extra.get("website") and not row.website:
-            row.website = extra["website"]
-            stats["websites_added"] += 1
+        founder = (
+            _normalize_founder_name(extra.get("founder_name"))
+            if extra.get("founder_name") and not target.founder_name
+            else None
+        )
+        website = extra.get("website") if extra.get("website") and not target.website else None
+        if founder or website:
+            await _apply_startup_enrichment_updates([(target.id, founder, website)], stats)
 
-    await db.flush()
     log.info("startup enrichment: %s", stats)
     return stats
 
@@ -1059,10 +1152,11 @@ async def _relink_funded_startup_sources(db, all_items: list[RssItem]) -> dict[s
     from mitra_api.db.models import FundedStartup
     from sqlalchemy import select
 
-    rows = (
+    rows = list((
         await db.execute(select(FundedStartup).where(FundedStartup.source == "rss"))
-    ).scalars().all()
+    ).scalars().all())
     stats = {"checked": len(rows), "fixed": 0, "cleared": 0}
+    pending = 0
 
     for row in rows:
         preferred_idx: int | None = None
@@ -1081,12 +1175,18 @@ async def _relink_funded_startup_sources(db, all_items: list[RssItem]) -> dict[s
             if row.source_url != match.link:
                 row.source_url = match.link[:480]
                 stats["fixed"] += 1
+                pending += 1
         elif row.source_url:
             row.source_url = None
             stats["cleared"] += 1
+            pending += 1
 
-    if stats["fixed"] or stats["cleared"]:
-        await db.flush()
+        if pending >= 15:
+            await _commit_with_retry(db)
+            pending = 0
+
+    if pending:
+        await _commit_with_retry(db)
     log.info("source relink: %s", stats)
     return stats
 
@@ -1108,7 +1208,7 @@ async def _prune_junk_funded_startups(db) -> int:
         elif cleaned != row.name:
             row.name = cleaned
     if removed:
-        await db.flush()
+        await _commit_with_retry(db)
     return removed
 
 
@@ -1122,21 +1222,25 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
             return dict(_last_pipeline_stats or {"status": "completed_by_other"})
 
     async with _pipeline_lock:
-        stats = await _run_funding_discovery_pipeline_impl(db, dry_run=dry_run)
-        _last_pipeline_stats = stats
-        log.info(
-            "funding_discovery: finished — new=%s updated=%s skipped_sanitize=%s "
-            "events=%s headlines=%s junk_removed=%s founders_added=%s websites_added=%s",
-            stats.get("new_companies"),
-            stats.get("updated_companies"),
-            stats.get("skipped_sanitize"),
-            stats.get("funding_events_found"),
-            stats.get("headlines_collected"),
-            stats.get("junk_rows_removed"),
-            stats.get("founders_added"),
-            stats.get("websites_added"),
-        )
-        return stats
+        await _acquire_pipeline_db_lock(db)
+        try:
+            stats = await _run_funding_discovery_pipeline_impl(db, dry_run=dry_run)
+            _last_pipeline_stats = stats
+            log.info(
+                "funding_discovery: finished — new=%s updated=%s skipped_sanitize=%s "
+                "events=%s headlines=%s junk_removed=%s founders_added=%s websites_added=%s",
+                stats.get("new_companies"),
+                stats.get("updated_companies"),
+                stats.get("skipped_sanitize"),
+                stats.get("funding_events_found"),
+                stats.get("headlines_collected"),
+                stats.get("junk_rows_removed"),
+                stats.get("founders_added"),
+                stats.get("websites_added"),
+            )
+            return stats
+        finally:
+            await _pg_advisory_unlock(db)
 
 
 async def _run_funding_discovery_pipeline_impl(db, *, dry_run: bool = False) -> dict[str, Any]:
@@ -1162,6 +1266,7 @@ async def _run_funding_discovery_pipeline_impl(db, *, dry_run: bool = False) -> 
 
     if not dry_run:
         stats["junk_rows_removed"] = await _prune_junk_funded_startups(db)
+        await _commit_with_retry(db)
 
     feed_results = await asyncio.gather(*[_fetch_rss(url) for url in _RSS_FEEDS])
     all_items: list[RssItem] = []
@@ -1244,18 +1349,16 @@ async def _run_funding_discovery_pipeline_impl(db, *, dry_run: bool = False) -> 
                 except Exception:
                     log.warning("funding_discovery: skipped bad row for %r", company_name[:80])
 
-            await db.commit()
+            await _commit_with_retry(db)
             if all_items:
                 relink_stats = await _relink_funded_startup_sources(db, all_items)
                 stats["sources_fixed"] = relink_stats.get("fixed", 0)
                 stats["sources_cleared"] = relink_stats.get("cleared", 0)
-                await db.commit()
 
     if not dry_run:
-        enrich_stats = await enrich_funded_startups_metadata(db)
+        enrich_stats = await enrich_funded_startups_metadata()
         stats["founders_added"] = enrich_stats.get("founders_added", 0)
         stats["websites_added"] = enrich_stats.get("websites_added", 0)
-        await db.commit()
 
     return stats
 
