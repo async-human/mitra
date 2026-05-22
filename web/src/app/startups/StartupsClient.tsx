@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import s from "./startups.module.css";
 
 export interface CompanyFeedItem {
@@ -23,225 +22,210 @@ function formatAmount(usd: number): string {
   if (usd >= 1_000_000_000) return `$${(usd / 1_000_000_000).toFixed(1)}B`;
   if (usd >= 1_000_000)     return `$${Math.round(usd / 1_000_000)}M`;
   if (usd >= 1_000)         return `$${Math.round(usd / 1_000)}K`;
-  return `$${usd}`;
+  return `$${usd.toLocaleString()}`;
 }
 
-function stageClass(stage: string | null): string {
+function stageCls(stage: string | null): string {
   if (!stage) return s.stageDefault;
-  const norm = stage.toLowerCase();
-  if (norm.includes("seed") && !norm.includes("pre")) return s.stageSeed;
-  if (norm.includes("pre"))   return s.stageDefault;
-  if (norm.includes("series a")) return s.stageA;
-  if (norm.includes("series b")) return s.stageB;
-  if (norm.includes("series c")) return s.stageC;
+  const n = stage.toLowerCase();
+  if (n === "seed")       return s.stageSeed;
+  if (n === "series a")   return s.stageA;
+  if (n === "series b")   return s.stageB;
+  if (n === "series c")   return s.stageC;
+  if (n.startsWith("pre")) return s.stageDefault;
   return s.stageLate;
 }
 
-function logoColor(name: string): string {
-  const colors = [
-    "#C8421A", "#1B5E5A", "#5E6AD2", "#A16207",
-    "#166534", "#1E40AF", "#5B21B6", "#9D174D",
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-}
-
-function isNew(createdAt: string): boolean {
-  return Date.now() - new Date(createdAt).getTime() < 30 * 24 * 60 * 60 * 1000;
-}
-
 function CompanyCard({ company, index }: { company: CompanyFeedItem; index: number }) {
-  const initial = company.name.charAt(0).toUpperCase();
-  const color   = logoColor(company.name);
-  const meta    = [company.sector, company.location].filter(Boolean).join(" · ");
-  const fresh   = isNew(company.created_at);
+  const meta = [company.sector, company.location].filter(Boolean).join(" · ");
 
   return (
     <article
       className={s.card}
-      style={{ "--card-delay": `${Math.min(index * 0.04, 0.4)}s` } as React.CSSProperties}
+      style={{ "--card-delay": `${Math.min(index * 0.045, 0.45)}s` } as React.CSSProperties}
     >
-      {/* Top row */}
-      <div className={s.cardTop}>
-        <div className={s.cardLogo} style={{ background: color }}>
-          {initial}
+      {/* Identity */}
+      <div className={s.cardHead}>
+        <div className={s.cardInitial}>
+          {company.name.charAt(0).toUpperCase()}
         </div>
-        <div className={s.cardNameBlock}>
+        <div className={s.cardIdentity}>
           <p className={s.cardName}>{company.name}</p>
           {meta && <p className={s.cardMeta}>{meta}</p>}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.35rem" }}>
-          {company.stage && (
-            <span className={`${s.stageBadge} ${stageClass(company.stage)}`}>
-              {company.stage}
-            </span>
-          )}
-          {fresh && <span className={s.newBadge}>New</span>}
-        </div>
+        {company.stage && (
+          <span className={`${s.stagePill} ${stageCls(company.stage)}`}>
+            {company.stage}
+          </span>
+        )}
       </div>
 
-      {/* Funding row */}
-      {company.amount_usd ? (
-        <div>
-          <div className={s.cardFunding}>
-            <span className={s.cardAmount}>{formatAmount(company.amount_usd)}</span>
-            <span className={s.cardAmountLabel}>raised</span>
-          </div>
-          {company.investors.length > 0 && (
-            <p className={s.cardInvestors}>
-              <strong>{company.investors.slice(0, 3).join(" · ")}</strong>
-            </p>
-          )}
-        </div>
-      ) : company.investors.length > 0 ? (
-        <p className={s.cardInvestors}>
-          <strong>{company.investors.slice(0, 3).join(" · ")}</strong>
-        </p>
-      ) : null}
+      {/* Funding */}
+      <div className={s.cardFundingBlock}>
+        {company.amount_usd ? (
+          <>
+            <div className={s.cardAmount}>{formatAmount(company.amount_usd)}</div>
+            <div className={s.cardAmountNote}>Raised</div>
+            {company.investors.length > 0 && (
+              <p className={s.cardInvestors}>
+                {company.investors.slice(0, 3).join(" · ")}
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <p className={s.cardUndisclosed}>Amount undisclosed</p>
+            {company.investors.length > 0 && (
+              <p className={s.cardInvestors} style={{ marginTop: "0.35rem" }}>
+                {company.investors.slice(0, 3).join(" · ")}
+              </p>
+            )}
+          </>
+        )}
+      </div>
 
       {/* Founder */}
       {company.founder_name && (
         <div className={s.cardFounder}>
-          <span className={s.cardFounderAv}>
-            {company.founder_name.charAt(0).toUpperCase()}
-          </span>
+          <span className={s.cardFounderDot} aria-hidden="true" />
           {company.founder_name}
         </div>
       )}
 
-      <div className={s.cardDivider} />
-
       {/* Footer */}
       <div className={s.cardFooter}>
-        <div className={s.cardJobs}>
+        <span className={s.cardJobCount}>
           {company.active_jobs > 0 ? (
             <>
-              <span className={s.cardJobsNum}>{company.active_jobs}</span>
+              <span className={s.cardJobNum}>{company.active_jobs}</span>
               {" "}open {company.active_jobs === 1 ? "role" : "roles"}
             </>
           ) : (
-            <span className={s.cardJobsZero}>No open roles right now</span>
+            "No open roles"
           )}
-        </div>
+        </span>
         {company.board_url ? (
           <a
             href={company.board_url}
             target="_blank"
             rel="noopener noreferrer"
-            className={s.cardCta}
+            className={s.cardLink}
           >
             View roles →
           </a>
         ) : (
-          <span className={`${s.cardCta} ${s.cardCtaDisabled}`}>Coming soon</span>
+          <span className={s.cardLinkNone}>Board not listed</span>
         )}
       </div>
     </article>
   );
 }
 
-const ALL_STAGES  = ["Seed", "Series A", "Series B", "Series C", "Series D", "Series E", "Series F+"];
-const ALL_SECTORS = ["Fintech", "B2B SaaS", "Consumer", "Developer Tools", "Healthtech", "Edtech", "Logistics"];
+const STAGE_ORDER  = ["Seed", "Series A", "Series B", "Series C", "Series D", "Series E", "Series F", "Growth", "IPO"];
+const SECTOR_ORDER = ["Fintech", "B2B SaaS", "Consumer", "Developer Tools", "AI / SaaS", "Healthtech", "Edtech", "Logistics", "Mobility", "Infrastructure / DevOps", "Design Tools"];
 
 export function StartupsClient({ companies }: { companies: CompanyFeedItem[] }) {
   const [stageFilter,  setStageFilter]  = useState<string | null>(null);
   const [sectorFilter, setSectorFilter] = useState<string | null>(null);
 
-  const visibleStages = useMemo(() => {
-    const set = new Set(companies.map((c) => c.stage).filter(Boolean) as string[]);
-    return ALL_STAGES.filter((s) => set.has(s));
+  const presentStages = useMemo(() => {
+    const present = new Set(companies.map((c) => c.stage).filter(Boolean) as string[]);
+    return STAGE_ORDER.filter((st) => present.has(st));
   }, [companies]);
 
-  const visibleSectors = useMemo(() => {
-    const set = new Set(companies.map((c) => c.sector).filter(Boolean) as string[]);
-    return ALL_SECTORS.filter((s) => set.has(s));
+  const presentSectors = useMemo(() => {
+    const present = new Set(companies.map((c) => c.sector).filter(Boolean) as string[]);
+    return SECTOR_ORDER.filter((se) => present.has(se));
   }, [companies]);
 
-  const filtered = useMemo(() => {
-    return companies.filter((c) => {
-      if (stageFilter  && c.stage  !== stageFilter)  return false;
-      if (sectorFilter && c.sector !== sectorFilter) return false;
-      return true;
-    });
-  }, [companies, stageFilter, sectorFilter]);
+  const filtered = useMemo(() => companies.filter((c) => {
+    if (stageFilter  && c.stage  !== stageFilter)  return false;
+    if (sectorFilter && c.sector !== sectorFilter) return false;
+    return true;
+  }), [companies, stageFilter, sectorFilter]);
 
   const totalJobs = companies.reduce((n, c) => n + c.active_jobs, 0);
 
   return (
     <>
       <header className={s.header}>
-        <p className={s.headerEyebrow}>Funded &amp; Hiring</p>
+        <div className={s.headerRule}>
+          <span className={s.headerRuleDot} aria-hidden="true" />
+          <span className={s.headerRuleLabel}>Funded &amp; Hiring</span>
+        </div>
         <h1 className={s.headerTitle}>
-          India&rsquo;s best startups<br />
-          <em>hiring right now</em>
+          India&rsquo;s best-funded<br />
+          <em>startups, hiring now</em>
         </h1>
-        <p className={s.headerSub}>
-          {companies.length} funded companies · {totalJobs} open roles across India
-        </p>
-        <div className={s.headerMeta}>
-          <span className={s.metaPill}>
-            <span className={s.metaDot} aria-hidden="true" />
-            Updated daily
-          </span>
-          <span className={s.metaPill}>Series A through IPO</span>
-          <span className={s.metaPill}>India only</span>
+        <div className={s.headerStats}>
+          <div className={s.headerStat}>
+            <span className={s.headerStatNum}>{companies.length}</span>
+            <span className={s.headerStatLabel}>Companies</span>
+          </div>
+          <div className={s.headerStatDiv} />
+          <div className={s.headerStat}>
+            <span className={s.headerStatNum}>{totalJobs}</span>
+            <span className={s.headerStatLabel}>Open roles</span>
+          </div>
+          <div className={s.headerStatDiv} />
+          <div className={s.headerStat}>
+            <span className={s.headerStatNum}>{presentStages.length}</span>
+            <span className={s.headerStatLabel}>Funding stages</span>
+          </div>
         </div>
       </header>
 
-      {(visibleStages.length > 0 || visibleSectors.length > 0) && (
-        <div className={s.filters} role="navigation" aria-label="Filter companies">
+      {(presentStages.length > 0 || presentSectors.length > 0) && (
+        <nav className={s.filters} aria-label="Filter companies">
           <div className={s.filtersInner}>
-            {visibleStages.length > 0 && (
-              <div className={s.filterGroup} role="group" aria-label="Stage">
-                <button
-                  type="button"
-                  className={`${s.filterBtn} ${stageFilter === null ? s.filterBtnActive : ""}`}
-                  onClick={() => setStageFilter(null)}
-                >
-                  All stages
-                </button>
-                {visibleStages.map((stage) => (
+            <span className={s.filterLabel}>Filter</span>
+            <button
+              type="button"
+              className={`${s.filterBtn} ${stageFilter === null && sectorFilter === null ? s.filterBtnActive : ""}`}
+              onClick={() => { setStageFilter(null); setSectorFilter(null); }}
+            >
+              All
+            </button>
+
+            {presentStages.length > 0 && (
+              <>
+                <div className={s.filterSep} aria-hidden="true" />
+                {presentStages.map((st) => (
                   <button
-                    key={stage}
+                    key={st}
                     type="button"
-                    className={`${s.filterBtn} ${stageFilter === stage ? s.filterBtnActive : ""}`}
-                    onClick={() => setStageFilter(stageFilter === stage ? null : stage)}
+                    className={`${s.filterBtn} ${stageFilter === st ? s.filterBtnActive : ""}`}
+                    onClick={() => { setStageFilter(stageFilter === st ? null : st); setSectorFilter(null); }}
                   >
-                    {stage}
+                    {st}
                   </button>
                 ))}
-              </div>
+              </>
             )}
 
-            {visibleStages.length > 0 && visibleSectors.length > 0 && (
-              <div className={s.filterDivider} aria-hidden="true" />
-            )}
-
-            {visibleSectors.length > 0 && (
-              <div className={s.filterGroup} role="group" aria-label="Sector">
-                {visibleSectors.map((sector) => (
+            {presentSectors.length > 0 && (
+              <>
+                <div className={s.filterSep} aria-hidden="true" />
+                {presentSectors.map((se) => (
                   <button
-                    key={sector}
+                    key={se}
                     type="button"
-                    className={`${s.filterBtn} ${sectorFilter === sector ? s.filterBtnActive : ""}`}
-                    onClick={() => setSectorFilter(sectorFilter === sector ? null : sector)}
+                    className={`${s.filterBtn} ${sectorFilter === se ? s.filterBtnActive : ""}`}
+                    onClick={() => { setSectorFilter(sectorFilter === se ? null : se); setStageFilter(null); }}
                   >
-                    {sector}
+                    {se}
                   </button>
                 ))}
-              </div>
+              </>
             )}
           </div>
-        </div>
+        </nav>
       )}
 
       <main className={s.main}>
         <div className={s.grid}>
           {filtered.length > 0 ? (
-            filtered.map((company, i) => (
-              <CompanyCard key={company.id} company={company} index={i} />
-            ))
+            filtered.map((c, i) => <CompanyCard key={c.id} company={c} index={i} />)
           ) : (
             <p className={s.empty}>No companies match this filter.</p>
           )}
