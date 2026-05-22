@@ -2539,6 +2539,7 @@ body {
   background: var(--sand);
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* Top bar */
@@ -2951,16 +2952,6 @@ body {
   }
 }
 
-@media (max-width: 420px) {
-  .dash-topbar  { padding: 0 16px; }
-  .dash-main    { padding: 20px 14px 48px; gap: 18px; }
-  .dash-panel   { padding: 18px 14px; }
-  .dash-update  { padding: 14px 14px; }
-  .dash-update-headline { font-size: 15px; }
-  .dash-update-detail   { font-size: 13.5px; }
-  .dash-cta-card { padding: 24px 20px; }
-  .dash-journey  { padding: 22px 14px; }
-}
 
 /* Greeting */
 .dash-greeting {
@@ -4181,6 +4172,22 @@ body {
   .dash-wa-btn { width: 100%; justify-content: center; }
   .dash-panels { grid-template-columns: 1fr; }
   .dash-panel { padding: 28px 24px; }
+}
+
+/* ── Small-phone overrides — must come AFTER the 768px block to win the cascade ── */
+@media (max-width: 480px) {
+  .dash-topbar  { padding: 0 16px; }
+  .dash-main    { padding: 24px 16px 48px; gap: 18px; }
+  .dash-panel   { padding: 18px 16px; }
+  .dash-cta-card { padding: 24px 20px; }
+  .dash-cta-title { font-size: 22px; }
+  .dash-wa-btn  { padding: 12px 20px; font-size: 14px; }
+  .dash-journey { padding: 20px 16px; }
+  .dash-update  { padding: 12px 14px; }
+  .dash-update-headline { font-size: 15px; }
+  .dash-update-detail   { font-size: 13px; }
+  /* Make sure no panel child escapes the viewport */
+  .dash-panels, .dash-main, .dash-panel { max-width: 100%; }
 }
 
 /* ── SIGN IN PAGE ── */
@@ -7782,6 +7789,7 @@ img.wchat-av--user { border-radius: 50%; }
   min-height: 100vh;
   background: var(--fp2-bg);
   font-family: inherit;
+  overflow-x: hidden;
 }
 
 /* ── Topbar ──────────────────────────────────────────────────────────────── */
@@ -9101,6 +9109,13 @@ img.wchat-av--user { border-radius: 50%; }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
+  /* Topbar: reduce padding and hide non-essential items */
+  .fp2-topbar    { padding: 0 16px; gap: 8px; }
+  .fp2-topbar-pill { display: none; }
+  /* Hide "My roles" nav link; keep "+ Add role" and user menu */
+  .fp2-topbar-link:not(.fp2-topbar-link--accent) { display: none; }
+  .fp2-topbar-link--accent { padding: 4px 10px; font-size: 11px; }
+
   .fp2-main          { padding: 16px 12px 48px; gap: 12px; }
   .fp2-job-card      { padding: 18px 16px; }
   .fp2-job-block     { padding: 16px 14px; }

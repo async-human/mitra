@@ -8,6 +8,7 @@
   color: #1C1917;
   font-family: inherit;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 /* ── TOPBAR ──────────────────────────────────────────────────────────────────── */
@@ -123,34 +124,6 @@
   margin-bottom: 48px;
 }
 
-@media (max-width: 720px) {
-  .statsRow {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .topbar  { padding: 0 16px; }
-  .content { padding: 28px 16px 64px; }
-
-  /* Greeting: stack title + CTA button vertically */
-  .greeting {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
-  }
-  .greetTitle { font-size: 24px; }
-
-  /* Stat cards: smaller numbers + padding */
-  .statValue { font-size: 28px; }
-  .statCard  { padding: 18px 20px; }
-
-  /* Add-role row: single column on phones */
-  .addRow { grid-template-columns: 1fr; }
-
-  /* Empty state: less generous padding */
-  .emptyState { padding: 32px 20px; }
-}
 
 .statCard {
   background: #FFFFFF;
@@ -407,11 +380,6 @@
   transform: translateX(3px);
 }
 
-@media (max-width: 640px) {
-  .roleList {
-    grid-template-columns: 1fr;
-  }
-}
 
 /* ── EMPTY STATE ─────────────────────────────────────────────────────────────── */
 
@@ -523,4 +491,31 @@
 .addCard:hover .addCardArrow {
   color: rgba(28,25,23,0.52);
   transform: translateX(3px);
+}
+
+/* ── RESPONSIVE — must come after all base rules to win the cascade ── */
+
+@media (max-width: 720px) {
+  .statsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar  { padding: 0 16px; }
+  .content { padding: 28px 16px 64px; }
+
+  .greeting {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .greetTitle { font-size: 24px; }
+
+  .statValue { font-size: 28px; }
+  .statCard  { padding: 18px 20px; }
+
+  .roleList  { grid-template-columns: 1fr; }
+  .addRow    { grid-template-columns: 1fr; }
+  .emptyState { padding: 32px 20px; }
 }

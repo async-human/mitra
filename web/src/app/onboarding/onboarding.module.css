@@ -20,7 +20,9 @@
   grid-template-columns: 1fr;
   grid-template-rows: 52px 1fr;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--ink);
   font-family: inherit;
