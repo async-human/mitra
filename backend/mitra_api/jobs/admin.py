@@ -936,26 +936,17 @@ funding_router = APIRouter(prefix="/admin/funding", tags=["admin"])
 
 @funding_router.post("/scan", dependencies=[Depends(require_admin)])
 async def scan_funding(dry_run: bool = False) -> dict:
+    """
+    Scrape funding news sources, extract events via LLM, upsert companies,
+    probe ATS, sync jobs.  Provider/model controlled by MITRA_LLM_PROVIDER
+    and MITRA_LLM_CHEAP_MODEL — no code changes needed to switch providers.
+    """
     from mitra_api.db.engine import get_session_factory
     from mitra_api.tools.funding_tracker import run_funding_discovery_pipeline
 
-    settings = get_settings()
     factory = get_session_factory()
     async with factory() as db:
-        return await run_funding_discovery_pipeline(
-            db, api_key=settings.anthropic_api_key, dry_run=dry_run,
-        )
-
-
-@funding_router.post("/bootstrap", dependencies=[Depends(require_admin)])
-async def bootstrap_startups(dry_run: bool = False) -> dict:
-    """Discover ATS + sync jobs for curated Indian startups (Setu, Pronto, etc.)."""
-    from mitra_api.db.engine import get_session_factory
-    from mitra_api.tools.funding_tracker import bootstrap_known_startups
-
-    factory = get_session_factory()
-    async with factory() as db:
-        return await bootstrap_known_startups(db, dry_run=dry_run)
+        return await run_funding_discovery_pipeline(db, dry_run=dry_run)
 
 
 @funding_router.post("/discover-ats", dependencies=[Depends(require_admin)])

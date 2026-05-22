@@ -32,9 +32,18 @@ class Settings(BaseSettings):
         default="openai",
         validation_alias="MITRA_LLM_PROVIDER",
     )
-    mitra_llm_model: str    = Field(default="gpt-4o-mini", validation_alias="MITRA_LLM_MODEL")
-    mitra_llm_max_tokens: int   = Field(default=2048, validation_alias="MITRA_LLM_MAX_TOKENS")
-    mitra_llm_temperature: float = Field(default=0.2, validation_alias="MITRA_LLM_TEMPERATURE")
+    mitra_llm_model: str         = Field(default="gpt-4o-mini",  validation_alias="MITRA_LLM_MODEL")
+    mitra_llm_cheap_model: str   = Field(
+        default="gpt-4o-mini",
+        validation_alias="MITRA_LLM_CHEAP_MODEL",
+        description=(
+            "Fast, low-cost model for lightweight extraction tasks (funding scraping, "
+            "signal parsing, etc.). Defaults to gpt-4o-mini for OpenAI. "
+            "When switching to Anthropic, set to claude-haiku-4-5-20251001."
+        ),
+    )
+    mitra_llm_max_tokens: int    = Field(default=2048, validation_alias="MITRA_LLM_MAX_TOKENS")
+    mitra_llm_temperature: float = Field(default=0.2,  validation_alias="MITRA_LLM_TEMPERATURE")
 
     openai_api_key:    str = Field(default="", validation_alias="OPENAI_API_KEY")
     anthropic_api_key: str = Field(default="", validation_alias="ANTHROPIC_API_KEY")
