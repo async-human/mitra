@@ -26,6 +26,7 @@ interface InterviewDetails {
   format?: string;
   link?: string;
   notes?: string;
+  booking_uid?: string;
 }
 
 interface OfferDetails {
@@ -531,9 +532,21 @@ function CandidateCard({
                 {actionState === "loading" ? <span className="fpc-spinner" /> : <IconCheck />}
                 Offer extended
               </button>
-              <button className="fpc-btn fpc-btn--schedule" disabled={actionState === "loading"} onClick={() => setShowForm("schedule")}>
-                <IconCalendar />Reschedule
-              </button>
+              {candidate.interview_details?.booking_uid ? (
+                <a
+                  href={`https://cal.com/reschedule/${candidate.interview_details.booking_uid}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="fpc-btn fpc-btn--schedule"
+                  style={{ textDecoration: "none" }}
+                >
+                  <IconCalendar />Reschedule
+                </a>
+              ) : (
+                <button className="fpc-btn fpc-btn--schedule" disabled={actionState === "loading"} onClick={() => setShowForm("schedule")}>
+                  <IconCalendar />Reschedule
+                </button>
+              )}
               <button className="fpc-btn fpc-btn--pass" disabled={actionState === "loading"} onClick={() => doAction("not_a_fit")}>
                 <IconX />Didn&apos;t proceed
               </button>
