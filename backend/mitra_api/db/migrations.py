@@ -158,6 +158,31 @@ async def create_all() -> None:
         ))
         log.info("agent_memory_snapshots table ready")
 
+        # Funded startups — RSS-sourced discovery feed, separate from operational Company table
+        await conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS funded_startups (
+                id           SERIAL PRIMARY KEY,
+                name         VARCHAR(200) NOT NULL UNIQUE,
+                stage        VARCHAR(100),
+                sector       VARCHAR(100),
+                location     VARCHAR(100),
+                founder_name VARCHAR(200),
+                amount_usd   INTEGER,
+                investors    JSONB,
+                website      VARCHAR(300),
+                board_url    VARCHAR(300),
+                discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS funded_startups_stage_idx ON funded_startups(stage)"
+        ))
+        await conn.execute(text(
+            "CREATE INDEX IF NOT EXISTS funded_startups_updated_idx ON funded_startups(updated_at DESC)"
+        ))
+        log.info("funded_startups table ready")
+
     await engine.dispose()
     log.info("Migrations complete")
 

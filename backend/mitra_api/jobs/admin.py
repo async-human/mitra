@@ -619,41 +619,59 @@ class CompanyFeedItem(BaseModel):
 
 
 @public_router.get("/companies", response_model=list[CompanyFeedItem])
-async def public_companies_feed(db: AsyncSession = Depends(get_db)) -> list[CompanyFeedItem]:
-    """Public feed of funded/active companies — powers the /startups page."""
-    rows = (await db.execute(
-        select(
-            Company,
-            func.count(case((Job.status == JobStatus.active, Job.id))).label("active_jobs"),
-        )
-        .outerjoin(Job, Job.company_id == Company.id)
-        .where(
-            Company.source == "funding_tracker",
-            ~Company.signals.contains({"bootstrap": True}),
-        )
-        .group_by(Company.id)
-        .order_by(Company.created_at.desc())
-        .limit(200)
-    )).all()
+async def public_companies_feed(
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> list[CompanyFeedItem]:
+    """Public feed of funded/active companies — powers the /startups page.
 
-    items: list[CompanyFeedItem] = []
-    for company, active_jobs in rows:
-        signals = company.signals or {}
-        items.append(CompanyFeedItem(
-            id=company.id,
-            name=company.name,
-            stage=company.stage,
-            sector=company.sector,
-            location=company.location,
-            website=company.website,
-            founder_name=company.founder_name,
-            amount_usd=signals.get("amount_usd"),
-            investors=signals.get("investors") or [],
-            active_jobs=int(active_jobs),
-            board_url=company.board_url,
-            created_at=company.created_at.isoformat(),
-        ))
-    return items
+    Auto-refreshes in the background when data is stale (>24 h) so the page
+    always shows real external data without any manual intervention.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    from mitra_api.db.models import FundedStartup
+
+    rows = (await db.execute(
+        select(FundedStartup)
+        .order_by(FundedStartup.updated_at.desc())
+        .limit(200)
+    )).scalars().all()
+
+    # Trigger a background refresh when data is stale or absent
+    stale_threshold = datetime.now(timezone.utc) - timedelta(hours=24)
+    most_recent = rows[0].updated_at if rows else None
+    if most_recent is not None and most_recent.tzinfo is None:
+        most_recent = most_recent.replace(tzinfo=timezone.utc)
+    if most_recent is None or most_recent < stale_threshold:
+        async def _refresh() -> None:
+            try:
+                from mitra_api.db.engine import get_session_factory
+                from mitra_api.tools.funding_tracker import run_funding_discovery_pipeline
+                factory = get_session_factory()
+                async with factory() as refresh_db:
+                    await run_funding_discovery_pipeline(refresh_db)
+            except Exception:
+                log.exception("background funding refresh failed")
+        background_tasks.add_task(_refresh)
+
+    return [
+        CompanyFeedItem(
+            id=row.id,
+            name=row.name,
+            stage=row.stage,
+            sector=row.sector,
+            location=row.location,
+            website=row.website,
+            founder_name=row.founder_name,
+            amount_usd=row.amount_usd,
+            investors=row.investors or [],
+            active_jobs=0,
+            board_url=row.board_url,
+            created_at=row.discovered_at.isoformat(),
+        )
+        for row in rows
+    ]
 
 
 # ── COMPANY ADMIN ROUTER ──────────────────────────────────────────────────────
@@ -940,9 +958,8 @@ funding_router = APIRouter(prefix="/admin/funding", tags=["admin"])
 @funding_router.post("/scan", dependencies=[Depends(require_admin)])
 async def scan_funding(dry_run: bool = False) -> dict:
     """
-    Scrape funding news sources, extract events via LLM, upsert companies,
-    probe ATS, sync jobs.  Provider/model controlled by MITRA_LLM_PROVIDER
-    and MITRA_LLM_CHEAP_MODEL — no code changes needed to switch providers.
+    Fetch RSS funding headlines, extract events via LLM, upsert funded_startups.
+    Provider/model controlled by MITRA_LLM_PROVIDER and MITRA_LLM_CHEAP_MODEL.
     """
     from mitra_api.db.engine import get_session_factory
     from mitra_api.tools.funding_tracker import run_funding_discovery_pipeline

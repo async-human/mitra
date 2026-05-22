@@ -50,6 +50,30 @@ async def lifespan(app: FastAPI):
             "or redeploy after fixing MITRA_DATABASE_URL"
         )
 
+    # Seed funded-startups feed on first boot if empty
+    try:
+        import asyncio
+        from mitra_api.db.engine import get_session_factory
+        from mitra_api.db.models import FundedStartup
+        from sqlalchemy import select, func
+
+        async def _seed_if_empty() -> None:
+            factory = get_session_factory()
+            async with factory() as db:
+                count = (await db.execute(
+                    select(func.count()).select_from(FundedStartup)
+                )).scalar_one()
+            if count == 0:
+                logging.info("startup: funded_startups empty — running RSS discovery pipeline")
+                from mitra_api.tools.funding_tracker import run_funding_discovery_pipeline
+                async with factory() as db:
+                    result = await run_funding_discovery_pipeline(db)
+                logging.info("startup: funding pipeline done: %s", result)
+
+        asyncio.ensure_future(_seed_if_empty())
+    except Exception:
+        logging.exception("startup: funding seed check failed (non-critical)")
+
     # Start background scheduler (re-engagement, intro follow-up, check-ins)
     scheduler_tasks: list = []
     try:

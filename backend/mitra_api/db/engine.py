@@ -159,6 +159,23 @@ async def run_schema_migrations() -> None:
         "ALTER TABLE companies ADD COLUMN IF NOT EXISTS signals JSONB",
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_companies_greenhouse_slug ON companies(greenhouse_slug) WHERE greenhouse_slug IS NOT NULL",
         "CREATE UNIQUE INDEX IF NOT EXISTS uq_companies_lever_slug ON companies(lever_slug) WHERE lever_slug IS NOT NULL",
+        # funded_startups — RSS-sourced feed for /startups (separate from operational companies)
+        """CREATE TABLE IF NOT EXISTS funded_startups (
+            id           SERIAL PRIMARY KEY,
+            name         VARCHAR(200) NOT NULL UNIQUE,
+            stage        VARCHAR(100),
+            sector       VARCHAR(100),
+            location     VARCHAR(100),
+            founder_name VARCHAR(200),
+            amount_usd   INTEGER,
+            investors    JSONB,
+            website      VARCHAR(300),
+            board_url    VARCHAR(300),
+            discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )""",
+        "CREATE INDEX IF NOT EXISTS funded_startups_stage_idx ON funded_startups(stage)",
+        "CREATE INDEX IF NOT EXISTS funded_startups_updated_idx ON funded_startups(updated_at DESC)",
     ]
     engine = _engine()
     async with engine.begin() as conn:

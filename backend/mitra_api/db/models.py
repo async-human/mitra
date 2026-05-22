@@ -133,6 +133,31 @@ class Company(Base):
     jobs: Mapped[list["Job"]] = relationship(back_populates="company_rel", cascade="all, delete-orphan")
 
 
+# ── FUNDED STARTUPS ───────────────────────────────────────────────────────────
+
+class FundedStartup(Base):
+    """
+    Read-only feed of recently funded Indian startups discovered via RSS.
+    Completely separate from the Company table (operational clients).
+    Populated exclusively by the funding_tracker pipeline.
+    """
+    __tablename__ = "funded_startups"
+
+    id:           Mapped[int]       = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name:         Mapped[str]       = mapped_column(String(200), nullable=False, unique=True)
+    stage:        Mapped[str|None]  = mapped_column(String(100))
+    sector:       Mapped[str|None]  = mapped_column(String(100))
+    location:     Mapped[str|None]  = mapped_column(String(100))
+    founder_name: Mapped[str|None]  = mapped_column(String(200))
+    amount_usd:   Mapped[int|None]  = mapped_column(Integer)
+    investors:    Mapped[Any|None]  = mapped_column(JSONB)   # list[str]
+    website:      Mapped[str|None]  = mapped_column(String(300))
+    board_url:    Mapped[str|None]  = mapped_column(String(300))
+
+    discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at:    Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 # ── JOBS ──────────────────────────────────────────────────────────────────────
 
 class JobStatus(str, enum.Enum):

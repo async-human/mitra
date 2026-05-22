@@ -1,15 +1,17 @@
 """
 mitra_api/tools/funding_tracker.py
 
-Funding discovery + ATS probing for Indian startups.
+Two parallel systems for Indian startup intelligence:
 
-  1. Fetch RSS feeds from Indian startup news sources (no HTML scraping —
-     RSS is bot-friendly, free, and not behind Cloudflare)
-  2. LLM-extract structured funding events from RSS titles/summaries
-     (provider-agnostic via get_llm_adapter + mitra_llm_cheap_model)
-  3. Probe Greenhouse → Ashby → Lever for each new company
-  4. Upsert companies + sync jobs when ATS is found
-  5. Queue no-ATS companies for manual outreach
+  RSS Funding Feed (FundedStartup table)
+    1. Fetch RSS feeds from Indian startup news sources
+    2. LLM-extract structured funding events
+    3. Upsert into funded_startups — powers the public /startups page
+
+  ATS Bootstrap (Company table)
+    1. Probe Greenhouse → Ashby → Lever for curated startups
+    2. Upsert operational Company rows + sync India engineering jobs
+    3. Queue no-ATS companies for manual outreach via get_outreach_queue()
 
 Provider switching is env-only — no code changes needed:
   MITRA_LLM_PROVIDER=openai    MITRA_LLM_CHEAP_MODEL=gpt-4o-mini
@@ -49,6 +51,30 @@ _HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; MitraFundingBot/1.0; +https:
 
 # Atom namespace
 _ATOM_NS = "http://www.w3.org/2005/Atom"
+
+# Known Indian startups — explicit ATS slugs where auto-discovery fails
+BOOTSTRAP_COMPANIES: list[dict[str, str]] = [
+    {"name": "Setu", "stage": "Series B", "sector": "Fintech"},
+    {"name": "Pronto", "stage": "Series A", "sector": "Mobility", "greenhouse_slug": "pronto"},
+    {"name": "Hyperface", "stage": "Series A", "sector": "Fintech"},
+    {"name": "Slice", "stage": "Series B", "sector": "Fintech", "greenhouse_slug": "slice"},
+    {"name": "Jar", "stage": "Series B", "sector": "Consumer"},
+    {"name": "Khatabook", "stage": "Series C", "sector": "B2B SaaS"},
+    {
+        "name": "Razorpay",
+        "stage": "Series D",
+        "sector": "Fintech",
+        "greenhouse_slug": "razorpaysoftwareprivatelimited",
+    },
+    {"name": "CRED", "stage": "Series D", "sector": "Fintech", "lever_slug": "cred"},
+    {"name": "Groww", "stage": "Series D", "sector": "Fintech", "greenhouse_slug": "groww"},
+    {"name": "Zepto", "stage": "Series E", "sector": "Consumer"},
+    {"name": "Postman", "stage": "Series D", "sector": "Developer Tools", "greenhouse_slug": "postman"},
+    {"name": "PhonePe", "stage": "Series D", "sector": "Fintech", "greenhouse_slug": "phonepe"},
+    {"name": "Meesho", "stage": "Series F", "sector": "Consumer", "lever_slug": "meesho"},
+    {"name": "BrowserStack", "stage": "Series B", "sector": "Developer Tools"},
+    {"name": "Chargebee", "stage": "Series H", "sector": "B2B SaaS"},
+]
 
 
 # ── RSS parsing ───────────────────────────────────────────────────────────────
@@ -256,11 +282,25 @@ async def _sync_company_jobs(company_id: int, ats: str) -> int:
     return 0
 
 
-async def _upsert_company(
-    db, *, company_name: str, stage: str | None, sector: str | None,
-    location: str | None, founder_name: str | None,
-    ats_info: dict[str, Any] | None, extra_signals: dict[str, Any] | None,
+def _known_ats_info(entry: dict[str, str]) -> dict[str, Any] | None:
+    if entry.get("greenhouse_slug"):
+        slug = entry["greenhouse_slug"]
+        return {"ats": "greenhouse", "slug": slug, "board_url": f"https://boards.greenhouse.io/{slug}"}
+    if entry.get("lever_slug"):
+        slug = entry["lever_slug"]
+        return {"ats": "lever", "slug": slug, "board_url": f"https://jobs.lever.co/{slug}"}
+    if entry.get("ashby_identifier"):
+        slug = entry["ashby_identifier"]
+        return {"ats": "ashby", "slug": slug, "board_url": f"https://jobs.ashbyhq.com/{slug}"}
+    return None
+
+
+async def _upsert_company_with_ats(
+    db, *, company_name: str, ats_info: dict[str, Any],
+    stage: str | None, sector: str | None, location: str | None,
+    extra_signals: dict[str, Any] | None = None,
 ) -> tuple[Any, bool]:
+    """Upsert an operational Company row with ATS identifiers."""
     from mitra_api.db.models import Company
     from sqlalchemy import select
 
@@ -272,41 +312,158 @@ async def _upsert_company(
 
     if existing:
         company = existing
-        # Only update ATS slug if not already set
-        if ats_info:
-            if ats_info["ats"] == "greenhouse" and not company.greenhouse_slug:
-                company.greenhouse_slug = ats_info["slug"]
-            elif ats_info["ats"] == "ashby" and not company.ashby_identifier:
-                company.ashby_identifier = ats_info["slug"]
-            elif ats_info["ats"] == "lever" and not company.lever_slug:
-                company.lever_slug = ats_info["slug"]
-            company.board_url = company.board_url or ats_info.get("board_url")
-        # Merge signals — update amount/investors if we now have them
-        existing_signals = company.signals or {}
-        if extra_signals and extra_signals.get("amount_usd") and not existing_signals.get("amount_usd"):
-            existing_signals.update(extra_signals)
-            company.signals = existing_signals
-        company.source = company.source or "funding_tracker"
-        if founder_name and not company.founder_name:
-            company.founder_name = founder_name
-        return company, False
+        created = False
+        if ats_info["ats"] == "greenhouse" and not company.greenhouse_slug:
+            company.greenhouse_slug = ats_info["slug"]
+        elif ats_info["ats"] == "ashby" and not company.ashby_identifier:
+            company.ashby_identifier = ats_info["slug"]
+        elif ats_info["ats"] == "lever" and not company.lever_slug:
+            company.lever_slug = ats_info["slug"]
+        company.board_url = company.board_url or ats_info.get("board_url")
+        company.source = company.source or "bootstrap"
+        company.signals = {**(company.signals or {}), **signals}
+    else:
+        kwargs: dict[str, Any] = {
+            "name": company_name, "stage": stage, "sector": sector,
+            "location": location or "India", "source": "bootstrap",
+            "board_url": ats_info.get("board_url"), "signals": signals,
+            "founder_access_token": secrets.token_urlsafe(32),
+        }
+        if ats_info["ats"] == "greenhouse":
+            kwargs["greenhouse_slug"] = ats_info["slug"]
+        elif ats_info["ats"] == "ashby":
+            kwargs["ashby_identifier"] = ats_info["slug"]
+        elif ats_info["ats"] == "lever":
+            kwargs["lever_slug"] = ats_info["slug"]
+        company = Company(**kwargs)
+        db.add(company)
+        created = True
 
-    kwargs: dict[str, Any] = {
-        "name": company_name, "stage": stage, "sector": sector,
-        "location": location or "India", "source": "funding_tracker",
-        "signals": signals, "founder_access_token": secrets.token_urlsafe(32),
+    await db.flush()
+    return company, created
+
+
+async def _queue_for_outreach(
+    db, *, company_name: str, stage: str | None, sector: str | None,
+    location: str | None, reason: str,
+) -> None:
+    """Add a no-ATS company to the operational outreach queue."""
+    from mitra_api.db.models import Company
+    from sqlalchemy import select
+
+    existing = (
+        await db.execute(select(Company).where(Company.name.ilike(company_name)))
+    ).scalar_one_or_none()
+
+    signals = {
+        "needs_outreach": True,
+        "outreach_reason": reason,
+        "discovered_at": datetime.now(timezone.utc).isoformat(),
     }
-    if founder_name:
-        kwargs["founder_name"] = founder_name
-    if ats_info:
-        kwargs["board_url"] = ats_info.get("board_url")
-        if ats_info["ats"] == "greenhouse": kwargs["greenhouse_slug"]  = ats_info["slug"]
-        elif ats_info["ats"] == "ashby":    kwargs["ashby_identifier"] = ats_info["slug"]
-        elif ats_info["ats"] == "lever":    kwargs["lever_slug"]       = ats_info["slug"]
 
-    company = Company(**kwargs)
-    db.add(company)
-    return company, True
+    if existing:
+        existing.signals = {**(existing.signals or {}), **signals}
+        existing.source = existing.source or "bootstrap"
+        return
+
+    db.add(Company(
+        name=company_name, stage=stage, sector=sector,
+        location=location or "India", source="bootstrap", signals=signals,
+        founder_access_token=secrets.token_urlsafe(32),
+    ))
+
+
+async def bootstrap_known_startups(db, *, dry_run: bool = False) -> dict[str, Any]:
+    """Discover ATS + sync jobs for curated Indian startup list."""
+    stats: dict[str, Any] = {
+        "processed": 0, "ats_found": 0, "jobs_synced": 0,
+        "skipped": 0, "queued_for_outreach": 0, "errors": 0,
+    }
+
+    for entry in BOOTSTRAP_COMPANIES:
+        name = entry["name"]
+        stats["processed"] += 1
+        ats_info = _known_ats_info(entry) or await discover_ats(name)
+
+        if not ats_info:
+            log.info("bootstrap: no ATS for %s", name)
+            stats["skipped"] += 1
+            if not dry_run:
+                await _queue_for_outreach(
+                    db,
+                    company_name=name,
+                    stage=entry.get("stage"),
+                    sector=entry.get("sector"),
+                    location=entry.get("location", "India"),
+                    reason="no_ats_found",
+                )
+                stats["queued_for_outreach"] += 1
+            continue
+
+        stats["ats_found"] += 1
+        if dry_run:
+            log.info("DRY RUN bootstrap: %s → %s", name, ats_info)
+            continue
+
+        try:
+            company, _ = await _upsert_company_with_ats(
+                db,
+                company_name=name,
+                ats_info=ats_info,
+                stage=entry.get("stage"),
+                sector=entry.get("sector"),
+                location=entry.get("location", "India"),
+                extra_signals={"bootstrap": True},
+            )
+            await db.commit()
+            stats["jobs_synced"] += await _sync_company_jobs(company.id, ats_info["ats"])
+        except Exception:
+            log.exception("bootstrap failed for %s", name)
+            stats["errors"] += 1
+
+    if not dry_run:
+        await db.commit()
+    return stats
+
+
+async def _upsert_funded_startup(
+    db, *, company_name: str, stage: str | None, sector: str | None,
+    location: str | None, founder_name: str | None,
+    amount_usd: int | None, investors: list[str],
+    board_url: str | None,
+) -> tuple[Any, bool]:
+    from mitra_api.db.models import FundedStartup
+    from sqlalchemy import select
+
+    existing = (
+        await db.execute(select(FundedStartup).where(FundedStartup.name.ilike(company_name)))
+    ).scalar_one_or_none()
+
+    if existing:
+        if amount_usd and not existing.amount_usd:
+            existing.amount_usd = amount_usd
+        if investors and not existing.investors:
+            existing.investors = investors
+        if founder_name and not existing.founder_name:
+            existing.founder_name = founder_name
+        if board_url and not existing.board_url:
+            existing.board_url = board_url
+        if stage and not existing.stage:
+            existing.stage = stage
+        return existing, False
+
+    startup = FundedStartup(
+        name=company_name,
+        stage=stage,
+        sector=sector,
+        location=location or "India",
+        founder_name=founder_name,
+        amount_usd=amount_usd,
+        investors=investors or [],
+        board_url=board_url,
+    )
+    db.add(startup)
+    return startup, True
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -316,10 +473,8 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
     1. Fetch all RSS feeds in parallel
     2. Deduplicate headlines
     3. Single LLM call to extract all funding events
-    4. For each new company: probe ATS, upsert, sync jobs
+    4. Upsert into funded_startups table (separate from operational Company table)
     """
-    from mitra_api.db.models import Company
-    from sqlalchemy import select
     import asyncio
 
     stats: dict[str, Any] = {
@@ -328,9 +483,6 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
         "funding_events_found": 0,
         "new_companies":        0,
         "updated_companies":    0,
-        "ats_found":            0,
-        "queued_for_outreach":  0,
-        "jobs_synced":          0,
     }
 
     # 1 — Fetch all RSS feeds in parallel
@@ -365,47 +517,28 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
             )
         return stats
 
-    # 3 — Upsert each event
+    # 3 — Upsert each event into funded_startups
     for event in events:
         company_name = (event.get("company_name") or "").strip()
         if not company_name:
             continue
 
-        stage    = _normalise_stage(event.get("stage") or "")
-        sector   = event.get("sector")
-        location = event.get("location") or "India"
-        founder  = event.get("founder_name") or None
-        funding_signals = {
-            "amount_usd": event.get("amount_usd"),
-            "investors":  event.get("investors") or [],
-        }
-
-        ats_info = await discover_ats(company_name)
-        company, created = await _upsert_company(
+        _, created = await _upsert_funded_startup(
             db,
             company_name=company_name,
-            stage=stage,
-            sector=sector,
-            location=location,
-            founder_name=founder,
-            ats_info=ats_info,
-            extra_signals=funding_signals,
+            stage=_normalise_stage(event.get("stage") or ""),
+            sector=event.get("sector"),
+            location=event.get("location") or "India",
+            founder_name=event.get("founder_name") or None,
+            amount_usd=event.get("amount_usd"),
+            investors=event.get("investors") or [],
+            board_url=None,
         )
         await db.flush()
-
         if created:
             stats["new_companies"] += 1
         else:
             stats["updated_companies"] += 1
-
-        if ats_info:
-            stats["ats_found"] += 1
-            stats["jobs_synced"] += await _sync_company_jobs(company.id, ats_info["ats"])
-        else:
-            stats["queued_for_outreach"] += 1
-            existing_sig = company.signals or {}
-            if not existing_sig.get("needs_outreach"):
-                company.signals = {**existing_sig, "needs_outreach": True, "outreach_reason": "no_ats_found"}
 
     await db.commit()
     return stats
