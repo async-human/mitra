@@ -214,25 +214,44 @@ export function StartupsClient() {
     }
 
     let cancelled = false;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
 
-    async function load() {
+    async function load(attempt = 0) {
       try {
         const res = await fetch(`${API_URL}/public/companies`);
         if (!res.ok) throw new Error(String(res.status));
         const data: CompanyFeedItem[] = await res.json();
-        if (!cancelled) {
+        if (cancelled) return;
+
+        if (data.length > 0) {
           setCompanies(data);
           setError(false);
+          setLoading(false);
+          return;
         }
+
+        // Empty — pipeline may still be running; poll up to ~2 min
+        if (attempt < 24) {
+          pollTimer = setTimeout(() => load(attempt + 1), 5000);
+          return;
+        }
+
+        setCompanies([]);
+        setError(false);
+        setLoading(false);
       } catch {
-        if (!cancelled) setError(true);
-      } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setError(true);
+          setLoading(false);
+        }
       }
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
   }, []);
 
   const presentStages = useMemo(() => {

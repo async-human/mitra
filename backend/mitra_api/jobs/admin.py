@@ -633,7 +633,7 @@ async def public_companies_feed(
     from datetime import datetime, timezone, timedelta
 
     from mitra_api.db.models import FundedStartup
-    from mitra_api.tools.funding_tracker import run_funding_discovery_pipeline
+    from mitra_api.tools.funding_tracker import _sanitize_company_name, run_funding_discovery_pipeline
 
     async def _load_rows() -> list[FundedStartup]:
         return list((
@@ -647,13 +647,23 @@ async def public_companies_feed(
 
     rows = await _load_rows()
 
-    # Never block the HTTP response on the slow RSS pipeline — refresh in background
     stale_threshold = datetime.now(timezone.utc) - timedelta(hours=24)
     most_recent = rows[0].updated_at if rows else None
     if most_recent is not None and most_recent.tzinfo is None:
         most_recent = most_recent.replace(tzinfo=timezone.utc)
-    needs_refresh = (not rows) or (most_recent is not None and most_recent < stale_threshold)
-    if needs_refresh:
+    is_stale = most_recent is not None and most_recent < stale_threshold
+
+    if not rows:
+        # Table empty — run pipeline synchronously so this request returns data.
+        # Frontend shows skeletons while waiting (~30–90 s on first populate).
+        log.info("public/companies: funded_startups empty — running RSS pipeline now")
+        try:
+            stats = await run_funding_discovery_pipeline(db)
+            log.info("public/companies: pipeline done: %s", stats)
+            rows = await _load_rows()
+        except Exception:
+            log.exception("public/companies: synchronous funding pipeline failed")
+    elif is_stale:
         async def _refresh() -> None:
             try:
                 from mitra_api.db.engine import get_session_factory
@@ -675,25 +685,30 @@ async def public_companies_feed(
         ).all()
     }
 
-    return [
-        CompanyFeedItem(
-            id=row.id,
-            name=row.name,
-            stage=row.stage,
-            sector=row.sector,
-            location=row.location,
-            website=row.website,
-            founder_name=row.founder_name,
-            amount_usd=row.amount_usd,
-            investors=row.investors or [],
-            active_jobs=job_counts.get(row.name, 0),
-            board_url=row.board_url,
-            source_url=row.source_url,
-            funded_at=row.funded_at.isoformat() if row.funded_at else None,
-            created_at=row.discovered_at.isoformat(),
+    feed: list[CompanyFeedItem] = []
+    for row in rows:
+        name = _sanitize_company_name(row.name)
+        if not name:
+            continue
+        feed.append(
+            CompanyFeedItem(
+                id=row.id,
+                name=name,
+                stage=row.stage,
+                sector=row.sector,
+                location=row.location,
+                website=row.website,
+                founder_name=row.founder_name,
+                amount_usd=row.amount_usd,
+                investors=row.investors or [],
+                active_jobs=job_counts.get(name, 0) or job_counts.get(row.name, 0),
+                board_url=row.board_url,
+                source_url=row.source_url,
+                funded_at=row.funded_at.isoformat() if row.funded_at else None,
+                created_at=row.discovered_at.isoformat(),
+            )
         )
-        for row in rows
-    ]
+    return feed
 
 
 # ── COMPANY ADMIN ROUTER ──────────────────────────────────────────────────────
@@ -975,6 +990,43 @@ async def sync_greenhouse_wait(company_id: int) -> dict:
 # ── FUNDING / ATS DISCOVERY ROUTER ───────────────────────────────────────────
 
 funding_router = APIRouter(prefix="/admin/funding", tags=["admin"])
+
+
+@funding_router.get("/llm-check", dependencies=[Depends(require_admin)])
+async def funding_llm_check() -> dict:
+    """
+    One-shot LLM connectivity test for the funding extraction pipeline.
+    Use after deploy to confirm OPENAI_API_KEY and extraction model work on Railway.
+    """
+    from mitra_api.config import get_settings
+    from mitra_api.llm.factory import get_llm_adapter
+    from mitra_api.tools.funding_tracker import RssItem, _extract_batch
+
+    s = get_settings()
+    sample = RssItem(
+        title="Razorpay raises $200M in Series F funding round",
+        description="Indian fintech Razorpay closed a Series F round led by major investors.",
+        link="https://example.com/razorpay-series-f",
+        pub_date=None,
+    )
+    try:
+        adapter = get_llm_adapter(s)
+        events = await _extract_batch(adapter, s.mitra_llm_cheap_model, [sample])
+        return {
+            "ok": True,
+            "provider": s.mitra_llm_provider,
+            "extraction_model": s.mitra_llm_cheap_model,
+            "sample_events": len(events),
+            "first_event": events[0] if events else None,
+        }
+    except Exception as exc:
+        log.exception("funding LLM check failed")
+        return {
+            "ok": False,
+            "provider": s.mitra_llm_provider,
+            "extraction_model": s.mitra_llm_cheap_model,
+            "error": str(exc),
+        }
 
 
 @funding_router.post("/scan", dependencies=[Depends(require_admin)])

@@ -10,10 +10,11 @@ Adds:
 All existing settings unchanged — drop-in replacement.
 """
 
+import os
 from functools import lru_cache
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -47,6 +48,22 @@ class Settings(BaseSettings):
 
     openai_api_key:    str = Field(default="", validation_alias="OPENAI_API_KEY")
     anthropic_api_key: str = Field(default="", validation_alias="ANTHROPIC_API_KEY")
+
+    @field_validator("openai_api_key", "anthropic_api_key", mode="before")
+    @classmethod
+    def _clean_api_key(cls, v: object) -> str:
+        if not isinstance(v, str):
+            return ""
+        cleaned = v.strip()
+        if "#" in cleaned:
+            cleaned = cleaned.split("#", 1)[0].strip()
+        return cleaned
+
+    @model_validator(mode="after")
+    def _sync_cheap_model_with_main(self) -> Self:
+        if "MITRA_LLM_CHEAP_MODEL" not in os.environ:
+            self.mitra_llm_cheap_model = self.mitra_llm_model
+        return self
 
     # ── DATABASE ──────────────────────────────────────────────────────────────
     mitra_database_url: str = Field(

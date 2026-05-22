@@ -157,7 +157,7 @@ You extract Indian tech startup funding announcements from numbered news headlin
 
 For each genuine Indian tech startup funding round, return a JSON object with:
   headline_index  (integer — the headline number this event came from)
-  company_name    (string — startup name only, not the parent group)
+  company_name    (string — brand name ONLY, 1–4 words, e.g. "Razorpay", "Anscer Robotics", "Oolka". Never a headline fragment, never "Indian Fintech Startup X", never a weekly roundup title)
   amount_usd      (integer in USD — null if not mentioned or unclear)
   stage           (one of: pre_seed | seed | series_a | series_b | series_c | series_d | series_e | series_f | growth | ipo | bridge | unknown)
   sector          (string — e.g. "Fintech", "B2B SaaS", "Consumer", "Developer Tools", "AI / SaaS", "Healthtech")
@@ -184,9 +184,10 @@ Return ONLY a valid JSON array — no markdown, no commentary.\
 def _dedupe_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
     by_name: dict[str, dict[str, Any]] = {}
     for event in events:
-        name = (event.get("company_name") or "").strip()
+        name = _sanitize_company_name((event.get("company_name") or "").strip()) or ""
         if not name:
             continue
+        event = {**event, "company_name": name}
         key = name.lower()
         prev = by_name.get(key)
         if not prev:
@@ -246,6 +247,7 @@ async def extract_funding_from_headlines(items: list[RssItem]) -> list[dict[str,
     s       = get_settings()
     adapter = get_llm_adapter(s)
     all_events: list[dict[str, Any]] = []
+    llm_failed = False
 
     for batch_start in range(0, len(items), _LLM_BATCH_SIZE):
         batch = items[batch_start:batch_start + _LLM_BATCH_SIZE]
@@ -259,9 +261,188 @@ async def extract_funding_from_headlines(items: list[RssItem]) -> list[dict[str,
                 batch_start + 1, batch_start + len(batch), len(batch_events),
             )
         except Exception:
+            llm_failed = True
             log.exception("funding LLM batch failed at offset %d", batch_start)
+            break  # stop wasting API calls when key is invalid
+
+    if llm_failed and not all_events:
+        return []  # caller will run heuristic fallback
 
     return _dedupe_events(all_events)
+
+
+_BAD_NAME_PHRASES = (
+    "funding and acquisitions", "this week", "startups from", "startups raised",
+    "weekly roundup", "funding alert", "acquisitions in", "startup ecosystem",
+    "between ", "including ", "diverse sectors", " as many as ",
+    "inference problem", "problem,", "entertainment sector",
+)
+
+_JUNK_PREFIX = re.compile(
+    r"^[\{\[\(]?\s*(?:funding\s*alert[\}\]\)]?\s*)?",
+    re.I,
+)
+
+_STARTUP_NAME = re.compile(
+    r"(?:indian(?:\s+\w+){0,8}\s+)?(?:\w+\s+){0,5}startup\s+"
+    r"((?:[A-Za-z][\w.\-&']*(?:\s+(?!raises\b|raised\b|bags\b|secures\b|closes\b|gets\b)"
+    r"[A-Za-z][\w.\-&']*){0,3}))"
+    r"(?:\s+(?:raises|raised|bags|secures|closes|gets|\$)|$)",
+    re.I,
+)
+
+_DESCRIPTOR_PREFIX = re.compile(
+    r"^(?:indian(?:\s+\w+){0,8}\s+)?(?:\w+\s+){0,5}startup\s+",
+    re.I,
+)
+
+
+def _is_plausible_company_name(name: str) -> bool:
+    if not name or len(name) < 2 or len(name) > 45:
+        return False
+    lower = name.lower().strip()
+    if any(p in lower for p in _BAD_NAME_PHRASES):
+        return False
+    if re.search(r"[\{\[\(]", name):
+        return False
+    words = name.split()
+    if len(words) > 5:
+        return False
+    if lower.startswith(("funding", "weekly", "top ", "indian ", "india's ", "ai ")):
+        return False
+    descriptive = {
+        "indian", "india", "startup", "startups", "funding", "wearable", "fintech",
+        "automation", "industrial", "entertainment", "sector", "problem", "inference",
+    }
+    if sum(1 for w in words if w.lower() in descriptive) >= 2 and len(words) > 2:
+        return False
+    return True
+
+
+def _sanitize_company_name(raw: str) -> str | None:
+    name = _JUNK_PREFIX.sub("", raw.strip().strip('"\'')).strip()
+    name = re.split(r"\[|\(", name)[0].strip()
+    if " - " in name:
+        name = name.split(" - ", 1)[0].strip()
+
+    m = _STARTUP_NAME.search(name)
+    if m:
+        name = m.group(1).strip()
+    else:
+        name = _DESCRIPTOR_PREFIX.sub("", name).strip()
+
+    name = re.sub(r"\s+", " ", name).strip(" ,.-")
+    name = re.sub(
+        r"\s+(?:raises|raised|bags|secures|closes|gets)(?:\s+\$.*)?$",
+        "",
+        name,
+        flags=re.I,
+    ).strip()
+    if not _is_plausible_company_name(name):
+        return None
+    return name
+
+
+def _guess_company_name(title: str) -> str:
+    title = title.strip()
+    m = _STARTUP_NAME.search(title)
+    if m:
+        return m.group(1).strip()
+
+    for sep in (" raises ", " Raises ", " bags ", " Bags ", " secures ", " closes ", " gets ", " Raises $", " raises $"):
+        idx = title.find(sep)
+        if idx > 0:
+            candidate = _sanitize_company_name(title[:idx])
+            if candidate:
+                return candidate
+
+    if " - " in title:
+        candidate = _sanitize_company_name(title.split(" - ", 1)[0])
+        if candidate:
+            return candidate
+
+    candidate = _sanitize_company_name(title[:80])
+    return candidate or title[:80].strip()
+
+
+def _parse_amount_from_title(title: str) -> int | None:
+    m = re.search(r"\$\s*([\d,.]+)\s*(b|billion|m|million|k)?", title, re.I)
+    if m and m.group(1):
+        try:
+            val = float(m.group(1).replace(",", ""))
+        except ValueError:
+            val = 0
+        if val <= 0:
+            return None
+        unit = (m.group(2) or "m").lower()
+        if unit in ("b", "billion"):
+            return int(val * 1_000_000_000)
+        if unit in ("m", "million"):
+            return int(val * 1_000_000)
+        if unit == "k":
+            return int(val * 1_000)
+        return int(val * 1_000_000) if val < 1000 else int(val)
+    lower = title.lower()
+    m = re.search(r"(?:rs\.?|₹)\s*([\d,.]+)\s*(crore|cr|lakh)?", lower)
+    if m and m.group(1):
+        try:
+            val = float(m.group(1).replace(",", ""))
+        except ValueError:
+            return None
+        unit = (m.group(2) or "crore").lower()
+        if unit in ("crore", "cr"):
+            return int(val * 120_000)
+        if unit == "lakh":
+            return int(val * 1_200)
+    return None
+
+
+def _heuristic_extract_from_rss(items: list[RssItem]) -> list[dict[str, Any]]:
+    """Fallback when LLM is unavailable — parse funding signals from RSS titles directly."""
+    keywords = (
+        "funding", "raises", "raised", " crore", "million", " billion",
+        "series a", "series b", "series c", "series d", "series e",
+        "seed round", "pre-seed", "secures", "bags ", "closes ",
+    )
+    stage_patterns = [
+        (re.compile(r"pre[- ]?seed", re.I), "pre_seed"),
+        (re.compile(r"\bseed\b", re.I), "seed"),
+        (re.compile(r"series f", re.I), "series_f"),
+        (re.compile(r"series e", re.I), "series_e"),
+        (re.compile(r"series d", re.I), "series_d"),
+        (re.compile(r"series c", re.I), "series_c"),
+        (re.compile(r"series b", re.I), "series_b"),
+        (re.compile(r"series a", re.I), "series_a"),
+    ]
+    events: list[dict[str, Any]] = []
+    for i, item in enumerate(items):
+        title = item.title.strip()
+        lower = title.lower()
+        if not any(kw in lower for kw in keywords):
+            continue
+        name = _sanitize_company_name(_guess_company_name(title))
+        if not name:
+            continue
+        if any(bad in lower for bad in _BAD_NAME_PHRASES):
+            continue
+        stage = "unknown"
+        for pat, st in stage_patterns:
+            if pat.search(lower):
+                stage = st
+                break
+        events.append({
+            "headline_index": i + 1,
+            "company_name": name,
+            "amount_usd": _parse_amount_from_title(title),
+            "stage": stage,
+            "sector": None,
+            "location": "India",
+            "investors": [],
+            "founder_name": None,
+            "website": None,
+            "funded_at": item.pub_date.strftime("%Y-%m-%d") if item.pub_date else None,
+        })
+    return _dedupe_events(events)
 
 
 # ── ATS probing ───────────────────────────────────────────────────────────────
@@ -510,6 +691,14 @@ async def _upsert_funded_startup(
     from mitra_api.db.models import FundedStartup
     from sqlalchemy import select
 
+    company_name = company_name.strip()[:200]
+    if source_url:
+        source_url = source_url[:480]
+    if website:
+        website = website[:280]
+    if amount_usd is not None and amount_usd > 10_000_000_000:
+        amount_usd = None
+
     existing = (
         await db.execute(select(FundedStartup).where(FundedStartup.name.ilike(company_name)))
     ).scalar_one_or_none()
@@ -558,6 +747,27 @@ async def _upsert_funded_startup(
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+async def _prune_junk_funded_startups(db) -> int:
+    """Remove or rename RSS feed rows whose names are headline fragments, not brands."""
+    from mitra_api.db.models import FundedStartup
+    from sqlalchemy import select
+
+    rows = (
+        await db.execute(select(FundedStartup).where(FundedStartup.source == "rss"))
+    ).scalars().all()
+    removed = 0
+    for row in rows:
+        cleaned = _sanitize_company_name(row.name)
+        if cleaned is None:
+            await db.delete(row)
+            removed += 1
+        elif cleaned != row.name:
+            row.name = cleaned
+    if removed:
+        await db.flush()
+    return removed
+
+
 async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[str, Any]:
     """
     1. Fetch all RSS feeds in parallel
@@ -573,7 +783,11 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
         "funding_events_found": 0,
         "new_companies":        0,
         "updated_companies":    0,
+        "junk_rows_removed":    0,
     }
+
+    if not dry_run:
+        stats["junk_rows_removed"] = await _prune_junk_funded_startups(db)
 
     feed_results = await asyncio.gather(*[_fetch_rss(url) for url in _RSS_FEEDS])
     all_items: list[RssItem] = []
@@ -590,8 +804,14 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
 
     if all_items:
         events = await extract_funding_from_headlines(all_items)
+        if not events:
+            events = _heuristic_extract_from_rss(all_items)
+            log.warning(
+                "funding_discovery: LLM returned 0 — heuristic fallback extracted %d events",
+                len(events),
+            )
         stats["funding_events_found"] = len(events)
-        log.info("funding_discovery: LLM extracted %d funding events (deduped)", len(events))
+        log.info("funding_discovery: %d funding events to upsert", len(events))
 
         if dry_run:
             for e in events:
@@ -602,7 +822,7 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
                 )
         else:
             for event in events:
-                company_name = (event.get("company_name") or "").strip()
+                company_name = _sanitize_company_name((event.get("company_name") or "").strip())
                 if not company_name:
                     continue
 
@@ -621,25 +841,29 @@ async def run_funding_discovery_pipeline(db, *, dry_run: bool = False) -> dict[s
                     fallback=source_item.pub_date if source_item else None,
                 )
 
-                _, created = await _upsert_funded_startup(
-                    db,
-                    company_name=company_name,
-                    stage=_normalise_stage(event.get("stage") or ""),
-                    sector=event.get("sector"),
-                    location=event.get("location") or "India",
-                    founder_name=event.get("founder_name") or None,
-                    amount_usd=event.get("amount_usd"),
-                    investors=event.get("investors") or [],
-                    board_url=None,
-                    website=event.get("website"),
-                    source_url=source_item.link if source_item else None,
-                    funded_at=funded_at,
-                )
-                await db.flush()
-                if created:
-                    stats["new_companies"] += 1
-                else:
-                    stats["updated_companies"] += 1
+                try:
+                    async with db.begin_nested():
+                        _, created = await _upsert_funded_startup(
+                            db,
+                            company_name=company_name,
+                            stage=_normalise_stage(event.get("stage") or ""),
+                            sector=event.get("sector"),
+                            location=event.get("location") or "India",
+                            founder_name=event.get("founder_name") or None,
+                            amount_usd=event.get("amount_usd"),
+                            investors=event.get("investors") or [],
+                            board_url=None,
+                            website=event.get("website"),
+                            source_url=(source_item.link if source_item else None),
+                            funded_at=funded_at,
+                        )
+                        await db.flush()
+                    if created:
+                        stats["new_companies"] += 1
+                    else:
+                        stats["updated_companies"] += 1
+                except Exception:
+                    log.warning("funding_discovery: skipped bad row for %r", company_name[:80])
 
             await db.commit()
 

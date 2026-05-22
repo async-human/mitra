@@ -40,6 +40,27 @@ def get_sessions() -> AgentSessionStore:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    try:
+        from mitra_api.config import get_settings
+
+        s = get_settings()
+        key = s.openai_api_key if s.mitra_llm_provider == "openai" else s.anthropic_api_key
+        if len(key) > 12:
+            masked = f"{key[:8]}...{key[-4:]}"
+        elif key.strip():
+            masked = "(set)"
+        else:
+            masked = "(missing)"
+        logging.info(
+            "LLM config: provider=%s model=%s extraction_model=%s key=%s",
+            s.mitra_llm_provider,
+            s.mitra_llm_model,
+            s.mitra_llm_cheap_model,
+            masked,
+        )
+    except Exception:
+        logging.exception("LLM config log failed (non-critical)")
+
     # Run schema migrations on startup (idempotent ADD COLUMN IF NOT EXISTS)
     try:
         from mitra_api.db.engine import run_schema_migrations
