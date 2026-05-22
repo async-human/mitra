@@ -129,6 +129,29 @@
   }
 }
 
+@media (max-width: 640px) {
+  .topbar  { padding: 0 16px; }
+  .content { padding: 28px 16px 64px; }
+
+  /* Greeting: stack title + CTA button vertically */
+  .greeting {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .greetTitle { font-size: 24px; }
+
+  /* Stat cards: smaller numbers + padding */
+  .statValue { font-size: 28px; }
+  .statCard  { padding: 18px 20px; }
+
+  /* Add-role row: single column on phones */
+  .addRow { grid-template-columns: 1fr; }
+
+  /* Empty state: less generous padding */
+  .emptyState { padding: 32px 20px; }
+}
+
 .statCard {
   background: #FFFFFF;
   border: 1px solid rgba(28,25,23,0.08);

@@ -538,7 +538,7 @@
     order: -1;
     border-left: none;
     border-bottom: 1px solid rgba(14, 11, 9, 0.06);
-    min-height: 280px;
+    min-height: 220px;
   }
 
   .visualInner {
@@ -561,6 +561,29 @@
 
   .formInner {
     max-width: none;
+  }
+}
+
+/* ── Mobile: thin branded strip at top, full-width form below ── */
+@media (max-width: 560px) {
+  .visualPanel {
+    min-height: 0;
+    max-height: 88px;
+  }
+
+  .bento {
+    display: none;
+  }
+
+  .visualInner {
+    padding: 0.75rem 1rem;
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+  }
+
+  .formPanel {
+    padding: 1.75rem 1.25rem 2rem;
   }
 }
 

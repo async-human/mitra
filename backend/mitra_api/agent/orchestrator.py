@@ -867,7 +867,6 @@ async def run_agent_turn(
                     # Trigger background summary build for next turn
                     try:
                         from mitra_api.agent.memory import build_episodic_summary
-                        import asyncio
                         full_transcript = await sessions.get_transcript(whatsapp_sender_id)
                         older_turns = full_transcript[:-24]  # everything before last 12 turns
                         if older_turns:

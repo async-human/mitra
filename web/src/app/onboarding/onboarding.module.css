@@ -1196,3 +1196,48 @@
 }
 
 .pvEditBtn:hover { color: #1C1917; }
+
+/* ── Responsive ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 520px) {
+  /* Chat body — tighter padding on small phones */
+  .chatBody {
+    padding: 20px 16px 16px;
+    gap: 16px;
+  }
+
+  /* Input bar */
+  .inputBar {
+    padding: 0 16px 18px;
+  }
+
+  /* Wider bubbles so text doesn't squeeze */
+  .msg.in  { max-width: 94%; }
+  .msg.out { max-width: 84%; }
+
+  /* Suggestions — remove left indent so pills use full width */
+  .suggestions { padding-left: 0; }
+
+  /* Company form card — reduce the generous desktop padding */
+  .formCard {
+    padding: 28px 20px 24px;
+    border-radius: 16px;
+  }
+  .formTitle { font-size: 22px; }
+
+  /* Processing card */
+  .processingCard {
+    padding: 28px 20px 24px;
+    border-radius: 16px;
+  }
+
+  /* Preview page */
+  .previewPage { padding: 28px 16px 64px; }
+
+  /* Portal complete card — remove the avatar-aligned indent */
+  .portalCard {
+    margin-left: 0;
+    max-width: none;
+    align-self: stretch;
+  }
+}
