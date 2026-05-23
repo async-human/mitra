@@ -5,24 +5,22 @@ import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
 import s from "./landing-v2.module.css";
 
-const COMPANIES = ["Razorpay", "Setu", "CRED", "Groww", "Zepto", "BharatPe", "Fi Money"];
-
 type ProofStat =
   | { label: string; display: string }
   | { label: string; num: number; suffix: string };
 
 const STATS: Record<V2Audience, ProofStat[]> = {
   candidate: [
-    { label: "Engineers placed", display: "50+" },
-    { label: "Avg. time to first interview", display: "8 days" },
-    { label: "Founder response rate", display: "90%+" },
     { label: "Cost to candidates", display: "₹0" },
+    { label: "Warm founder intros", display: "Direct" },
+    { label: "Roles from funded startups", display: "Live feed" },
+    { label: "Available across India", display: "Pan-India" },
   ],
   company: [
-    { label: "Successful placements", num: 50, suffix: "+" },
     { label: "Success fee — half agency rate", num: 8, suffix: "%" },
     { label: "Replacement guarantee", num: 90, suffix: "d" },
     { label: "First hires free", num: 2, suffix: "" },
+    { label: "Pre-qualified intros", display: "Weekly" },
   ],
 };
 
@@ -120,19 +118,6 @@ export function ProofV2({ audience }: { audience: V2Audience }) {
           >
             {cta.label}
           </a>
-        </div>
-
-        <div className={s.proofCompaniesRow}>
-          <span className={s.proofCompaniesLabel}>Engineers placed at</span>
-          <div className={s.proofCompaniesMarquee}>
-            <div className={s.proofCompaniesTrack}>
-              {[...COMPANIES, ...COMPANIES].map((c, i) => (
-                <span key={`${c}-${i}`} className={s.proofCompanyTag}>
-                  {c}
-                </span>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </section>

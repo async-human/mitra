@@ -49,7 +49,7 @@ function TypedText({ text, firstLineNoWrap }: { text: string; firstLineNoWrap?: 
 
 const CONTENT = {
   candidate: {
-    chip: "Now live · Engineers placed at Setu, CRED & Razorpay",
+    chip: "Now live · Free for candidates",
     headlineText: "Your AI career companion.\nNot a job board.",
     sub: (
       <>
@@ -60,8 +60,8 @@ const CONTENT = {
     cta: { label: "Get started — free", href: "/sign-in?role=candidate", external: false },
     proof: [
       "Free for candidates, always",
-      "Avg. 8 days to first interview",
-      "Zero ghosting — guaranteed",
+      "Warm intros to founders",
+      "Funded startup roles",
       "Pan-India · remote & hybrid",
     ],
   },

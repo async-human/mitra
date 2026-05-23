@@ -62,21 +62,6 @@ function FinePrint() {
   );
 }
 
-const COMPANIES = ["Razorpay", "CRED", "Setu", "Groww", "Zepto"];
-
-function CompaniesBadge() {
-  return (
-    <div className={s.companiesBadge}>
-      <span className={s.companiesLabel}>Engineers placed at</span>
-      <div className={s.companiesRow}>
-        {COMPANIES.map(co => (
-          <span key={co} className={s.companyChip}>{co}</span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 type Props = { searchParams: Promise<{ role?: string; callbackUrl?: string }> };
 
 export default async function SignInPage({ searchParams }: Props) {
@@ -123,7 +108,6 @@ export default async function SignInPage({ searchParams }: Props) {
             </div>
 
             <FinePrint />
-            <CompaniesBadge />
           </div>
         </div>
         <SignInVisual />
@@ -201,7 +185,6 @@ export default async function SignInPage({ searchParams }: Props) {
           </div>
 
           <FinePrint />
-          <CompaniesBadge />
         </div>
       </div>
       <SignInVisual role={role} />
