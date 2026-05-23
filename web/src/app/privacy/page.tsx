@@ -26,7 +26,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <p>
             For questions about this policy, contact us at{" "}
-            <a href="mailto:hello@mitra.work">hello@mitra.work</a>.
+            <a href="mailto:hello@mitralabs.co">hello@mitralabs.co</a>.
           </p>
         </section>
 
@@ -123,7 +123,7 @@ export default function PrivacyPolicyPage() {
           </ul>
           <p>
             To exercise any of these rights, message us on WhatsApp or email{" "}
-            <a href="mailto:hello@mitra.work">hello@mitra.work</a>. We will respond within 30 days.
+            <a href="mailto:hello@mitralabs.co">hello@mitralabs.co</a>. We will respond within 30 days.
           </p>
         </section>
 
@@ -164,7 +164,7 @@ export default function PrivacyPolicyPage() {
           <h2>Contact</h2>
           <p>
             Questions or requests about your data:{" "}
-            <a href="mailto:hello@mitra.work">hello@mitra.work</a>
+            <a href="mailto:hello@mitralabs.co">hello@mitralabs.co</a>
           </p>
         </section>
 

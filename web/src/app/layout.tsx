@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Lora, Plus_Jakarta_Sans } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
 
@@ -19,7 +20,7 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mitra.work";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.mitralabs.co";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -100,6 +101,9 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
+      {process.env.NEXT_PUBLIC_GA_ID && (
+        <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
+      )}
     </html>
   );
 }

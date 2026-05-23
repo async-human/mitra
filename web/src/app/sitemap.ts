@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mitra.work";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.mitralabs.co";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

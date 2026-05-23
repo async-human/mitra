@@ -142,6 +142,16 @@ export default async function SignInPage({ searchParams }: Props) {
                 ? "Sign in to review candidates and manage introductions."
                 : "Sign in to track your pipeline and pick up where you left off."}
             </p>
+            {isFounder && (
+              <p className={s.founderEmailNote}>
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true">
+                  <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M6.5 5v3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                  <circle cx="6.5" cy="3.5" r="0.7" fill="currentColor" />
+                </svg>
+                Use your <strong style={{ fontWeight: 600 }}>company or work email</strong> — personal addresses (Gmail, Yahoo, etc.) are not accepted.
+              </p>
+            )}
           </div>
 
           <div className={s.providers}>

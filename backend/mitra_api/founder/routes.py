@@ -21,6 +21,7 @@ from mitra_api.founder.prompts import FOUNDER_SYSTEM_PROMPT
 from mitra_api.llm.factory import get_llm_adapter
 from mitra_api.llm.types import ChatMessage, ToolDefinition
 from mitra_api.tools.intros import normalize_why_note_for_founder
+from mitra_api.quota import is_personal_email, is_whitelisted
 
 log = logging.getLogger(__name__)
 
@@ -354,6 +355,7 @@ class FounderChatResponse(BaseModel):
     complete: bool
     quick_replies: list[str]
     preview: JdPreview | None = None  # only set by upload-jd endpoint
+    quota_exceeded: bool = False
 
 
 # ── Chat endpoint ─────────────────────────────────────────────────────────────
@@ -368,6 +370,31 @@ async def founder_chat(
     adapter = get_llm_adapter(settings)
     sid     = _session_key(body.session_id)
     is_init = not body.message.strip()
+
+    # Quota gate — non-whitelisted founders get one free onboarding conversation
+    if body.auth_email and not is_whitelisted(body.auth_email) and settings.mitra_database_url:
+        auth_email_norm = body.auth_email.strip().lower()
+        from mitra_api.db.engine import get_session_factory as _gsf
+        try:
+            _factory = _gsf()
+            async with _factory() as _db:
+                existing = await _load_jobs_for_founder_email(_db, auth_email_norm)
+            if existing:
+                return FounderChatResponse(
+                    reply=(
+                        "Your role is already live and we're actively matching candidates to it. "
+                        "You can only post one role per account during our beta. "
+                        "Check your founder portal to review introductions."
+                    ),
+                    signals={},
+                    step="role",
+                    progress=0,
+                    complete=False,
+                    quick_replies=[],
+                    quota_exceeded=True,
+                )
+        except Exception:
+            log.warning("founder quota check failed for %s (non-critical)", body.auth_email, exc_info=True)
 
     # Load prior context
     transcript       = await store.get_transcript(sid)
@@ -1655,6 +1682,26 @@ class FounderJobSummary(BaseModel):
 
 class AllPortalsResponse(BaseModel):
     jobs: list[FounderJobSummary]
+
+
+@router.get("/quota-status")
+async def founder_quota_status(
+    email: str = Query(..., description="Founder email from auth session"),
+) -> dict:
+    """Return whether this founder has already used their one free onboarding."""
+    email_norm = email.strip().lower()
+    if is_whitelisted(email_norm):
+        return {"quota_exhausted": False}
+
+    from mitra_api.db.engine import get_session_factory as _gsf
+    try:
+        _factory = _gsf()
+        async with _factory() as _db:
+            existing = await _load_jobs_for_founder_email(_db, email_norm)
+        return {"quota_exhausted": bool(existing)}
+    except Exception:
+        log.warning("founder quota-status check failed for %s", email_norm, exc_info=True)
+        return {"quota_exhausted": False}
 
 
 @router.get("/all-portals-by-email", response_model=AllPortalsResponse)

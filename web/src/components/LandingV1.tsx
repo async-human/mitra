@@ -21,8 +21,8 @@ const ORGANIZATION_JSONLD = {
   "@type": "Organization",
   name: "Mitra",
   legalName: "Mitra Labs Pvt. Ltd.",
-  url: "https://mitra.work",
-  logo: "https://mitra.work/og-image.png",
+  url: "https://www.mitralabs.co",
+  logo: "https://www.mitralabs.co/og-image.png",
   description:
     "India's AI talent agent. A 2-minute WhatsApp conversation matches candidates to funded startups via warm introductions to founders.",
   address: { "@type": "PostalAddress", addressCountry: "IN" },

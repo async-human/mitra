@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { UserMenu } from "@/app/dashboard/UserMenu";
+import { isPersonalEmail, isWhitelisted } from "@/lib/quota";
 
 export const metadata: Metadata = {
   title: "Founder portal · Mitra",
@@ -46,6 +47,66 @@ export default async function FounderSetupPage({
 
   const email = session.user.email;
   const name  = session.user.name?.split(" ")[0] ?? "there";
+
+  // Block personal email addresses — founders must use a company/work email
+  if (!isWhitelisted(email) && isPersonalEmail(email)) {
+    return (
+      <main className="fp-setup-page">
+        <header className="fp-setup-topbar">
+          <Link href="/" className="fp-setup-topbar-brand">
+            Mitra<span className="fp-setup-topbar-brand-dot">.</span>
+          </Link>
+        </header>
+        <div className="fp-setup-page-body">
+          <div className="fp-setup-card">
+            <div className="fp-setup-logo">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                <rect width="32" height="32" rx="8" fill="#111" />
+                <path d="M8 24V10l8-3 8 3v14l-8 3-8-3Z" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+                <path d="M16 7v17M8 10l8 3 8-3" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+              </svg>
+              <span className="fp-setup-brand">Mitra</span>
+            </div>
+
+            <div className="fp-setup-personal-email-icon" aria-hidden="true">
+              <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                <rect width="36" height="36" rx="10" fill="rgba(200,66,26,0.08)" />
+                <path d="M10 14l8 6 8-6" stroke="#C8421A" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                <rect x="8" y="12" width="20" height="14" rx="3" stroke="#C8421A" strokeWidth="1.6" />
+              </svg>
+            </div>
+
+            <h1 className="fp-setup-title">Company email required</h1>
+            <p className="fp-setup-sub">
+              Founder accounts must be linked to a company or work email address.
+              Personal email providers like Gmail, Yahoo, and Outlook are not accepted.
+            </p>
+            <p className="fp-setup-sub" style={{ marginTop: 8, opacity: 0.72 }}>
+              Signed in as <strong style={{ fontWeight: 500 }}>{email}</strong>
+            </p>
+
+            <div className="fp-setup-actions">
+              <Link href="/sign-in?role=founder" className="fp-setup-btn fp-setup-btn--primary">
+                Sign in with a company email
+              </Link>
+              <Link href="/" className="fp-setup-btn fp-setup-btn--ghost">
+                Back to home
+              </Link>
+            </div>
+
+            <p className="fp-setup-note">
+              Using a company email is how we verify you represent a real business.
+              Questions?{" "}
+              <a href="mailto:hello@mitralabs.co" className="fp-setup-link">
+                hello@mitralabs.co
+              </a>
+            </p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   const apiBase = (
     process.env.MITRA_API_BASE_URL ||
     process.env.NEXT_PUBLIC_API_URL ||
@@ -223,7 +284,7 @@ export default async function FounderSetupPage({
 
         <p className="fp-setup-note">
           Need help?{" "}
-          <a href="mailto:hello@mitra.work" className="fp-setup-link">
+          <a href="mailto:hello@mitralabs.co" className="fp-setup-link">
             Contact support
           </a>
         </p>

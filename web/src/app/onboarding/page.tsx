@@ -51,6 +51,7 @@ type ChatResponse = {
   complete: boolean
   quick_replies: string[]
   preview?: JdPreview | null
+  quota_exceeded?: boolean
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ export default function OnboardingPage() {
   const [initDone, setInitDone]         = useState(false)
   const [portalUrl, setPortalUrl]       = useState<string>('')
   const [portalLoading, setPortalLoading] = useState(false)
+  const [founderQuotaExceeded, setFounderQuotaExceeded] = useState(false)
 
   // Pre-chat form state
   const [phase, setPhase]             = useState<'form' | 'upload' | 'processing' | 'preview' | 'chat'>('form')
@@ -318,6 +320,10 @@ export default function OnboardingPage() {
   }, [])
 
   const applyResponse = useCallback((data: ChatResponse) => {
+    if (data.quota_exceeded) {
+      setFounderQuotaExceeded(true)
+      return
+    }
     const id = makeId()
     setMessages(prev => [...prev, { id, role: 'in', text: data.reply, time: getTime() }])
     setSignals(data.signals)
@@ -433,6 +439,40 @@ export default function OnboardingPage() {
   void signals; void step; void progress
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  if (founderQuotaExceeded) {
+    return (
+      <main className={styles.formPage}>
+        <div className={styles.formCard}>
+          <div className={styles.formLogoRow}>
+            <div className={styles.formLogoBox}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 19V9l7-3 7 3v10l-7 3-7-3Z" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
+                <path d="M12 6v14M5 9l7 3 7-3" stroke="white" strokeWidth="1.6" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span className={styles.formLogoName}>Mitra<span>.</span></span>
+          </div>
+          <div className={styles.formHeader}>
+            <h1 className={styles.formTitle}>Your role is already live</h1>
+            <p className={styles.formSub}>
+              You&apos;ve already completed onboarding. During our beta, each founder account can post one role.
+              Head to your portal to review introductions and manage candidates.
+            </p>
+          </div>
+          <a href="/founder/dashboard" className={styles.formNextBtn} style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+            Go to my founder portal →
+          </a>
+          <p className={styles.formNote} style={{ marginTop: 16, textAlign: 'center' }}>
+            Need to post another role?{' '}
+            <a href="mailto:hello@mitralabs.co?subject=Post additional role" style={{ color: 'inherit', textDecoration: 'underline' }}>
+              Contact us
+            </a>
+          </p>
+        </div>
+      </main>
+    )
+  }
 
   // ── Upload phase ─────────────────────────────────────────────────────────
 
@@ -838,7 +878,7 @@ export default function OnboardingPage() {
                 id="ob-company-url"
                 className={styles.formInput}
                 type="url"
-                placeholder="e.g. https://mitra.work"
+                placeholder="e.g. https://www.mitralabs.co"
                 value={companyUrl}
                 onChange={e => setCompanyUrl(e.target.value)}
                 required

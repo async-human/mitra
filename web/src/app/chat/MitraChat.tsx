@@ -247,6 +247,8 @@ function matchesKey(email: string) {
   return `mitra-matches-${email}`;
 }
 
+function liDoneKey(email: string) { return `mitra_li_done_${email}`; }
+
 export function MitraChat({
   userName, userEmail, userImage, intent, strengthenIntro,
 }: {
@@ -257,6 +259,44 @@ export function MitraChat({
   strengthenIntro?: { jobId: string; company: string; role: string; missing: string[] };
 }) {
   const router = useRouter();
+
+  // LinkedIn pre-chat prompt — only shown once per email, skipped for specific intents
+  const showLinkedInPrompt = !intent && typeof window !== "undefined" && !localStorage.getItem(liDoneKey(userEmail));
+  const [liPhase, setLiPhase] = useState<"prompt" | "loading" | "success" | "done">(
+    showLinkedInPrompt ? "prompt" : "done"
+  );
+  const [liUrl, setLiUrl] = useState("");
+  const [liResult, setLiResult] = useState<{ name?: string; role?: string; company?: string } | null>(null);
+
+  const handleLinkedInSubmit = useCallback(async () => {
+    if (typeof window !== "undefined") localStorage.setItem(liDoneKey(userEmail), "1");
+    const url = liUrl.trim();
+    if (!url) { setLiPhase("done"); return; }
+    setLiPhase("loading");
+    try {
+      const res = await fetch(`${API_URL}/candidate/linkedin-enrich`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: userEmail, linkedin_url: url }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLiResult({ name: data.name, role: data.role, company: data.company });
+        setLiPhase("success");
+        setTimeout(() => setLiPhase("done"), 2200);
+      } else {
+        setLiPhase("done");
+      }
+    } catch {
+      setLiPhase("done");
+    }
+  }, [userEmail, liUrl]);
+
+  const handleLinkedInSkip = useCallback(() => {
+    if (typeof window !== "undefined") localStorage.setItem(liDoneKey(userEmail), "1");
+    setLiPhase("done");
+  }, [userEmail]);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -441,7 +481,7 @@ export function MitraChat({
   }, [userEmail, userName, router]);
 
   useEffect(() => {
-    if (initialized.current) return;
+    if (initialized.current || liPhase !== "done") return;
     initialized.current = true;
     queueMicrotask(() => {
       if (intent === "update") {
@@ -469,7 +509,7 @@ export function MitraChat({
         callApi("");
       }
     });
-  }, [callApi, intent, strengthenIntro]);
+  }, [callApi, intent, strengthenIntro, liPhase]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -495,6 +535,81 @@ export function MitraChat({
   };
 
   const hasMatches = messages.some(m => m.jobCards && m.jobCards.length > 0) || !!storedMatchIds;
+
+  // ── LinkedIn pre-chat prompt ────────────────────────────────────────────────
+  if (liPhase === "prompt" || liPhase === "loading" || liPhase === "success") {
+    const isLoading = liPhase === "loading";
+    const isSuccess = liPhase === "success";
+    return (
+      <div className="li-prompt-page">
+        <div className="li-prompt-card">
+          <div className="li-prompt-logo">
+            <div className="li-prompt-logo-mark">M</div>
+            <span className="li-prompt-logo-text">Mitra.</span>
+          </div>
+
+          {isSuccess ? (
+            <>
+              <div className="li-prompt-success-icon" aria-hidden="true">✓</div>
+              <h1 className="li-prompt-title">Got it{liResult?.name ? `, ${liResult.name.split(" ")[0]}` : ""}!</h1>
+              <p className="li-prompt-sub">
+                {liResult?.role && liResult?.company
+                  ? `I can see you're a ${liResult.role} at ${liResult.company}. Starting your session…`
+                  : liResult?.role
+                  ? `I can see you're a ${liResult.role}. Starting your session…`
+                  : "Your LinkedIn profile is loaded. Starting your session…"}
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="li-prompt-title">
+                {userName ? `Hi ${userName.split(" ")[0]}, let Mitra know you` : "Let Mitra know you"}
+              </h1>
+              <p className="li-prompt-sub">
+                Share your LinkedIn and Mitra will study your background before we talk —
+                no need to re-explain your stack, experience, or goals from scratch.
+              </p>
+
+              <div className="li-prompt-input-wrap">
+                <div className="li-prompt-li-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <rect width="16" height="16" rx="3" fill="#0A66C2" />
+                    <path d="M3.5 6H5V12.5H3.5V6ZM4.25 5.25A.875.875 0 114.25 3.5a.875.875 0 010 1.75z" fill="white" />
+                    <path d="M6.5 6H8V6.8C8.25 6.3 8.95 5.9 9.9 5.9c1.6 0 2 .95 2 2.3V12.5H10.4V8.7c0-.7 0-1.55-.9-1.55S8.5 7.85 8.5 8.6v3.9H6.5V6z" fill="white" />
+                  </svg>
+                </div>
+                <input
+                  className="li-prompt-input"
+                  type="url"
+                  placeholder="linkedin.com/in/yourname"
+                  value={liUrl}
+                  onChange={e => setLiUrl(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && !isLoading && handleLinkedInSubmit()}
+                  autoFocus
+                  disabled={isLoading}
+                />
+              </div>
+
+              <button
+                className={`li-prompt-btn${isLoading ? " li-prompt-btn--loading" : ""}`}
+                onClick={handleLinkedInSubmit}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <span className="li-prompt-spinner" aria-hidden="true" />
+                ) : null}
+                {isLoading ? "Fetching your profile…" : "Continue →"}
+              </button>
+
+              <button className="li-prompt-skip" onClick={handleLinkedInSkip}>
+                Skip — I&apos;ll share my background in chat
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`wc-root${exiting ? " wc-root--exiting" : ""}`}>

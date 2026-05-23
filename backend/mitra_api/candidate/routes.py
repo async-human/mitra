@@ -22,6 +22,7 @@ from mitra_api.config import Settings, get_settings
 from mitra_api.db.engine import get_session_factory
 from mitra_api.tools.intros import request_intro
 from mitra_api.db.models import Candidate, Intro, Job
+from mitra_api.quota import CANDIDATE_QUOTA_SIGNAL, is_whitelisted
 
 log = logging.getLogger(__name__)
 
@@ -275,6 +276,87 @@ async def list_candidate_intros(
     ]
 
 
+class LinkedInEnrichRequest(BaseModel):
+    session_id: str = Field(..., min_length=1, max_length=200)
+    linkedin_url: str = Field(..., min_length=5, max_length=500)
+
+
+class LinkedInEnrichResponse(BaseModel):
+    ok: bool
+    name: str | None = None
+    role: str | None = None
+    company: str | None = None
+
+
+@router.post("/linkedin-enrich", response_model=LinkedInEnrichResponse)
+async def candidate_linkedin_enrich(
+    body: LinkedInEnrichRequest,
+    settings: Settings = Depends(get_settings),
+) -> LinkedInEnrichResponse:
+    """
+    Pre-enrich a candidate profile from their LinkedIn URL before the first chat.
+    Stores signals so the agent already knows the candidate's background on turn 1.
+    """
+    email = body.session_id.strip().lower()
+    sid = f"web:{email}"
+    url = body.linkedin_url.strip()
+
+    signals: dict[str, Any] = {"linkedin_url": url}
+
+    if settings.proxycurl_api_key:
+        try:
+            from mitra_api.tools.linkedin_parser import parse_linkedin_profile
+            parsed = await parse_linkedin_profile(url, settings.proxycurl_api_key)
+            if parsed:
+                signals.update(parsed)
+        except Exception:
+            log.warning("LinkedIn enrichment failed for %s (non-critical)", url, exc_info=True)
+
+    store = _get_store(settings)
+    await store.merge_signals(sid, signals)
+
+    if settings.mitra_database_url:
+        try:
+            from mitra_api.tools.candidates import persist_signals
+            factory = get_session_factory()
+            async with factory() as db:
+                await persist_signals(sid, signals, session=db)
+        except Exception:
+            log.warning("LinkedIn signal persist failed for %s (non-critical)", email, exc_info=True)
+
+    return LinkedInEnrichResponse(
+        ok=bool(signals),
+        name=str(signals.get("candidate_name") or "") or None,
+        role=str(signals.get("current_role") or "") or None,
+        company=str(signals.get("current_company") or "") or None,
+    )
+
+
+class QuotaStatusResponse(BaseModel):
+    quota_exhausted: bool
+
+
+@router.get("/quota-status", response_model=QuotaStatusResponse)
+async def candidate_quota_status(
+    session_id: str = Query(..., description="Candidate email"),
+    settings: Settings = Depends(get_settings),
+) -> QuotaStatusResponse:
+    """Return whether this candidate has already used their one free conversation."""
+    email = session_id.strip().lower()
+    if is_whitelisted(email):
+        return QuotaStatusResponse(quota_exhausted=False)
+
+    if not settings.mitra_database_url:
+        return QuotaStatusResponse(quota_exhausted=False)
+
+    from mitra_api.tools.candidates import get_signals as get_db_signals
+    sid = f"web:{email}"
+    factory = get_session_factory()
+    async with factory() as db:
+        sigs = await get_db_signals(sid, session=db)
+    return QuotaStatusResponse(quota_exhausted=bool(sigs.get(CANDIDATE_QUOTA_SIGNAL)))
+
+
 _RESTART_PHRASES = (
     "start fresh", "start again", "start over", "restart", "from scratch",
     "new search", "reset", "begin again", "let's start fresh", "start new",
@@ -477,6 +559,7 @@ async def _sse_stream_with_tools(
     fresh_start: bool,
     web_intent: str | None,
     settings: Settings,
+    mark_quota_email: str | None = None,
 ) -> AsyncIterator[str]:
     """Run agent turn while forwarding tool start/end as SSE, then stream reply tokens."""
     # SSE comment event — encourages proxies/clients to flush before the long agent turn.
@@ -538,6 +621,17 @@ async def _sse_stream_with_tools(
     ):
         yield chunk
 
+    # Mark quota as used when recommendations are returned (non-whitelisted only)
+    if mark_quota_email and turn.native_list_rows and settings.mitra_database_url:
+        try:
+            from mitra_api.tools.candidates import persist_signals
+            quota_sid = f"web:{mark_quota_email}"
+            factory = get_session_factory()
+            async with factory() as db:
+                await persist_signals(quota_sid, {CANDIDATE_QUOTA_SIGNAL: True}, session=db)
+        except Exception:
+            log.warning("quota mark failed for %s (non-critical)", mark_quota_email, exc_info=True)
+
 
 _WA_LINK_CHARS = string.ascii_uppercase + string.digits
 _WA_LINK_TTL   = 900  # 15 minutes
@@ -578,9 +672,30 @@ async def candidate_chat_stream(
     settings: Settings = Depends(get_settings),
 ) -> StreamingResponse:
     store = _get_store(settings)
-    sid = f"web:{body.session_id}"
+    email = body.session_id.strip().lower()
+    sid = f"web:{email}"
+
+    # Quota gate — non-whitelisted users get one free conversation
+    if not is_whitelisted(email) and body.message.strip() and settings.mitra_database_url:
+        from mitra_api.tools.candidates import get_signals as get_db_signals
+        try:
+            factory = get_session_factory()
+            async with factory() as db:
+                sigs = await get_db_signals(sid, session=db)
+            if sigs.get(CANDIDATE_QUOTA_SIGNAL):
+                async def _quota_err() -> AsyncIterator[str]:
+                    yield f"data: {json.dumps({'t': 'quota_exceeded'})}\n\n"
+                return StreamingResponse(
+                    _quota_err(),
+                    media_type="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+                )
+        except Exception:
+            log.warning("quota check failed for %s (non-critical)", email, exc_info=True)
 
     user_text, fresh_start, early_reply = await _prepare_turn(body, store, sid, settings)
+
+    mark_email = None if is_whitelisted(email) else email
 
     if early_reply:
         reply_text = early_reply.reply
@@ -594,6 +709,7 @@ async def candidate_chat_stream(
             fresh_start=fresh_start,
             web_intent=body.web_intent,
             settings=settings,
+            mark_quota_email=mark_email,
         )
 
     return StreamingResponse(
@@ -601,6 +717,6 @@ async def candidate_chat_stream(
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",  # disable nginx buffering
+            "X-Accel-Buffering": "no",
         },
     )

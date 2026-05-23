@@ -56,7 +56,7 @@ export default function CookiePolicyPage() {
         <section className="legal-sec">
           <h2>Your choices</h2>
           <p>
-            When you first visit, you can choose &ldquo;Essential only&rdquo; or &ldquo;Accept all&rdquo;. You can change your preference at any time by clearing your browser's local storage for <code>mitra.work</code>, or by contacting us below.
+            When you first visit, you can choose &ldquo;Essential only&rdquo; or &ldquo;Accept all&rdquo;. You can change your preference at any time by clearing your browser's local storage for <code>mitralabs.co</code>, or by contacting us below.
           </p>
           <p>
             You can also manage cookies directly in your browser settings — all major browsers let you block or delete cookies.
@@ -67,7 +67,7 @@ export default function CookiePolicyPage() {
           <h2>Contact</h2>
           <p>
             Questions about how we use cookies? Write to us at{" "}
-            <a href="mailto:hello@mitra.work">hello@mitra.work</a>.
+            <a href="mailto:hello@mitralabs.co">hello@mitralabs.co</a>.
           </p>
         </section>
 

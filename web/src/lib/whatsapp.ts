@@ -29,8 +29,8 @@ export const WA_MESSAGES = {
   candidate:
     "Hi Mitra! I just visited your site — I'm looking for my next role and want to chat.",
   founder:
-    "Hi Mitra! I'm a founder and want to list a role. (Site: mitra.work)",
-  general: "Hi Mitra! I just visited mitra.work and want to learn more.",
+    "Hi Mitra! I'm a founder and want to list a role. (Site: mitralabs.co)",
+  general: "Hi Mitra! I just visited mitralabs.co and want to learn more.",
 } as const;
 
 export type WaPersona = keyof typeof WA_MESSAGES;
