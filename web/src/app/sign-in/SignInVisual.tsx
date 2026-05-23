@@ -43,7 +43,7 @@ export function SignInVisual({ role }: { role?: "candidate" | "founder" }) {
 
           {/* Messages */}
           <div className={s.mockBody}>
-            <div className={s.mockMsgIn}>
+            <div className={`${s.mockMsgIn} ${s.mockMsgFirst}`}>
               Hi Priya! I&apos;ve gone through your background — 5 years building payments infra at Razorpay is exactly what early-stage fintechs are after. What kind of stage and team are you open to?
             </div>
 
