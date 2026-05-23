@@ -14,6 +14,8 @@
   justify-content: center;
   padding: clamp(2rem, 5vw, 3.5rem) clamp(1.5rem, 6vw, 4.5rem);
   background: #fff;
+  background-image: radial-gradient(circle, rgba(14, 11, 9, 0.055) 1.2px, transparent 1.2px);
+  background-size: 28px 28px;
 }
 
 .formInner {
@@ -315,32 +317,26 @@
 }
 
 .visualInner {
-  position: relative;
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 2rem;
-  padding: clamp(2rem, 4vw, 3.5rem);
 }
 
 /* ── Mosaic grid ───────────────────────────────────────────── */
 
 .mosaic {
+  flex: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(4, 1fr);
-  gap: 8px;
-  width: 100%;
-  max-width: 320px;
-  border-radius: 16px;
+  gap: 3px;
   overflow: hidden;
-  flex-shrink: 0;
 }
 
 .tile {
-  aspect-ratio: 1;
   position: relative;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -355,7 +351,7 @@
 
 .tName {
   font-family: var(--font-jakarta, "Plus Jakarta Sans", sans-serif);
-  font-size: clamp(0.6rem, 1vw, 0.82rem);
+  font-size: clamp(0.75rem, 1.5vw, 1.1rem);
   font-weight: 800;
   color: #0e0b09;
   letter-spacing: -0.02em;
@@ -364,63 +360,65 @@
 
 .tNameLight {
   font-family: var(--font-jakarta, "Plus Jakarta Sans", sans-serif);
-  font-size: clamp(0.6rem, 1vw, 0.82rem);
+  font-size: clamp(0.75rem, 1.5vw, 1.1rem);
   font-weight: 800;
-  color: rgba(242, 237, 231, 0.8);
+  color: rgba(242, 237, 231, 0.75);
   letter-spacing: -0.02em;
   user-select: none;
 }
 
 .tCircle {
-  width: 52%;
+  width: 42%;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: rgba(200, 66, 26, 0.45);
+  background: rgba(200, 66, 26, 0.5);
 }
 
 .tHalf {
   position: absolute;
-  bottom: -30%;
-  right: -30%;
-  width: 78%;
+  bottom: -32%;
+  right: -32%;
+  width: 72%;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: rgba(14, 11, 9, 0.5);
+  background: rgba(14, 11, 9, 0.55);
 }
 
 .tStar {
-  width: 44%;
-  height: 44%;
+  width: 38%;
+  height: 38%;
   color: rgba(242, 237, 231, 0.85);
 }
 
 .tDots {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 22%;
-  width: 42%;
+  gap: 20%;
+  width: 38%;
 }
 
 .tDots span {
   aspect-ratio: 1;
   border-radius: 50%;
-  background: rgba(242, 237, 231, 0.35);
+  background: rgba(242, 237, 231, 0.3);
 }
 
 /* ── Visual copy ───────────────────────────────────────────── */
 
 .visualCopy {
-  max-width: 320px;
+  flex-shrink: 0;
+  padding: clamp(1.5rem, 2.5vw, 2rem) clamp(1.5rem, 3vw, 2.5rem);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .visualTitle {
   font-family: var(--font-jakarta, "Plus Jakarta Sans", sans-serif);
-  font-size: clamp(1.45rem, 2.3vw, 1.9rem);
+  font-size: clamp(1.6rem, 2.6vw, 2.15rem);
   font-weight: 800;
   letter-spacing: -0.035em;
-  line-height: 1.1;
+  line-height: 1.08;
   color: #f2ede7;
-  margin: 0 0 0.6rem;
+  margin: 0 0 0.55rem;
 }
 
 .visualTitleAccent {
@@ -428,10 +426,47 @@
 }
 
 .visualSub {
-  font-size: 0.87rem;
+  font-size: 0.88rem;
   line-height: 1.65;
   color: rgba(242, 237, 231, 0.5);
   margin: 0;
+}
+
+/* ── Companies social proof ────────────────────────────────── */
+
+.companiesBadge {
+  margin-top: 2.25rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid rgba(14, 11, 9, 0.07);
+}
+
+.companiesLabel {
+  display: block;
+  font-size: 0.67rem;
+  font-weight: 600;
+  color: #9a8880;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.7rem;
+}
+
+.companiesRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.companyChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.7rem;
+  border-radius: 99px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #3a3230;
+  background: rgba(14, 11, 9, 0.055);
+  border: 1px solid rgba(14, 11, 9, 0.07);
+  letter-spacing: -0.01em;
 }
 
 /* ── Responsive ────────────────────────────────────────────── */
@@ -448,26 +483,41 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
+  /* Switch to side-by-side: compact mosaic + copy text */
   .visualInner {
     flex-direction: row;
     align-items: center;
-    justify-content: flex-start;
     padding: 1.5rem 2rem;
     gap: 1.75rem;
+    height: auto;
   }
 
   .mosaic {
-    max-width: 200px;
-    gap: 6px;
+    flex: 0 0 auto;
+    width: 200px;
+    aspect-ratio: 3/4;
+    gap: 5px;
     border-radius: 12px;
   }
 
+  /* Restore square tiles on tablet using aspect-ratio trick */
+  .tile {
+    aspect-ratio: 1;
+  }
+
   .visualCopy {
-    max-width: none;
+    flex: 1;
+    min-width: 0;
+    border-top: none;
+    padding: 0;
   }
 
   .visualTitle {
-    font-size: 1.35rem;
+    font-size: 1.3rem;
+  }
+
+  .visualSub {
+    font-size: 0.83rem;
   }
 
   .formPanel {
@@ -476,6 +526,11 @@
 
   .formInner {
     max-width: none;
+  }
+
+  .companiesBadge {
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
   }
 }
 
@@ -487,12 +542,17 @@
     height: auto;
   }
 
+  /* Full-width strip: 3 cols × 2 rows */
   .mosaic {
-    max-width: none;
-    gap: 3px;
-    border-radius: 0;
-    grid-template-rows: repeat(2, 1fr);
+    width: 100%;
     aspect-ratio: 3/2;
+    border-radius: 0;
+    gap: 2px;
+    grid-template-rows: repeat(2, 1fr);
+  }
+
+  .tile {
+    aspect-ratio: 1;
   }
 
   .visualCopy {
@@ -501,6 +561,15 @@
 
   .formPanel {
     padding: 1.75rem 1.25rem 2rem;
+  }
+
+  .companiesLabel {
+    font-size: 0.63rem;
+  }
+
+  .companyChip {
+    font-size: 0.72rem;
+    padding: 0.25rem 0.6rem;
   }
 }
 

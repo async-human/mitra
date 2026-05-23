@@ -5,6 +5,7 @@ import { ThemeProvider } from "next-themes";
 import { SessionProvider } from "next-auth/react";
 import { AudienceProvider } from "./AudienceContext";
 import { CookieBanner } from "./CookieBanner";
+import { WhatsAppGate } from "./WhatsAppGate";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -18,6 +19,7 @@ export function Providers({ children }: { children: ReactNode }) {
       >
         <AudienceProvider>{children}</AudienceProvider>
         <CookieBanner />
+        <WhatsAppGate />
       </ThemeProvider>
     </SessionProvider>
   );
