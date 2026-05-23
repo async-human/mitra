@@ -350,223 +350,187 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: clamp(1.5rem, 3vw, 2.25rem);
+  justify-content: center;
+  gap: 2rem;
+  padding: clamp(2rem, 4vw, 3.5rem);
 }
 
-.bento {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 0.55rem;
-  flex: 1;
-  min-height: 0;
-}
+/* ── Chat mockup ───────────────────────────────────────────── */
 
-.bentoTile {
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1px solid rgba(14, 11, 9, 0.06);
-  box-shadow: 0 4px 16px rgba(14, 11, 9, 0.06);
-  min-height: 0;
-}
-
-.bentoChat {
-  grid-column: span 2;
+.mockChat {
   background: #fff;
-  padding: 1.1rem 1.1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  justify-content: center;
+  border-radius: 20px;
+  box-shadow:
+    0 2px 4px rgba(14, 11, 9, 0.04),
+    0 8px 32px rgba(14, 11, 9, 0.10),
+    0 24px 64px rgba(14, 11, 9, 0.08);
+  overflow: hidden;
+  max-width: 420px;
 }
 
-.chatBubbleIn,
-.chatBubbleOut {
-  font-size: 0.72rem;
-  line-height: 1.4;
-  padding: 0.45rem 0.65rem;
-  border-radius: 10px;
-  max-width: 88%;
-}
-
-.chatBubbleIn {
-  align-self: flex-start;
-  background: #f4efe8;
-  color: #0e0b09;
-}
-
-.chatBubbleOut {
-  align-self: flex-end;
-  background: rgba(200, 66, 26, 0.12);
-  color: #0e0b09;
-}
-
-.chatTyping {
+.mockHeader {
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 0.35rem 0.55rem;
-  background: #f4efe8;
-  border-radius: 10px;
-  align-self: flex-start;
-  width: fit-content;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  background: #faf7f3;
+  border-bottom: 1px solid rgba(14, 11, 9, 0.06);
 }
 
-.chatTyping span {
-  width: 5px;
-  height: 5px;
+.mockHeaderAvatar {
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: #a07060;
-  animation: dotPulse 1.4s ease-in-out infinite;
-}
-
-.chatTyping span:nth-child(2) { animation-delay: 0.2s; }
-.chatTyping span:nth-child(3) { animation-delay: 0.4s; }
-
-.bentoFit {
-  background: linear-gradient(145deg, #c8421a, #e87840);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-}
-
-.bentoFitNum {
-  font-size: clamp(1.8rem, 3vw, 2.4rem);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
-}
-
-.bentoFitLabel {
-  font-size: 0.62rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.85;
-  margin-top: 0.25rem;
-}
-
-.bentoPattern {
-  background:
-    linear-gradient(45deg, #c8421a 25%, transparent 25%),
-    linear-gradient(-45deg, #c8421a 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #c8421a 75%),
-    linear-gradient(-45deg, transparent 75%, #c8421a 75%);
-  background-size: 16px 16px;
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-  background-color: #fde8d8;
-  animation: patternShift 20s linear infinite;
-}
-
-@keyframes patternShift {
-  to { background-position: 32px 32px, 32px 40px, 40px 24px, 24px 32px; }
-}
-
-.bentoStat {
   background: #0e0b09;
-  color: #f2ede7;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
-.bentoStatNum {
-  font-size: clamp(1.5rem, 2.5vw, 2rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-}
-
-.bentoStatLabel {
-  font-size: 0.6rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.65;
-  text-align: center;
-  padding: 0 0.25rem;
-  margin-top: 0.2rem;
-}
-
-.bentoFree {
-  background: #f2ede7;
+.mockHeaderInfo {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   gap: 0.1rem;
 }
 
-.bentoFreeTop {
-  font-size: 0.6rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #9a8070;
-}
-
-.bentoFreeWord {
-  font-size: clamp(0.85rem, 1.5vw, 1.05rem);
-  font-weight: 800;
-  color: #0e0b09;
-  letter-spacing: -0.03em;
-}
-
-.bentoLogos {
-  grid-column: span 2;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 1rem;
-  gap: 0.5rem;
-  font-size: clamp(0.78rem, 1.2vw, 0.95rem);
+.mockHeaderName {
+  font-size: 0.85rem;
   font-weight: 700;
   color: #0e0b09;
-  letter-spacing: -0.02em;
 }
 
-.bentoLogosDot {
-  color: rgba(14, 11, 9, 0.25);
-  font-weight: 400;
+.mockHeaderSub {
+  font-size: 0.68rem;
+  color: #c8421a;
+  font-weight: 500;
 }
 
-.bentoAccent {
-  background: linear-gradient(135deg, #ffe4d0, #f6f1eb);
+.mockHeaderDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+  flex-shrink: 0;
+}
+
+.mockBody {
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.mockMsgIn {
+  background: #f4efe8;
+  color: #0e0b09;
+  padding: 0.65rem 0.85rem;
+  border-radius: 4px 14px 14px 14px;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  max-width: 90%;
+  align-self: flex-start;
+}
+
+.mockMsgOut {
+  background: rgba(200, 66, 26, 0.1);
+  color: #0e0b09;
+  padding: 0.65rem 0.85rem;
+  border-radius: 14px 4px 14px 14px;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  max-width: 72%;
+  align-self: flex-end;
+}
+
+.mockMatchCard {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
+  justify-content: space-between;
+  background: #faf7f3;
+  border: 1.5px solid rgba(14, 11, 9, 0.08);
+  border-radius: 12px;
+  padding: 0.7rem 0.9rem;
 }
 
-.bentoAccentDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #c8421a;
-  animation: dotPulse 2.4s ease-in-out infinite;
+.mockMatchLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
-.bentoAccentDot:nth-child(2) {
-  background: #e87840;
-  animation-delay: 0.4s;
+.mockMatchCo {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #0e0b09;
+  letter-spacing: -0.01em;
 }
 
-.bentoAccentDot:nth-child(3) {
+.mockMatchRole {
+  font-size: 0.72rem;
+  color: #6a6460;
+}
+
+.mockMatchScore {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  background: linear-gradient(145deg, #c8421a, #e87840);
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  color: #fff;
+}
+
+.mockMatchPct {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.mockMatchLabel {
+  font-size: 0.58rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
+.mockActions {
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 0.1rem;
+}
+
+.mockActionYes {
+  flex: 1;
   background: #0e0b09;
-  animation-delay: 0.8s;
+  color: #f2ede7;
+  border: none;
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: -0.01em;
 }
 
-@keyframes dotPulse {
-  0%, 100% { transform: scale(1); opacity: 0.7; }
-  50% { transform: scale(1.2); opacity: 1; }
+.mockActionGhost {
+  background: transparent;
+  color: #6a6460;
+  border: 1.5px solid rgba(14, 11, 9, 0.1);
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .visualCopy {
-  flex-shrink: 0;
+  max-width: 420px;
 }
 
 .visualTitle {
@@ -606,13 +570,21 @@
   }
 
   .visualInner {
-    padding: 1.25rem 1.25rem 1rem;
+    padding: 1.25rem 1.5rem 1.25rem;
     gap: 1rem;
+    justify-content: flex-end;
   }
 
-  .bento {
-    grid-template-rows: repeat(3, 64px);
-    flex: none;
+  .mockChat {
+    max-width: none;
+  }
+
+  .mockBody {
+    display: none;
+  }
+
+  .mockHeader {
+    padding: 0.8rem 1rem;
   }
 
   .visualCopy {
@@ -631,19 +603,18 @@
 /* ── Small phones: give bento more room ── */
 @media (max-width: 560px) {
   .visualPanel {
-    min-height: 220px;
-    max-height: 260px;
+    min-height: 100px;
+    max-height: 120px;
   }
 
   .visualInner {
-    padding: 1rem 1rem 0.85rem;
-    gap: 0.85rem;
+    padding: 0.75rem 1.25rem;
+    justify-content: center;
   }
 
-  .bento {
-    grid-template-rows: repeat(3, 56px);
-    gap: 0.4rem;
-    flex: none;
+  .mockChat {
+    box-shadow: none;
+    border: 1px solid rgba(14, 11, 9, 0.08);
   }
 
   .formPanel {
