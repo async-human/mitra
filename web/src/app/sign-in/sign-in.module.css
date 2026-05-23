@@ -307,31 +307,42 @@
   color: #0e0b09;
 }
 
-/* ── Right visual panel ────────────────────────────────────── */
+/* ── Right visual panel (Wellfound-style: airy, not full-bleed) ─ */
 
 .visualPanel {
   position: relative;
-  overflow: hidden;
-  background: #0e0b09;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(2rem, 6vw, 4.5rem);
+  background: #fff;
+  border-left: 1px solid rgba(14, 11, 9, 0.06);
 }
 
 .visualInner {
-  height: 100%;
+  width: 100%;
+  max-width: 420px;
   display: flex;
   flex-direction: column;
+  gap: clamp(2rem, 5vh, 3.5rem);
+  padding: clamp(1rem, 6vh, 3.5rem) 0;
 }
 
-/* ── Mosaic grid ───────────────────────────────────────────── */
+.mosaicWrap {
+  display: flex;
+  justify-content: flex-start;
+  padding-left: clamp(0rem, 2vw, 1rem);
+}
+
+/* ── Mosaic grid — compact block with deliberate whitespace around it ─ */
 
 .mosaic {
-  flex: 1;
-  min-height: 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(4, 1fr);
-  gap: 3px;
-  overflow: hidden;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 14px;
+  width: min(100%, 300px);
+  aspect-ratio: 1;
 }
 
 .tile {
@@ -341,6 +352,8 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  border-radius: 12px;
+  box-shadow: 0 1px 0 rgba(14, 11, 9, 0.04);
 }
 
 .tOrange    { background: #c8421a; }
@@ -351,7 +364,7 @@
 
 .tName {
   font-family: var(--font-jakarta, "Plus Jakarta Sans", sans-serif);
-  font-size: clamp(0.75rem, 1.5vw, 1.1rem);
+  font-size: clamp(0.7rem, 1.2vw, 0.95rem);
   font-weight: 800;
   color: #0e0b09;
   letter-spacing: -0.02em;
@@ -360,7 +373,7 @@
 
 .tNameLight {
   font-family: var(--font-jakarta, "Plus Jakarta Sans", sans-serif);
-  font-size: clamp(0.75rem, 1.5vw, 1.1rem);
+  font-size: clamp(0.7rem, 1.2vw, 0.95rem);
   font-weight: 800;
   color: rgba(242, 237, 231, 0.75);
   letter-spacing: -0.02em;
@@ -390,46 +403,34 @@
   color: rgba(242, 237, 231, 0.85);
 }
 
-.tDots {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20%;
-  width: 38%;
-}
-
-.tDots span {
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: rgba(242, 237, 231, 0.3);
-}
-
 /* ── Visual copy ───────────────────────────────────────────── */
 
 .visualCopy {
   flex-shrink: 0;
-  padding: clamp(1.5rem, 2.5vw, 2rem) clamp(1.5rem, 3vw, 2.5rem);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0 clamp(0rem, 2vw, 1rem);
 }
 
 .visualTitle {
   font-family: var(--font-jakarta, "Plus Jakarta Sans", sans-serif);
-  font-size: clamp(1.6rem, 2.6vw, 2.15rem);
+  font-size: clamp(1.75rem, 2.8vw, 2.35rem);
   font-weight: 800;
   letter-spacing: -0.035em;
   line-height: 1.08;
-  color: #f2ede7;
-  margin: 0 0 0.55rem;
+  color: #0e0b09;
+  margin: 0 0 0.65rem;
+  max-width: 14ch;
 }
 
 .visualTitleAccent {
-  color: #e87840;
+  color: #c8421a;
 }
 
 .visualSub {
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   line-height: 1.65;
-  color: rgba(242, 237, 231, 0.5);
+  color: #6a6460;
   margin: 0;
+  max-width: 36ch;
 }
 
 /* ── Companies social proof ────────────────────────────────── */
@@ -480,40 +481,38 @@
   .visualPanel {
     order: -1;
     border-left: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 1px solid rgba(14, 11, 9, 0.06);
+    padding: 1.75rem 1.5rem;
+    align-items: flex-start;
   }
 
-  /* Switch to side-by-side: compact mosaic + copy text */
   .visualInner {
     flex-direction: row;
     align-items: center;
-    padding: 1.5rem 2rem;
-    gap: 1.75rem;
-    height: auto;
+    max-width: none;
+    gap: 1.5rem;
+    padding: 0;
+  }
+
+  .mosaicWrap {
+    padding-left: 0;
+    flex-shrink: 0;
   }
 
   .mosaic {
-    flex: 0 0 auto;
-    width: 200px;
-    aspect-ratio: 3/4;
-    gap: 5px;
-    border-radius: 12px;
-  }
-
-  /* Restore square tiles on tablet using aspect-ratio trick */
-  .tile {
-    aspect-ratio: 1;
+    width: 168px;
+    gap: 10px;
   }
 
   .visualCopy {
     flex: 1;
     min-width: 0;
-    border-top: none;
     padding: 0;
   }
 
   .visualTitle {
-    font-size: 1.3rem;
+    font-size: 1.25rem;
+    max-width: none;
   }
 
   .visualSub {
@@ -535,28 +534,23 @@
 }
 
 @media (max-width: 560px) {
+  .visualPanel {
+    padding: 1.25rem 1.25rem 1.5rem;
+  }
+
   .visualInner {
     flex-direction: column;
-    padding: 0;
-    gap: 0;
-    height: auto;
+    align-items: flex-start;
+    gap: 1.25rem;
   }
 
-  /* Full-width strip: 3 cols × 2 rows */
   .mosaic {
-    width: 100%;
-    aspect-ratio: 3/2;
-    border-radius: 0;
-    gap: 2px;
-    grid-template-rows: repeat(2, 1fr);
-  }
-
-  .tile {
-    aspect-ratio: 1;
+    width: min(100%, 240px);
+    gap: 8px;
   }
 
   .visualCopy {
-    display: none;
+    display: block;
   }
 
   .formPanel {

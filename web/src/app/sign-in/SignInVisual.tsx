@@ -32,49 +32,34 @@ export function SignInVisual({ role }: { role?: "candidate" | "founder" }) {
   return (
     <aside className={s.visualPanel} aria-hidden="true">
       <div className={s.visualInner}>
+        <div className={s.mosaicWrap}>
+          <div className={s.mosaic}>
+            <div className={`${s.tile} ${s.tOrange}`} />
+            <div className={`${s.tile} ${s.tCream}`}>
+              <span className={s.tName}>Razorpay</span>
+            </div>
+            <div className={`${s.tile} ${s.tDark}`} />
 
-        <div className={s.mosaic}>
+            <div className={`${s.tile} ${s.tPeach}`}>
+              <div className={s.tCircle} />
+            </div>
+            <div className={`${s.tile} ${s.tDark}`}>
+              <span className={s.tNameLight}>Setu</span>
+            </div>
+            <div className={`${s.tile} ${s.tOrangeAlt}`}>
+              <div className={s.tHalf} />
+            </div>
 
-          {/* Row 1 */}
-          <div className={`${s.tile} ${s.tOrange}`} />
-          <div className={`${s.tile} ${s.tCream}`}>
-            <span className={s.tName}>Razorpay</span>
-          </div>
-          <div className={`${s.tile} ${s.tDark}`} />
-
-          {/* Row 2 */}
-          <div className={`${s.tile} ${s.tPeach}`}>
-            <div className={s.tCircle} />
-          </div>
-          <div className={`${s.tile} ${s.tDark}`}>
-            <span className={s.tNameLight}>Setu</span>
-          </div>
-          <div className={`${s.tile} ${s.tOrangeAlt}`}>
-            <div className={s.tHalf} />
-          </div>
-
-          {/* Row 3 */}
-          <div className={`${s.tile} ${s.tCream}`}>
-            <span className={s.tName}>CRED</span>
-          </div>
-          <div className={`${s.tile} ${s.tOrange}`}>
-            <StarShape />
-          </div>
-          <div className={`${s.tile} ${s.tDark}`}>
-            <span className={s.tNameLight}>Groww</span>
-          </div>
-
-          {/* Row 4 */}
-          <div className={`${s.tile} ${s.tDark}`}>
-            <div className={s.tDots}>
-              <span /><span /><span /><span />
+            <div className={`${s.tile} ${s.tCream}`}>
+              <span className={s.tName}>CRED</span>
+            </div>
+            <div className={`${s.tile} ${s.tOrange}`}>
+              <StarShape />
+            </div>
+            <div className={`${s.tile} ${s.tCream}`}>
+              <span className={s.tName}>Zepto</span>
             </div>
           </div>
-          <div className={`${s.tile} ${s.tPeach}`} />
-          <div className={`${s.tile} ${s.tCream}`}>
-            <span className={s.tName}>Zepto</span>
-          </div>
-
         </div>
 
         <div className={s.visualCopy}>
@@ -86,7 +71,6 @@ export function SignInVisual({ role }: { role?: "candidate" | "founder" }) {
           </h2>
           <p className={s.visualSub}>{c.sub}</p>
         </div>
-
       </div>
     </aside>
   );
