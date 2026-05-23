@@ -11,66 +11,70 @@ const COPY = {
   },
   founder: {
     title: "Hire engineers who actually want in.",
-    sub: "Brief Mitra in two minutes. Receive intros with motivation and fit context attached.",
+    sub: "Brief Mitra in two minutes. Receive intros with fit context attached.",
   },
 };
+
+function StarShape() {
+  return (
+    <svg className={s.tStar} viewBox="0 0 40 40" fill="none" aria-hidden="true">
+      <line x1="20" y1="3" x2="20" y2="37" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/>
+      <line x1="3" y1="20" x2="37" y2="20" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/>
+      <line x1="6.5" y1="6.5" x2="33.5" y2="33.5" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/>
+      <line x1="33.5" y1="6.5" x2="6.5" y2="33.5" stroke="currentColor" strokeWidth="4" strokeLinecap="round"/>
+    </svg>
+  );
+}
 
 export function SignInVisual({ role }: { role?: "candidate" | "founder" }) {
   const c = COPY[role ?? "default"];
 
   return (
     <aside className={s.visualPanel} aria-hidden="true">
-      <div className={s.visualBlobA} />
-      <div className={s.visualBlobB} />
-
       <div className={s.visualInner}>
 
-        <div className={s.mockChat}>
-          {/* Header */}
-          <div className={s.mockHeader}>
-            <div className={s.mockHeaderAvatar}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                <path d="M5 19V9l7-3 7 3v10l-7 3-7-3Z" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/>
-                <path d="M12 6v14M5 9l7 3 7-3" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <div className={s.mockHeaderInfo}>
-              <span className={s.mockHeaderName}>Mitra</span>
-              <span className={s.mockHeaderSub}>AI Talent Agent · online</span>
-            </div>
-            <div className={s.mockHeaderDot} />
+        <div className={s.mosaic}>
+
+          {/* Row 1 */}
+          <div className={`${s.tile} ${s.tOrange}`} />
+          <div className={`${s.tile} ${s.tCream}`}>
+            <span className={s.tName}>Razorpay</span>
+          </div>
+          <div className={`${s.tile} ${s.tDark}`} />
+
+          {/* Row 2 */}
+          <div className={`${s.tile} ${s.tPeach}`}>
+            <div className={s.tCircle} />
+          </div>
+          <div className={`${s.tile} ${s.tDark}`}>
+            <span className={s.tNameLight}>Setu</span>
+          </div>
+          <div className={`${s.tile} ${s.tOrangeAlt}`}>
+            <div className={s.tHalf} />
           </div>
 
-          {/* Messages */}
-          <div className={s.mockBody}>
-            <div className={`${s.mockMsgIn} ${s.mockMsgFirst}`}>
-              Hi Priya! I&apos;ve gone through your background — 5 years building payments infra at Razorpay is exactly what early-stage fintechs are after. What kind of stage and team are you open to?
-            </div>
+          {/* Row 3 */}
+          <div className={`${s.tile} ${s.tCream}`}>
+            <span className={s.tName}>CRED</span>
+          </div>
+          <div className={`${s.tile} ${s.tOrange}`}>
+            <StarShape />
+          </div>
+          <div className={`${s.tile} ${s.tDark}`}>
+            <span className={s.tNameLight}>Groww</span>
+          </div>
 
-            <div className={s.mockMsgOut}>
-              Series A ideally. Strong eng culture, small team.
-            </div>
-
-            <div className={s.mockMsgIn}>
-              Found 3 strong matches. Top pick: Setu — infra lead role, founder responds fast, 94% fit on your profile. Want me to make the intro?
-            </div>
-
-            <div className={s.mockMatchCard}>
-              <div className={s.mockMatchLeft}>
-                <div className={s.mockMatchCo}>Setu</div>
-                <div className={s.mockMatchRole}>Infra Lead · Series B</div>
-              </div>
-              <div className={s.mockMatchScore}>
-                <span className={s.mockMatchPct}>94%</span>
-                <span className={s.mockMatchLabel}>fit</span>
-              </div>
-            </div>
-
-            <div className={s.mockActions}>
-              <div className={s.mockActionYes}>Yes, send the intro →</div>
-              <div className={s.mockActionGhost}>See all 3</div>
+          {/* Row 4 */}
+          <div className={`${s.tile} ${s.tDark}`}>
+            <div className={s.tDots}>
+              <span /><span /><span /><span />
             </div>
           </div>
+          <div className={`${s.tile} ${s.tPeach}`} />
+          <div className={`${s.tile} ${s.tCream}`}>
+            <span className={s.tName}>Zepto</span>
+          </div>
+
         </div>
 
         <div className={s.visualCopy}>
