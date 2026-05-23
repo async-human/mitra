@@ -144,12 +144,12 @@ export default async function SignInPage({ searchParams }: Props) {
             </p>
             {isFounder && (
               <p className={s.founderEmailNote}>
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true">
-                  <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.2" />
-                  <path d="M6.5 5v3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-                  <circle cx="6.5" cy="3.5" r="0.7" fill="currentColor" />
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none" style={{ flexShrink: 0 }} aria-hidden="true">
+                  <circle cx="5.5" cy="5.5" r="4.5" stroke="currentColor" strokeWidth="1.1" />
+                  <path d="M5.5 4v2.8" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+                  <circle cx="5.5" cy="3" r="0.6" fill="currentColor" />
                 </svg>
-                Use your <strong style={{ fontWeight: 600 }}>company or work email</strong> — personal addresses (Gmail, Yahoo, etc.) are not accepted.
+                Work or company email only — Gmail, Yahoo, etc. not accepted.
               </p>
             )}
           </div>
