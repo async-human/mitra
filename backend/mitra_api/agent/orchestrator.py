@@ -932,6 +932,52 @@ async def run_agent_turn(
                 f"Do NOT send or mention any previous intros unless the candidate brings them up."
             ),
         ))
+    elif known_signals and not transcript and known_signals.get("linkedin"):
+        # First-time candidate who provided their LinkedIn — give a rich profile acknowledgement.
+        name = known_signals.get("candidate_name", "")
+        first = name.split()[0] if name else ""
+        work_history: list[dict] = known_signals.get("work_history") or []
+        education = known_signals.get("education", "")
+        stack = known_signals.get("primary_stack") or []
+        years_exp = known_signals.get("years_experience")
+
+        work_lines = ""
+        if work_history:
+            parts = []
+            for w in work_history[:5]:
+                yr = f" ({w['years']}y)" if w.get("years") else ""
+                parts.append(f"{w['title']} at {w['company']}{yr}")
+            work_lines = "; ".join(parts)
+
+        profile_summary = ""
+        if work_lines:
+            profile_summary += f"Work history: {work_lines}. "
+        if education:
+            profile_summary += f"Education: {education}. "
+        if stack:
+            profile_summary += f"Tech stack: {', '.join(stack[:10])}. "
+        if years_exp:
+            profile_summary += f"Total experience: {years_exp} years."
+
+        msgs.append(ChatMessage(
+            role="system",
+            content=(
+                f"FIRST-TIME CANDIDATE WITH LINKEDIN PROFILE — {first or 'the candidate'} just shared their LinkedIn. "
+                f"You have read their full profile. Your opening message MUST:\n"
+                f"1. Greet them warmly by name{(' (' + first + ')') if first else ''}.\n"
+                f"2. Show you've genuinely read their profile — mention their specific roles, companies, "
+                f"tech stack, and education. Be specific and concrete, not generic. "
+                f"Reference actual company names and role titles from their history.\n"
+                f"3. Ask ONE focused question: what kind of role or challenge are they looking for next?\n\n"
+                f"Profile data to reference:\n{profile_summary}\n\n"
+                f"HARD RULES:\n"
+                f"- Do NOT ask them to repeat anything that is already in the profile above.\n"
+                f"- Do NOT say 'based on your LinkedIn' — just speak naturally as if you already know them.\n"
+                f"- Keep the opener to 3-4 sentences max. Be warm, not robotic."
+            ),
+        ))
+        log.info("[agent:%s] first-time LinkedIn candidate — rich profile greeting", whatsapp_sender_id)
+
     elif known_signals and not transcript:
         # Returning candidate with no transcript — signals survived Redis expiry (loaded from Postgres).
         name = known_signals.get("candidate_name", "")

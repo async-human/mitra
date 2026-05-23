@@ -156,6 +156,7 @@ def _map_linkdapi_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
     current_company = ""
     current_title   = ""
     previous_companies: list[str] = []
+    work_history: list[dict] = []
     total_months = 0
     tenure_list: list[int] = []
 
@@ -170,6 +171,11 @@ def _map_linkdapi_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
         if months:
             total_months += months
             tenure_list.append(months)
+        if company and title:
+            entry: dict = {"company": company, "title": title}
+            if months:
+                entry["years"] = round(months / 12, 1)
+            work_history.append(entry)
 
     for exp in full_positions:
         company = (exp.get("companyName") or exp.get("company") or "").strip()
@@ -178,6 +184,10 @@ def _map_linkdapi_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
             continue
         key = company.lower()
         if key in seen_companies:
+            months = _exp_months(exp)
+            if months:
+                total_months += months
+                tenure_list.append(months)
             continue
         seen_companies.add(key)
         if not current_company:
@@ -189,6 +199,12 @@ def _map_linkdapi_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
         if months:
             total_months += months
             tenure_list.append(months)
+        if title:
+            entry = {"company": company, "title": title}
+            if months:
+                entry["years"] = round(months / 12, 1)
+            if not any(h["company"] == company for h in work_history):
+                work_history.append(entry)
 
     if current_company:
         signals["current_company"] = current_company
@@ -196,6 +212,8 @@ def _map_linkdapi_to_signals(data: dict[str, Any], url: str) -> dict[str, Any]:
         signals["current_role"] = current_title
     if previous_companies:
         signals["previous_companies"] = previous_companies[:8]
+    if work_history:
+        signals["work_history"] = work_history[:8]
     if total_months > 0:
         signals["years_experience"] = round(total_months / 12, 1)
 
