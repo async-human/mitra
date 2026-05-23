@@ -26,50 +26,76 @@ function StarShape() {
   );
 }
 
+function AbstractAccents() {
+  return (
+    <>
+      <span className={`${s.absShape} ${s.absRing}`} />
+      <span className={`${s.absShape} ${s.absRingSm}`} />
+      <span className={`${s.absShape} ${s.absDots}`}>
+        <span /><span /><span /><span />
+      </span>
+      <span className={`${s.absShape} ${s.absArc}`} />
+      <span className={`${s.absShape} ${s.absPill}`} />
+      <span className={`${s.absShape} ${s.absCross}`} />
+      <span className={`${s.absShape} ${s.absBlob}`} />
+      <span className={`${s.absShape} ${s.absBar}`} />
+      <span className={`${s.absShape} ${s.absDiamond}`} />
+    </>
+  );
+}
+
 export function SignInVisual({ role }: { role?: "candidate" | "founder" }) {
   const c = COPY[role ?? "default"];
 
   return (
     <aside className={s.visualPanel} aria-hidden="true">
-      <div className={s.visualInner}>
-        <div className={s.mosaicWrap}>
+      <div className={s.visualCanvas}>
+        <AbstractAccents />
+
+        <div className={s.visualComposition}>
           <div className={s.mosaic}>
             <div className={`${s.tile} ${s.tOrange}`} />
             <div className={`${s.tile} ${s.tCream}`}>
-              <span className={s.tName}>Razorpay</span>
+              <div className={s.tBars}>
+                <span /><span /><span />
+              </div>
             </div>
-            <div className={`${s.tile} ${s.tDark}`} />
+            <div className={`${s.tile} ${s.tDark}`}>
+              <div className={s.tGrid}>
+                <span /><span /><span /><span />
+              </div>
+            </div>
 
             <div className={`${s.tile} ${s.tPeach}`}>
               <div className={s.tCircle} />
             </div>
             <div className={`${s.tile} ${s.tDark}`}>
-              <span className={s.tNameLight}>Setu</span>
+              <div className={s.tWave} />
             </div>
             <div className={`${s.tile} ${s.tOrangeAlt}`}>
               <div className={s.tHalf} />
             </div>
 
             <div className={`${s.tile} ${s.tCream}`}>
-              <span className={s.tName}>CRED</span>
+              <div className={s.tBracket} />
             </div>
             <div className={`${s.tile} ${s.tOrange}`}>
               <StarShape />
             </div>
-            <div className={`${s.tile} ${s.tCream}`}>
-              <span className={s.tName}>Zepto</span>
+            <div className={`${s.tile} ${s.tPeach}`}>
+              <div className={s.tRingFill} />
             </div>
           </div>
-        </div>
 
-        <div className={s.visualCopy}>
-          <h2 className={s.visualTitle}>
-            {c.title.split(" ").slice(0, -1).join(" ")}{" "}
-            <span className={s.visualTitleAccent}>
-              {c.title.split(" ").slice(-1)[0]}
-            </span>
-          </h2>
-          <p className={s.visualSub}>{c.sub}</p>
+          <div className={s.visualCopy}>
+            <h2 className={s.visualTitle}>
+              {c.title.split(" ").slice(0, -1).join(" ")}{" "}
+              <span className={s.visualTitleAccent}>
+                {c.title.split(" ").slice(-1)[0]}
+              </span>
+            </h2>
+            <p className={s.visualSub}>{c.sub}</p>
+          </div>
         </div>
       </div>
     </aside>
