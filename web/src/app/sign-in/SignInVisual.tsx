@@ -49,6 +49,15 @@ export function SignInVisual({ role }: { role?: "candidate" | "founder" }) {
 
   return (
     <aside className={s.visualPanel} aria-hidden="true">
+
+      {/* Corner accents — positioned relative to the panel edges */}
+      <span className={s.cornerTL} />
+      <span className={s.cornerTR} />
+      <span className={s.cornerTRInner} />
+      <span className={s.cornerBL} />
+      <span className={s.cornerBR} />
+      <span className={s.cornerBRInner} />
+
       <div className={s.visualCanvas}>
         <AbstractAccents />
 

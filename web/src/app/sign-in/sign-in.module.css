@@ -465,6 +465,86 @@
   border-radius: 3px;
 }
 
+/* ── Panel corner accents ───────────────────────────────────── */
+
+/* Top-left: 4×4 dot grid */
+.cornerTL {
+  position: absolute;
+  top: 22px;
+  left: 22px;
+  width: 44px;
+  height: 44px;
+  background-image: radial-gradient(circle, rgba(14, 11, 9, 0.14) 1.4px, transparent 1.4px);
+  background-size: 11px 11px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Top-right: large arc peeking from corner */
+.cornerTR {
+  position: absolute;
+  top: -48px;
+  right: -48px;
+  width: 148px;
+  height: 148px;
+  border: 2px solid rgba(200, 66, 26, 0.2);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Top-right: inner concentric arc */
+.cornerTRInner {
+  position: absolute;
+  top: -24px;
+  right: -24px;
+  width: 82px;
+  height: 82px;
+  border: 1.5px solid rgba(200, 66, 26, 0.1);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Bottom-left: soft gradient bloom */
+.cornerBL {
+  position: absolute;
+  bottom: -50px;
+  left: -50px;
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 62% 62%, rgba(253, 232, 216, 0.75), transparent 62%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Bottom-right: orange arc */
+.cornerBR {
+  position: absolute;
+  bottom: -42px;
+  right: -42px;
+  width: 130px;
+  height: 130px;
+  border: 2px solid rgba(232, 120, 64, 0.22);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Bottom-right: inner arc */
+.cornerBRInner {
+  position: absolute;
+  bottom: -22px;
+  right: -22px;
+  width: 72px;
+  height: 72px;
+  border: 1.5px solid rgba(232, 120, 64, 0.12);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* ── Mosaic grid — compact block with deliberate whitespace around it ─ */
 
 .mosaic {
@@ -643,6 +723,26 @@
   .absArc,
   .absBar {
     display: none;
+  }
+
+  .cornerBL,
+  .cornerBR,
+  .cornerBRInner {
+    display: none;
+  }
+
+  .cornerTR {
+    width: 100px;
+    height: 100px;
+    top: -32px;
+    right: -32px;
+  }
+
+  .cornerTRInner {
+    width: 56px;
+    height: 56px;
+    top: -16px;
+    right: -16px;
   }
 
   .visualCopy {
