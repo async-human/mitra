@@ -332,6 +332,49 @@ async def candidate_linkedin_enrich(
     )
 
 
+class CandidateRegisterRequest(BaseModel):
+    session_id: str = Field(..., min_length=1, max_length=200)
+    user_name: str | None = Field(default=None, max_length=100)
+
+
+class CandidateRegisterResponse(BaseModel):
+    ok: bool
+    created: bool = False
+
+
+@router.post("/register", response_model=CandidateRegisterResponse)
+async def register_candidate(
+    body: CandidateRegisterRequest,
+    settings: Settings = Depends(get_settings),
+) -> CandidateRegisterResponse:
+    """
+    Record a web candidate on OAuth sign-in (before chat or resume upload).
+    Uses phone=web:{email} and mirrors email into candidates.email.
+    """
+    if not settings.mitra_database_url:
+        return CandidateRegisterResponse(ok=True, created=False)
+
+    email = body.session_id.strip().lower()
+    if "@" not in email:
+        return CandidateRegisterResponse(ok=False, created=False)
+
+    from mitra_api.tools.candidates import register_web_candidate
+
+    factory = get_session_factory()
+    async with factory() as db:
+        try:
+            created = await register_web_candidate(
+                email,
+                user_name=body.user_name,
+                session=db,
+            )
+        except Exception:
+            log.warning("candidate register failed for %s (non-critical)", email, exc_info=True)
+            return CandidateRegisterResponse(ok=False, created=False)
+
+    return CandidateRegisterResponse(ok=True, created=created)
+
+
 class QuotaStatusResponse(BaseModel):
     quota_exhausted: bool
 

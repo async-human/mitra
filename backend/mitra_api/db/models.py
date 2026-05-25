@@ -37,7 +37,8 @@ class Candidate(Base):
     __tablename__ = "candidates"
 
     id:              Mapped[int]      = mapped_column(Integer, primary_key=True, autoincrement=True)
-    phone:           Mapped[str]      = mapped_column(String(32),  unique=True, nullable=False, index=True)
+    phone:           Mapped[str]      = mapped_column(String(320), unique=True, nullable=False, index=True)
+    email:           Mapped[str|None] = mapped_column(String(320), index=True)  # web users: same as phone without web:
     name:            Mapped[str|None] = mapped_column(String(200))
     current_role:    Mapped[str|None] = mapped_column(String(200))
     current_company: Mapped[str|None] = mapped_column(String(200))

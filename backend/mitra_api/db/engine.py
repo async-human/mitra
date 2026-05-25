@@ -193,6 +193,12 @@ async def run_schema_migrations() -> None:
             created_at    TIMESTAMPTZ DEFAULT NOW()
         )""",
         "CREATE INDEX IF NOT EXISTS ams_subject_idx ON agent_memory_snapshots(subject_type, subject_id)",
+        # candidates.email — explicit email for web sign-ins (phone holds web:{email})
+        "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS email VARCHAR(320)",
+        "ALTER TABLE candidates ALTER COLUMN phone TYPE VARCHAR(320)",
+        "CREATE INDEX IF NOT EXISTS ix_candidates_email ON candidates(email) WHERE email IS NOT NULL",
+        """UPDATE candidates SET email = LOWER(REPLACE(phone, 'web:', ''))
+           WHERE phone LIKE 'web:%' AND email IS NULL""",
     ]
     engine = _engine()
     async with engine.begin() as conn:

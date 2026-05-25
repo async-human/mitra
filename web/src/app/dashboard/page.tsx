@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { registerCandidateSession } from "@/lib/candidateApi";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import { Logo } from "@/components/Logo";
 import type { Metadata } from "next";
@@ -23,6 +24,9 @@ export default async function DashboardPage() {
   if (!session?.user) redirect("/sign-in");
 
   const user = session.user;
+  if (user.email) {
+    await registerCandidateSession(user.email, user.name);
+  }
 
   return (
     <div className="dash-root">

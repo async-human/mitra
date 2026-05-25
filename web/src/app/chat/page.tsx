@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { registerCandidateSession } from "@/lib/candidateApi";
 import { MitraChat } from "./MitraChat";
 import { isWhitelisted } from "@/lib/quota";
 
@@ -89,6 +90,7 @@ export default async function ChatPage({ searchParams }: Props) {
   if (!session?.user) redirect("/sign-in");
 
   const email = session.user.email!;
+  await registerCandidateSession(email, session.user.name);
   const quotaExhausted = await checkCandidateQuota(email);
   if (quotaExhausted) {
     return <QuotaExceededView email={email} />;

@@ -41,6 +41,11 @@ async def upsert_candidate(phone: str, *, session: AsyncSession) -> Candidate:
         await session.flush()  # get the id without committing
         log.info("New candidate created: %s", phone)
 
+    if phone.startswith("web:"):
+        email_val = phone.removeprefix("web:").strip().lower()
+        if "@" in email_val:
+            candidate.email = email_val
+
     return candidate
 
 
@@ -89,6 +94,30 @@ async def persist_signals(
 
     await session.commit()
     log.debug("Persisted %d signals for %s", len(signals), phone)
+
+
+async def register_web_candidate(
+    email: str,
+    *,
+    user_name: str | None = None,
+    session: AsyncSession,
+) -> bool:
+    """
+    Upsert a web candidate on OAuth sign-in (before first chat).
+    Returns True if a new row was created.
+    """
+    normalized = email.strip().lower()
+    sid = f"web:{normalized}"
+
+    result = await session.execute(select(Candidate).where(Candidate.phone == sid))
+    was_new = result.scalar_one_or_none() is None
+
+    signals: dict[str, Any] = {"email": normalized}
+    if user_name and user_name.strip():
+        signals["candidate_name"] = user_name.strip()
+
+    await persist_signals(sid, signals, session=session)
+    return was_new
 
 
 async def get_signals(phone: str, *, session: AsyncSession) -> dict[str, Any]:
