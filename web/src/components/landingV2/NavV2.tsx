@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
+import { FundedStartupsTrigger } from "./FundedStartupsComingSoon";
 import s from "./landing-v2.module.css";
 
 const CTA = {
@@ -58,7 +59,9 @@ export function NavV2({ audience, onAudienceChange }: NavV2Props) {
 
         <div className={s.navRight}>
           <ul className={s.navLinks}>
-            <li><Link href="/startups">Funded startups</Link></li>
+            <li>
+              <FundedStartupsTrigger variant="nav">Funded startups</FundedStartupsTrigger>
+            </li>
             <li><a href="#how-it-works">How it works</a></li>
             <li><a href="#roadmap">Roadmap</a></li>
             <li><a href="#faq">FAQ</a></li>

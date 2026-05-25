@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { FundedStartupsTrigger } from "./FundedStartupsComingSoon";
 import s from "./landing-v2.module.css";
 
 export function FooterV2() {
@@ -7,7 +10,9 @@ export function FooterV2() {
       <div className={s.footerContent}>
         <div className={s.footerTop}>
           <ul className={s.footerLinks}>
-            <li><Link href="/startups">Funded startups</Link></li>
+            <li>
+              <FundedStartupsTrigger variant="footer">Funded startups</FundedStartupsTrigger>
+            </li>
             <li><a href="#how-it-works">How it works</a></li>
             <li><a href="#for-companies">For companies</a></li>
             <li><a href="#faq">FAQ</a></li>

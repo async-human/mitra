@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, Fragment } from "react";
 import Link from "next/link";
+import { FundedStartupsTrigger } from "./FundedStartupsComingSoon";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
 import { DotGrid } from "./DotGrid";
@@ -135,9 +136,9 @@ export function HeroV3({ audience }: { audience: V2Audience }) {
                 {c.cta.label}
               </Link>
             )}
-            <Link href="/startups" className={s.heroSecondaryCta}>
+            <FundedStartupsTrigger variant="hero">
               Explore funded startups →
-            </Link>
+            </FundedStartupsTrigger>
             <a href="#how-it-works" className={s.heroSecondaryCta}>
               See how it works →
             </a>

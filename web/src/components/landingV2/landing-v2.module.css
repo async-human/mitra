@@ -4206,3 +4206,261 @@ details[open] .faqIcon {
   .hiwV3MatchBarFill,
   .hiwV3RankBarFill { width: var(--pct, 0%); }
 }
+
+/* ── Funded startups — coming soon ─────────────────────────── */
+
+.csTriggerWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.csNavLink,
+.csFooterLink {
+  font: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.csNavLink {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ink2);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.csNavLink:hover { color: var(--ink); }
+
+.csFooterLink {
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.45);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.csFooterLink:hover { color: rgba(255,255,255,0.9); }
+
+.csTriggerWrap .heroSecondaryCta {
+  font: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+@keyframes csFloatBadge {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-4px) translateX(1px); }
+}
+
+@keyframes csBadgeShimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.72; }
+}
+
+.csFloatBadge {
+  position: absolute;
+  top: -0.72rem;
+  right: -0.35rem;
+  z-index: 2;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(200, 66, 26, 0.22);
+  padding: 0.18rem 0.48rem;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(200, 66, 26, 0.12);
+  animation: csFloatBadge 3.2s ease-in-out infinite, csBadgeShimmer 3.2s ease-in-out infinite;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.csTriggerWrap--footer .csFloatBadge {
+  color: #fff;
+  background: rgba(200, 66, 26, 0.92);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+}
+
+.csTriggerWrap--hero .csFloatBadge {
+  top: -0.85rem;
+  right: -0.15rem;
+}
+
+@keyframes csOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes csModalIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.csOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(14, 11, 9, 0.52);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: csOverlayIn 0.22s ease-out;
+}
+
+.csModal {
+  position: relative;
+  width: min(100%, 32rem);
+  max-height: min(90vh, 42rem);
+  overflow: auto;
+  padding: clamp(1.75rem, 4vw, 2.25rem);
+  border-radius: 1.25rem;
+  background: var(--bgCard);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 24px 64px rgba(14, 11, 9, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+  animation: csModalIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.csModalGlow {
+  position: absolute;
+  top: -3rem;
+  right: -2rem;
+  width: 10rem;
+  height: 10rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(200, 66, 26, 0.14) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.csClose {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--ink2);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.csClose:hover {
+  color: var(--ink);
+  background: var(--border);
+}
+
+.csModalEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.csModalEyebrowDot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: csBadgeShimmer 2s ease-in-out infinite;
+}
+
+.csModalTitle {
+  margin: 0 0 1rem;
+  font-size: clamp(1.55rem, 4vw, 1.95rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  color: var(--ink);
+}
+
+.csModalTitle em {
+  font-style: normal;
+  color: var(--ink2);
+}
+
+.csModalBody {
+  margin: 0 0 1.25rem;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--ink2);
+}
+
+.csModalList {
+  margin: 0 0 1.75rem;
+  padding: 0 0 0 1.1rem;
+  display: grid;
+  gap: 0.55rem;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.csModalList li::marker {
+  color: var(--accent);
+}
+
+.csModalActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.csModalPrimary {
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--bg);
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.12s;
+}
+
+.csModalPrimary:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.csModalSecondary {
+  text-align: center;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ink2);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.csModalSecondary:hover { color: var(--ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .csFloatBadge { animation: none; }
+  .csOverlay,
+  .csModal { animation: none; }
+  .csModalEyebrowDot { animation: none; }
+}
