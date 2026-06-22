@@ -5,6 +5,7 @@ import Link from "next/link";
 import { whatsAppHrefFor } from "@/lib/whatsapp";
 import type { V2Audience } from "./LandingV2";
 import { FundedStartupsTrigger } from "./FundedStartupsComingSoon";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import s from "./landing-v2.module.css";
 
 const CTA = {
@@ -66,6 +67,7 @@ export function NavV2({ audience, onAudienceChange }: NavV2Props) {
             <li><a href="#roadmap">Roadmap</a></li>
             <li><a href="#faq">FAQ</a></li>
           </ul>
+          <ThemeToggle />
           <Link href="/sign-in" className={s.navSignIn}>Sign in</Link>
           {CTA[audience].external ? (
             <a href={CTA[audience].href} target="_blank" rel="noopener noreferrer" className={s.navCtaBtn}>
