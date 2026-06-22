@@ -4495,3 +4495,370 @@ details[open] .faqIcon {
   .csModal { animation: none; }
   .csModalEyebrowDot { animation: none; }
 }
+
+/* ===== AUTO-GENERATED DARK THEME (from data-audience="company") ===== */
+
+[data-theme="dark"] .root .heroDotFade {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--bg) 50%, transparent) 50%,
+    var(--bg) 85%
+  );
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar::before {
+  mix-blend-mode: screen;
+  opacity: 0.42;
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar::after {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 220, 190, 0.35) 48%,
+    transparent 100%
+  );
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar:nth-child(1) {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar:nth-child(1)::before {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    transparent 100%
+  );
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar:nth-child(2) {
+  background-color: color-mix(in srgb, var(--accent) 10%, #1a1410);
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar:nth-child(2)::before {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 160, 100, 0.35) 50%,
+    transparent 100%
+  );
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar:nth-child(3) {
+  background-color: color-mix(in srgb, var(--accent) 22%, #221810);
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar:nth-child(3)::before {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 130, 70, 0.45) 50%,
+    transparent 100%
+  );
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar:nth-child(4) {
+  background-color: color-mix(in srgb, var(--accent) 38%, #2e1c12);
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar:nth-child(4)::before {
+  background-image: linear-gradient(
+    90deg,
+    rgba(60, 30, 15, 0.5) 0%,
+    rgba(255, 150, 90, 0.55) 50%,
+    rgba(50, 25, 12, 0.5) 100%
+  );
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar:nth-child(5) {
+  background-color: color-mix(in srgb, var(--accent) 62%, #4a2818);
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar:nth-child(5)::before {
+  background-image: linear-gradient(
+    90deg,
+    rgba(40, 18, 8, 0.55) 0%,
+    rgba(255, 170, 110, 0.65) 50%,
+    rgba(35, 15, 6, 0.55) 100%
+  );
+}
+
+[data-theme="dark"] .heroAccent .heroAccentBar:nth-child(6) {
+  background-color: var(--accent);
+  background-image: linear-gradient(
+    90deg,
+    #3d1a0c 0%,
+    var(--accent) 40%,
+    #d07038 55%,
+    var(--accent) 70%,
+    #2a1208 100%
+  );
+  background-size: 200% 100%;
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.06) inset;
+  animation-name: heroBarReveal, heroBarPulse, heroBarGradient;
+  animation-duration: 0.75s, 5.5s, 8s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1), ease-in-out, ease-in-out;
+  animation-fill-mode: both, none, none;
+  animation-iteration-count: 1, infinite, infinite;
+  animation-delay: 225ms, 3s, 1.5s;
+}
+
+[data-theme="dark"] .root .memoryCard:hover {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.09), 0 18px 56px rgba(0,0,0,0.5);
+}
+
+[data-theme="dark"] .root .memoryItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .root .roadmapCard {
+  background: var(--bgCard);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .root .roadmapPhilosophy {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+[data-theme="dark"] .root .roadmapBadge--next,
+[data-theme="dark"] .root .roadmapBadge--vision {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .root .roadmapTag--next,
+[data-theme="dark"] .root .roadmapTag--vision {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .root {
+  --bg:     #0F0A07;
+  --ink:    #F2EDE7;
+  --ink2:   rgba(242,237,231,0.62);
+  --bgCard: rgba(255,255,255,0.05);
+  --border: rgba(255,255,255,0.11);
+}
+
+[data-theme="dark"] .root .hiwStepBody,
+[data-theme="dark"] .root .heroSub,
+[data-theme="dark"] .root .problemRotorDetail,
+[data-theme="dark"] .root .problemCardStatLabel {
+  color: var(--ink2);
+}
+
+[data-theme="dark"] .root .hiwStepTitle,
+[data-theme="dark"] .root .problemRotorHook {
+  color: var(--ink);
+}
+
+[data-theme="dark"] .root .sectionTitle {
+  max-width: 620px;
+}
+
+[data-theme="dark"] .root .navToggle {
+  background: rgba(255,255,255,0.1);
+}
+
+[data-theme="dark"] .root .nav {
+  background: #0F0A07;
+  border-bottom-color: rgba(255,255,255,0.09);
+}
+
+[data-theme="dark"] .root .navLogoMark {
+  background: var(--ink);
+  color: #0F0A07;
+}
+
+[data-theme="dark"] .root .navSignIn {
+  color: var(--ink);
+  border-color: rgba(255,255,255,0.18);
+}
+
+[data-theme="dark"] .root .navSignIn:hover {
+  border-color: rgba(255,255,255,0.5);
+}
+
+[data-theme="dark"] .root .proof {
+  background: rgba(255,255,255,0.05);
+  border-top: 1px solid rgba(255,255,255,0.09);
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+}
+
+[data-theme="dark"] .root .proofStatNum { color: #F2EDE7; }
+
+[data-theme="dark"] .root .proofStatLabel { color: rgba(242,237,231,0.48); }
+
+[data-theme="dark"] .root .proofCta {
+  background: #F2EDE7;
+  color: #0F0A07;
+}
+
+[data-theme="dark"] .root .memoryCard {
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.4);
+}
+
+[data-theme="dark"] .root .hiwStep {
+  background: var(--bgCard);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .root .faqItem {
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .root .problemSection {
+  background: color-mix(in srgb, var(--accent) 4%, #0F0A07);
+}
+
+[data-theme="dark"] .root .problemCard:hover {
+  box-shadow: 0 8px 40px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+[data-theme="dark"] .root .problemPivot {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+[data-theme="dark"] .root .problemRotor {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .root .fqAside {
+  background: color-mix(in srgb, var(--accent) 10%, rgba(255, 255, 255, 0.04));
+  border-color: color-mix(in srgb, var(--accent) 22%, rgba(255, 255, 255, 0.08));
+}
+
+[data-theme="dark"] .root .fqTag {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .root .philosophySub {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+[data-theme="dark"] .root .philosophyCardBody {
+  color: rgba(255, 255, 255, 0.52);
+}
+
+[data-theme="dark"] .root .navScrolled {
+  background: rgba(15, 10, 7, 0.88);
+}
+
+[data-theme="dark"] .root .heroHighlight {
+  background: rgba(200, 66, 26, 0.16);
+  color: var(--ink);
+}
+
+[data-theme="dark"] .root .proofCompaniesRow {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .root .hiwV3Tab {
+  background: #1a1410;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .root .hiwV3TabActive {
+  background: color-mix(in srgb, var(--accent) 8%, #1a1410);
+  border-color: color-mix(in srgb, var(--accent) 35%, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .root .hiwV3Panel {
+  background: linear-gradient(165deg, #221810 0%, #1a1410 55%, #15100c 100%);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 20px 56px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .root .hiwV3PanelChrome {
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+
+[data-theme="dark"] .root .hiwV3ChatBubbleIn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+}
+
+[data-theme="dark"] .root .hiwV3ChatBubbleOut {
+  background: color-mix(in srgb, var(--accent) 18%, #1a1410);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+[data-theme="dark"] .root .hiwV3Signal {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .root .hiwV3MatchHeader {
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+
+[data-theme="dark"] .root .hiwV3MatchBarTrack {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .root .hiwV3IntroCard {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .root .hiwV3IntroMsg {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .root .hiwV3RankRow {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .root .hiwV3RankBarTrack {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* --- Manual patches: light surfaces with no company counterpart --- */
+
+/* Slightly brighter accent for links/CTAs on the dark page */
+[data-theme="dark"] .root { --accent: #E8623A; }
+
+/* HeroV3 audience chip */
+[data-theme="dark"] .root .chip { background: rgba(255, 255, 255, 0.06); }
+
+/* HowItWorks candidate intro reply bubble (candidate-only, light by default) */
+[data-theme="dark"] .root .hiwV3IntroReply {
+  background: color-mix(in srgb, var(--accent) 14%, #1a1410);
+}
+
+/* Funded-startups modal — dark surface tokens */
+[data-theme="dark"] .csOverlay {
+  --cs-accent: #E8623A;
+  --cs-ink:    #F3EEE7;
+  --cs-ink2:   rgba(243, 238, 231, 0.60);
+  --cs-bg:     #14100D;
+  --cs-card:   #1B1611;
+  --cs-border: rgba(255, 255, 255, 0.11);
+}
+[data-theme="dark"] .csClose:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+[data-theme="dark"] .csFloatBadge {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(232, 98, 58, 0.40);
+  color: #F3EEE7;
+}
+
+/* Accessibility: visible focus ring across the landing page */
+.root a:focus-visible,
+.root button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
